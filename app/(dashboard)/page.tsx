@@ -1,10 +1,25 @@
-export default function DashboardPage() {
+import { createClient } from "@/lib/supabase/server";
+import { MasterTaskList } from "@/components/dashboard/MasterTaskList";
+import type { TaskWithProject } from "@/lib/types/database";
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  const [{ data: tasks }, { data: projects }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("*, projects(id, name, color)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("projects")
+      .select("id, name")
+      .order("name", { ascending: true }),
+  ]);
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold">Command Center</h1>
-      <p className="mt-2 text-muted-foreground">
-        Welcome to your operational command center.
-      </p>
-    </div>
+    <MasterTaskList
+      initialTasks={(tasks as TaskWithProject[]) ?? []}
+      projects={projects ?? []}
+    />
   );
 }
