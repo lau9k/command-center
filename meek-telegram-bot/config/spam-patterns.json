@@ -1,0 +1,31 @@
+{
+  "keywords": [
+    "airdrop",
+    "free tokens",
+    "claim now",
+    "guaranteed profit",
+    "100x",
+    "1000x",
+    "send me",
+    "dm me for",
+    "investment opportunity",
+    "passive income",
+    "make money fast",
+    "casino",
+    "betting",
+    "click here",
+    "act now",
+    "limited time",
+    "presale",
+    "whitelist spot"
+  ],
+  "patterns": [
+    "t\\.me/\\w+",
+    "bit\\.ly/\\w+",
+    "tinyurl\\.com/\\w+",
+    "discord\\.gg/\\w+"
+  ],
+  "newMemberLinkBlockDurationMinutes": 60,
+  "maxCapsPercentage": 70,
+  "minMessageLengthForCapsCheck": 20
+}

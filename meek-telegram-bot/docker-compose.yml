@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  meek-bot:
+    build: .
+    container_name: meek-telegram-bot
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+      - NODE_ENV=production
+    volumes:
+      - ./config:/app/config
+      - bot-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  bot-data:
