@@ -1,0 +1,12 @@
+{
+  "welcome": {
+    "message": "Welcome to MEEK, {name}! We're glad to have you here. Check out the pinned messages for community guidelines and useful links. Feel free to introduce yourself!"
+  },
+  "engagement": {
+    "gm": "GM MEEK fam! Rise and grind. What are you working on today?",
+    "milestone_100": "We just hit {count} members! Thank you all for being part of the MEEK community!",
+    "milestone_500": "500 members strong! MEEK keeps growing. LFG!",
+    "milestone_1000": "1000 members! The MEEK community is unstoppable!",
+    "weekly_recap": "Another great week for MEEK! Stay active, stay engaged, and keep building together."
+  }
+}

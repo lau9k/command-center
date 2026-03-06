@@ -1,0 +1,21 @@
+{
+  "engagementMessages": [
+    {
+      "id": "daily-gm",
+      "template": "gm",
+      "cronHour": 9,
+      "cronMinute": 0,
+      "enabled": true
+    },
+    {
+      "id": "weekly-recap",
+      "template": "weekly_recap",
+      "cronDayOfWeek": 0,
+      "cronHour": 18,
+      "cronMinute": 0,
+      "enabled": true
+    }
+  ],
+  "milestoneCheckIntervalMinutes": 60,
+  "timezone": "UTC"
+}
