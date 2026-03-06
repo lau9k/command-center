@@ -7,6 +7,7 @@ import {
   DollarSign,
   FileText,
   FolderOpen,
+  LayoutDashboard,
   Settings,
   Upload,
 } from "lucide-react";
@@ -16,7 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import type { Project } from "@/lib/types/project";
 
 const modules = [
-  { label: "Master Tasks", href: "/", icon: CheckSquare },
+  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Master Tasks", href: "/tasks", icon: CheckSquare },
   { label: "Import", href: "/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Content", href: "/content", icon: FileText },
