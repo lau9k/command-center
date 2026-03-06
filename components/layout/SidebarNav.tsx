@@ -8,6 +8,7 @@ import {
   FileText,
   FolderOpen,
   Settings,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,6 +17,7 @@ import type { Project } from "@/lib/types/project";
 
 const modules = [
   { label: "Master Tasks", href: "/", icon: CheckSquare },
+  { label: "Import", href: "/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
