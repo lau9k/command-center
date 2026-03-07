@@ -110,28 +110,28 @@ function DataTable<T>({
   }
 
   function getSortIcon(colId: string) {
-    if (sortColumn !== colId) return <ArrowUpDown className="size-4 text-[#666666]" />
+    if (sortColumn !== colId) return <ArrowUpDown className="size-4 text-text-muted" />
     return sortDirection === "asc" ? (
-      <ArrowUp className="size-4 text-[#FAFAFA]" />
+      <ArrowUp className="size-4 text-foreground" />
     ) : (
-      <ArrowDown className="size-4 text-[#FAFAFA]" />
+      <ArrowDown className="size-4 text-foreground" />
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-12 text-sm text-[#A0A0A0]">
+      <div className="flex items-center justify-center rounded-lg border border-border bg-card p-12 text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     )
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-[12px] border border-[#2A2A2A]", className)}>
+    <div className={cn("overflow-hidden rounded-lg border border-border", className)}>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#2A2A2A] bg-[#0A0A0A]">
+            <tr className="border-b border-border bg-background">
               {selectable && (
                 <th className="w-12 px-4 py-3">
                   <Checkbox
@@ -144,8 +144,8 @@ function DataTable<T>({
                 <th
                   key={col.id}
                   className={cn(
-                    "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]",
-                    col.sortable && "cursor-pointer select-none hover:text-[#FAFAFA]"
+                    "px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground",
+                    col.sortable && "cursor-pointer select-none hover:text-foreground"
                   )}
                   onClick={col.sortable ? () => handleSort(col.id) : undefined}
                 >
@@ -163,10 +163,10 @@ function DataTable<T>({
                 key={rowKey ? rowKey(row, page * pageSize + idx) : idx}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={cn(
-                  "border-b border-[#2A2A2A] bg-[#141414] transition-colors last:border-b-0",
+                  "border-b border-border bg-card transition-colors last:border-b-0",
                   onRowClick && "cursor-pointer",
-                  "hover:bg-[#1E1E1E]",
-                  selected.has(page * pageSize + idx) && "bg-[#1E1E1E]"
+                  "hover:bg-accent",
+                  selected.has(page * pageSize + idx) && "bg-accent"
                 )}
               >
                 {selectable && (
@@ -178,7 +178,7 @@ function DataTable<T>({
                   </td>
                 )}
                 {columns.map((col) => (
-                  <td key={col.id} className="px-4 py-3 text-[#FAFAFA]">
+                  <td key={col.id} className="px-4 py-3 text-foreground">
                     {col.cell
                       ? col.cell(row)
                       : col.accessorKey
@@ -194,8 +194,8 @@ function DataTable<T>({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-[#2A2A2A] bg-[#0A0A0A] px-4 py-3">
-          <span className="text-xs text-[#666666]">
+        <div className="flex items-center justify-between border-t border-border bg-background px-4 py-3">
+          <span className="text-xs text-text-muted">
             Page {page + 1} of {totalPages}
           </span>
           <div className="flex items-center gap-1">
@@ -204,7 +204,7 @@ function DataTable<T>({
               size="icon-xs"
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
-              className="text-[#A0A0A0]"
+              className="text-muted-foreground"
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -213,7 +213,7 @@ function DataTable<T>({
               size="icon-xs"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
-              className="text-[#A0A0A0]"
+              className="text-muted-foreground"
             >
               <ChevronRight className="size-4" />
             </Button>

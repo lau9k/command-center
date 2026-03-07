@@ -13,8 +13,8 @@ export default async function ContentQueuePage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#FAFAFA]">Content Queue</h1>
-        <p className="mt-1 text-sm text-[#A0A0A0]">
+        <h1 className="text-2xl font-semibold text-foreground">Content Queue</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Manage your content pipeline with drag-and-drop
         </p>
       </div>

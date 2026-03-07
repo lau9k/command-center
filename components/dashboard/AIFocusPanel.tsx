@@ -18,7 +18,7 @@ export function AIFocusPanel() {
         ) : (
           <ChevronDown className="size-4 text-[#A855F7]" />
         )}
-        <h2 className="text-lg font-semibold text-[#FAFAFA]">AI Suggestions</h2>
+        <h2 className="text-lg font-semibold text-foreground">AI Suggestions</h2>
       </button>
       {!collapsed && (
         <div className="mt-3">

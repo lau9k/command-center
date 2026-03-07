@@ -48,12 +48,12 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
         : "#22C55E";
 
   return (
-    <div className="flex flex-col gap-4 rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-[#FAFAFA]">{debt.name}</h3>
-          <p className="text-xs text-[#A0A0A0]">{debt.lender ?? debt.type}</p>
+          <h3 className="text-sm font-semibold text-foreground">{debt.name}</h3>
+          <p className="text-xs text-muted-foreground">{debt.lender ?? debt.type}</p>
         </div>
         <span
           className={cn(
@@ -74,7 +74,7 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
         <p className="text-2xl font-bold text-[#EF4444]">
           {formatCurrencyFull(Number(debt.balance))}
         </p>
-        <p className="text-xs text-[#A0A0A0]">
+        <p className="text-xs text-muted-foreground">
           of {formatCurrencyFull(Number(debt.principal))} principal
         </p>
       </div>
@@ -82,12 +82,12 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
       {/* Utilization bar */}
       <div>
         <div className="mb-1 flex items-center justify-between text-xs">
-          <span className="text-[#A0A0A0]">Utilization</span>
+          <span className="text-muted-foreground">Utilization</span>
           <span style={{ color: utilizationColor }}>
             {utilizationPct.toFixed(1)}%
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#2A2A2A]">
+        <div className="h-2 overflow-hidden rounded-full bg-border">
           <div
             className="h-full rounded-full transition-all"
             style={{
@@ -101,28 +101,28 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
       {/* Details grid */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-[10px] uppercase text-[#666666]">Rate</p>
-          <p className="text-sm font-medium text-[#FAFAFA]">
+          <p className="text-[10px] uppercase text-text-muted">Rate</p>
+          <p className="text-sm font-medium text-foreground">
             {debt.interest_rate != null ? `${debt.interest_rate}%` : "0%"}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase text-[#666666]">Min Payment</p>
-          <p className="text-sm font-medium text-[#FAFAFA]">
+          <p className="text-[10px] uppercase text-text-muted">Min Payment</p>
+          <p className="text-sm font-medium text-foreground">
             {debt.min_payment != null
               ? formatCurrencyFull(Number(debt.min_payment))
               : "—"}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase text-[#666666]">Next Due</p>
-          <p className="text-sm font-medium text-[#FAFAFA]">
+          <p className="text-[10px] uppercase text-text-muted">Next Due</p>
+          <p className="text-sm font-medium text-foreground">
             {debt.nextDueDate ? formatDate(debt.nextDueDate) : "—"}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase text-[#666666]">Payoff Date</p>
-          <p className="text-sm font-medium text-[#FAFAFA]">
+          <p className="text-[10px] uppercase text-text-muted">Payoff Date</p>
+          <p className="text-sm font-medium text-foreground">
             {debt.projection.projectedPayoffDate
               ? formatDate(debt.projection.projectedPayoffDate)
               : "Never"}
@@ -131,17 +131,17 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
       </div>
 
       {/* Monthly interest */}
-      <div className="border-t border-[#2A2A2A] pt-3">
+      <div className="border-t border-border pt-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-[#A0A0A0]">Monthly Interest</span>
+          <span className="text-muted-foreground">Monthly Interest</span>
           <span className="font-medium text-[#EF4444]">
             {formatCurrencyFull(debt.projection.monthlyInterestCost)}
           </span>
         </div>
         {debt.projection.monthsToPayoff != null && (
           <div className="mt-1 flex items-center justify-between text-xs">
-            <span className="text-[#A0A0A0]">Months to Payoff</span>
-            <span className="font-medium text-[#FAFAFA]">
+            <span className="text-muted-foreground">Months to Payoff</span>
+            <span className="font-medium text-foreground">
               {debt.projection.monthsToPayoff}
             </span>
           </div>
@@ -215,9 +215,9 @@ export function DebtsDashboard({ debts }: DebtsDashboardProps) {
       </div>
 
       {debts.length === 0 && (
-        <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-12 text-center">
-          <CreditCard className="mx-auto mb-3 size-8 text-[#666666]" />
-          <p className="text-sm text-[#A0A0A0]">No debt instruments found</p>
+        <div className="rounded-lg border border-border bg-card p-12 text-center">
+          <CreditCard className="mx-auto mb-3 size-8 text-text-muted" />
+          <p className="text-sm text-muted-foreground">No debt instruments found</p>
         </div>
       )}
     </div>

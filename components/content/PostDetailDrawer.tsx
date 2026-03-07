@@ -67,7 +67,7 @@ export function PostDetailDrawer({
             <PlatformBadge platform={platform as PlatformType} />
           )}
           {post.type && (
-            <span className="text-xs text-[#A0A0A0]">
+            <span className="text-xs text-muted-foreground">
               {post.type}
             </span>
           )}
@@ -76,10 +76,10 @@ export function PostDetailDrawer({
         {/* Body */}
         {post.body && (
           <div>
-            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-[#666666]">
+            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-text-muted">
               Caption
             </h4>
-            <p className="whitespace-pre-wrap text-sm text-[#FAFAFA] leading-relaxed">
+            <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
               {post.body}
             </p>
           </div>
@@ -88,14 +88,14 @@ export function PostDetailDrawer({
         {/* Media */}
         {post.media_urls && post.media_urls.length > 0 && (
           <div>
-            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-[#666666]">
+            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-text-muted">
               Media
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {post.media_urls.map((url, i) => (
                 <div
                   key={i}
-                  className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-[#1E1E1E]"
+                  className="flex h-28 items-center justify-center overflow-hidden rounded-md bg-accent"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -110,7 +110,7 @@ export function PostDetailDrawer({
         )}
 
         {post.media_urls?.length === 0 && (
-          <div className="flex items-center gap-2 text-sm text-[#666666]">
+          <div className="flex items-center gap-2 text-sm text-text-muted">
             <Image className="size-4" />
             No media attached
           </div>
@@ -119,11 +119,11 @@ export function PostDetailDrawer({
         {/* Scheduled time */}
         {post.scheduled_for && (
           <div>
-            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-[#666666]">
+            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-text-muted">
               Scheduled For
             </h4>
-            <div className="flex items-center gap-1.5 text-sm text-[#FAFAFA]">
-              <Clock className="size-4 text-[#A0A0A0]" />
+            <div className="flex items-center gap-1.5 text-sm text-foreground">
+              <Clock className="size-4 text-muted-foreground" />
               {format(new Date(post.scheduled_for), "EEEE, MMM d, yyyy 'at' h:mm a")}
             </div>
           </div>
@@ -132,35 +132,35 @@ export function PostDetailDrawer({
         {/* Metrics (published) */}
         {hasMetrics && (
           <div>
-            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-[#666666]">
+            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-text-muted">
               Performance
             </h4>
             <div className="grid grid-cols-3 gap-3">
               {metrics.impressions !== undefined && (
-                <div className="rounded-lg bg-[#1E1E1E] p-3 text-center">
-                  <Eye className="mx-auto mb-1 size-4 text-[#A0A0A0]" />
-                  <p className="text-lg font-semibold text-[#FAFAFA]">
+                <div className="rounded-lg bg-accent p-3 text-center">
+                  <Eye className="mx-auto mb-1 size-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold text-foreground">
                     {metrics.impressions.toLocaleString()}
                   </p>
-                  <p className="text-xs text-[#666666]">Impressions</p>
+                  <p className="text-xs text-text-muted">Impressions</p>
                 </div>
               )}
               {metrics.likes !== undefined && (
-                <div className="rounded-lg bg-[#1E1E1E] p-3 text-center">
-                  <Heart className="mx-auto mb-1 size-4 text-[#A0A0A0]" />
-                  <p className="text-lg font-semibold text-[#FAFAFA]">
+                <div className="rounded-lg bg-accent p-3 text-center">
+                  <Heart className="mx-auto mb-1 size-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold text-foreground">
                     {metrics.likes.toLocaleString()}
                   </p>
-                  <p className="text-xs text-[#666666]">Likes</p>
+                  <p className="text-xs text-text-muted">Likes</p>
                 </div>
               )}
               {metrics.comments !== undefined && (
-                <div className="rounded-lg bg-[#1E1E1E] p-3 text-center">
-                  <MessageCircle className="mx-auto mb-1 size-4 text-[#A0A0A0]" />
-                  <p className="text-lg font-semibold text-[#FAFAFA]">
+                <div className="rounded-lg bg-accent p-3 text-center">
+                  <MessageCircle className="mx-auto mb-1 size-4 text-muted-foreground" />
+                  <p className="text-lg font-semibold text-foreground">
                     {metrics.comments.toLocaleString()}
                   </p>
-                  <p className="text-xs text-[#666666]">Comments</p>
+                  <p className="text-xs text-text-muted">Comments</p>
                 </div>
               )}
             </div>
@@ -168,8 +168,8 @@ export function PostDetailDrawer({
         )}
 
         {/* Timestamps */}
-        <div className="border-t border-[#2A2A2A] pt-4">
-          <div className="flex flex-col gap-1 text-xs text-[#666666]">
+        <div className="border-t border-border pt-4">
+          <div className="flex flex-col gap-1 text-xs text-text-muted">
             <span>
               Created {format(new Date(post.created_at), "MMM d, yyyy 'at' h:mm a")}
             </span>

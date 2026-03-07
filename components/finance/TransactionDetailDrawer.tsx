@@ -136,14 +136,14 @@ export function TransactionDetailDrawer({
           <Button
             variant="outline"
             onClick={onClose}
-            className="border-[#2A2A2A] text-[#A0A0A0]"
+            className="border-border text-muted-foreground"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-[#FAFAFA] text-[#141414] hover:bg-[#E0E0E0]"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {saving ? "Saving..." : "Save"}
           </Button>
@@ -154,49 +154,49 @@ export function TransactionDetailDrawer({
         {/* Transaction info */}
         <div className="flex flex-col gap-3">
           <div>
-            <p className="text-xs text-[#A0A0A0]">Name</p>
-            <p className="text-sm font-medium text-[#FAFAFA]">
+            <p className="text-xs text-muted-foreground">Name</p>
+            <p className="text-sm font-medium text-foreground">
               {transaction.name}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-[#A0A0A0]">Amount</p>
-              <p className="text-sm font-medium text-[#FAFAFA]">
+              <p className="text-xs text-muted-foreground">Amount</p>
+              <p className="text-sm font-medium text-foreground">
                 {formatCurrency(Number(transaction.amount))}
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#A0A0A0]">Type</p>
-              <p className="text-sm font-medium capitalize text-[#FAFAFA]">
+              <p className="text-xs text-muted-foreground">Type</p>
+              <p className="text-sm font-medium capitalize text-foreground">
                 {transaction.type}
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-xs text-[#A0A0A0]">Category</p>
-              <p className="text-sm capitalize text-[#FAFAFA]">
+              <p className="text-xs text-muted-foreground">Category</p>
+              <p className="text-sm capitalize text-foreground">
                 {(transaction.category ?? "—").replace(/_/g, " ")}
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#A0A0A0]">Interval</p>
-              <p className="text-sm capitalize text-[#FAFAFA]">
+              <p className="text-xs text-muted-foreground">Interval</p>
+              <p className="text-sm capitalize text-foreground">
                 {transaction.interval.replace(/_/g, " ")}
               </p>
             </div>
           </div>
           {transaction.notes && (
             <div>
-              <p className="text-xs text-[#A0A0A0]">Notes</p>
-              <p className="text-sm text-[#FAFAFA]">{transaction.notes}</p>
+              <p className="text-xs text-muted-foreground">Notes</p>
+              <p className="text-sm text-foreground">{transaction.notes}</p>
             </div>
           )}
         </div>
 
         {/* Separator */}
-        <div className="border-t border-[#2A2A2A]" />
+        <div className="border-t border-border" />
 
         {/* Split badge */}
         {isSplit && (
@@ -212,7 +212,7 @@ export function TransactionDetailDrawer({
         {(isSplit || showSplitEditor) && splitAllocations.length > 0 && (
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-medium text-[#A0A0A0]">
+              <p className="text-xs font-medium text-muted-foreground">
                 Split Breakdown
               </p>
               <button
@@ -233,7 +233,7 @@ export function TransactionDetailDrawer({
                       handleSplitChange(i, "wallet", e.target.value)
                     }
                     placeholder="Wallet/category"
-                    className="flex-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground outline-none placeholder:text-text-muted"
                   />
                   <input
                     type="number"
@@ -246,18 +246,18 @@ export function TransactionDetailDrawer({
                       )
                     }
                     placeholder="0.00"
-                    className="w-24 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                    className="w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground outline-none placeholder:text-text-muted"
                   />
                   <button
                     onClick={() => handleRemoveSplit(i)}
-                    className="rounded p-1 text-[#666666] hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+                    className="rounded p-1 text-text-muted hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
                   >
                     <Trash2 className="size-3" />
                   </button>
                 </div>
               ))}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#A0A0A0]">Remaining</span>
+                <span className="text-muted-foreground">Remaining</span>
                 <span
                   className={
                     Math.abs(splitRemaining) < 0.01
@@ -281,7 +281,7 @@ export function TransactionDetailDrawer({
                 setSplitAllocations([{ wallet: "", amount: 0 }]);
               }
             }}
-            className="flex items-center gap-2 text-xs text-[#A0A0A0] hover:text-[#FAFAFA]"
+            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <Split className="size-3.5" />
             {showSplitEditor ? "Hide" : "Split"} transaction
@@ -289,7 +289,7 @@ export function TransactionDetailDrawer({
         )}
 
         {/* Separator */}
-        <div className="border-t border-[#2A2A2A]" />
+        <div className="border-t border-border" />
 
         {/* Reimbursable toggle */}
         <div>
@@ -301,10 +301,10 @@ export function TransactionDetailDrawer({
               }
             />
             <div>
-              <p className="text-sm font-medium text-[#FAFAFA]">
+              <p className="text-sm font-medium text-foreground">
                 Reimbursable
               </p>
-              <p className="text-xs text-[#A0A0A0]">
+              <p className="text-xs text-muted-foreground">
                 This expense will be reimbursed by a project or entity
               </p>
             </div>
@@ -314,14 +314,14 @@ export function TransactionDetailDrawer({
         {/* Request selector */}
         {isReimbursable && (
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
               Linked Reimbursement Request
             </label>
             <Select
               value={selectedRequestId}
               onValueChange={setSelectedRequestId}
             >
-              <SelectTrigger className="w-full border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]">
+              <SelectTrigger className="w-full border-border bg-background text-foreground">
                 <SelectValue placeholder="Select a request (optional)" />
               </SelectTrigger>
               <SelectContent>

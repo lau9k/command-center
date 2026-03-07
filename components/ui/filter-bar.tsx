@@ -58,8 +58,8 @@ function FilterDropdown({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-lg border border-[#2A2A2A] bg-[#141414] px-3 py-1.5 text-sm text-[#A0A0A0] transition-colors hover:border-[#3A3A3A] hover:text-[#FAFAFA]",
-          selected.length > 0 && "border-[#3B82F6]/50 text-[#FAFAFA]"
+          "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-ring hover:text-foreground",
+          selected.length > 0 && "border-[#3B82F6]/50 text-foreground"
         )}
       >
         {filter.label}
@@ -71,15 +71,15 @@ function FilterDropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-[#2A2A2A] bg-[#141414] py-1 shadow-xl">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[180px] rounded-lg border border-border bg-card py-1 shadow-xl">
           {filter.options.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => onToggle(opt.value)}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-[#1E1E1E]",
-                selected.includes(opt.value) ? "text-[#FAFAFA]" : "text-[#A0A0A0]"
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-accent",
+                selected.includes(opt.value) ? "text-foreground" : "text-muted-foreground"
               )}
             >
               <span
@@ -87,7 +87,7 @@ function FilterDropdown({
                   "flex size-4 shrink-0 items-center justify-center rounded border",
                   selected.includes(opt.value)
                     ? "border-[#3B82F6] bg-[#3B82F6]"
-                    : "border-[#2A2A2A]"
+                    : "border-border"
                 )}
               >
                 {selected.includes(opt.value) && (
@@ -158,7 +158,7 @@ function FilterBar({ filters, values, onChange, className }: FilterBarProps) {
             variant="ghost"
             size="sm"
             onClick={clearAll}
-            className="text-xs text-[#A0A0A0] hover:text-[#FAFAFA]"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             Clear all
           </Button>
@@ -170,13 +170,13 @@ function FilterBar({ filters, values, onChange, className }: FilterBarProps) {
           {activeChips.map((chip) => (
             <span
               key={`${chip.filterId}-${chip.value}`}
-              className="inline-flex items-center gap-1 rounded-full bg-[#1E1E1E] px-2.5 py-1 text-xs text-[#FAFAFA]"
+              className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs text-foreground"
             >
               {chip.label}
               <button
                 type="button"
                 onClick={() => removeChip(chip.filterId, chip.value)}
-                className="ml-0.5 rounded-full p-0.5 text-[#666666] transition-colors hover:text-[#FAFAFA]"
+                className="ml-0.5 rounded-full p-0.5 text-text-muted transition-colors hover:text-foreground"
               >
                 <XIcon className="size-3" />
               </button>

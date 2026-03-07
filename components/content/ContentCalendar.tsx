@@ -169,7 +169,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {/* View toggle */}
-          <div className="inline-flex rounded-lg border border-[#2A2A2A] bg-[#141414]">
+          <div className="inline-flex rounded-lg border border-border bg-card">
             <button
               type="button"
               onClick={() => setViewMode("week")}
@@ -177,7 +177,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-l-lg",
                 viewMode === "week"
                   ? "bg-[#3B82F6] text-white"
-                  : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               Week
@@ -189,7 +189,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-r-lg",
                 viewMode === "month"
                   ? "bg-[#3B82F6] text-white"
-                  : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               Month
@@ -202,7 +202,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
               variant="ghost"
               size="icon"
               onClick={() => navigate("prev")}
-              className="size-8 text-[#A0A0A0] hover:text-[#FAFAFA]"
+              className="size-8 text-muted-foreground hover:text-foreground"
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -210,19 +210,19 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
               variant="ghost"
               size="icon"
               onClick={() => navigate("next")}
-              className="size-8 text-[#A0A0A0] hover:text-[#FAFAFA]"
+              className="size-8 text-muted-foreground hover:text-foreground"
             >
               <ChevronRight className="size-4" />
             </Button>
           </div>
 
-          <span className="text-sm font-medium text-[#FAFAFA]">{headerLabel}</span>
+          <span className="text-sm font-medium text-foreground">{headerLabel}</span>
 
           <Button
             variant="ghost"
             size="sm"
             onClick={goToToday}
-            className="text-xs text-[#A0A0A0] hover:text-[#FAFAFA]"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             Today
           </Button>
@@ -282,7 +282,7 @@ function WeekView({
   onPostClick: (post: ContentPostWithProject) => void;
 }) {
   return (
-    <div className="grid grid-cols-7 gap-px rounded-xl border border-[#2A2A2A] bg-[#2A2A2A] overflow-hidden">
+    <div className="grid grid-cols-7 gap-px rounded-xl border border-border bg-border overflow-hidden">
       {days.map((day) => {
         const dateKey = format(day, "yyyy-MM-dd");
         const dayPosts = postsByDate.get(dateKey) ?? [];
@@ -292,13 +292,13 @@ function WeekView({
           <div
             key={dateKey}
             className={cn(
-              "flex min-h-[160px] flex-col bg-[#141414] p-2",
-              today && "bg-[#1E1E1E]"
+              "flex min-h-[160px] flex-col bg-card p-2",
+              today && "bg-accent"
             )}
           >
             {/* Day header */}
             <div className="mb-2 flex items-center gap-1.5">
-              <span className="text-xs font-medium uppercase text-[#666666]">
+              <span className="text-xs font-medium uppercase text-text-muted">
                 {format(day, "EEE")}
               </span>
               <span
@@ -306,7 +306,7 @@ function WeekView({
                   "flex size-6 items-center justify-center rounded-full text-xs font-medium",
                   today
                     ? "bg-[#3B82F6] text-white"
-                    : "text-[#FAFAFA]"
+                    : "text-foreground"
                 )}
               >
                 {format(day, "d")}
@@ -346,13 +346,13 @@ function MonthView({
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 gap-px mb-px">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="px-2 py-1.5 text-center text-xs font-medium uppercase text-[#666666]">
+          <div key={d} className="px-2 py-1.5 text-center text-xs font-medium uppercase text-text-muted">
             {d}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px rounded-xl border border-[#2A2A2A] bg-[#2A2A2A] overflow-hidden">
+      <div className="grid grid-cols-7 gap-px rounded-xl border border-border bg-border overflow-hidden">
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const dayPosts = postsByDate.get(dateKey) ?? [];
@@ -363,8 +363,8 @@ function MonthView({
             <div
               key={dateKey}
               className={cn(
-                "flex min-h-[100px] flex-col bg-[#141414] p-2",
-                today && "bg-[#1E1E1E]",
+                "flex min-h-[100px] flex-col bg-card p-2",
+                today && "bg-accent",
                 !inRange && "opacity-40"
               )}
             >
@@ -373,7 +373,7 @@ function MonthView({
                   "mb-1 flex size-6 items-center justify-center rounded-full text-xs font-medium",
                   today
                     ? "bg-[#3B82F6] text-white"
-                    : "text-[#FAFAFA]"
+                    : "text-foreground"
                 )}
               >
                 {format(day, "d")}
@@ -384,7 +384,7 @@ function MonthView({
                   <PostPill key={post.id} post={post} compact onClick={() => onPostClick(post)} />
                 ))}
                 {dayPosts.length > 3 && (
-                  <span className="text-[10px] text-[#666666]">
+                  <span className="text-[10px] text-text-muted">
                     +{dayPosts.length - 3} more
                   </span>
                 )}
@@ -439,11 +439,11 @@ function PostDetail({
     <div className="space-y-5">
       {/* Title */}
       <div>
-        <h3 className="text-lg font-semibold text-[#FAFAFA]">
+        <h3 className="text-lg font-semibold text-foreground">
           {post.title ?? "Untitled Post"}
         </h3>
         {post.projects && (
-          <span className="text-xs text-[#A0A0A0]">{post.projects.name}</span>
+          <span className="text-xs text-muted-foreground">{post.projects.name}</span>
         )}
       </div>
 
@@ -454,7 +454,7 @@ function PostDetail({
         )}
         <StatusBadge status={post.status as StatusType} />
         {post.type !== "post" && (
-          <span className="inline-flex items-center rounded-full bg-[#1E1E1E] px-2 py-0.5 text-xs text-[#A0A0A0]">
+          <span className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
             {post.type}
           </span>
         )}
@@ -462,7 +462,7 @@ function PostDetail({
 
       {/* Scheduled time */}
       {post.scheduled_for && (
-        <div className="flex items-center gap-2 text-sm text-[#A0A0A0]">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="size-4" />
           <span>
             {format(parseISO(post.scheduled_for), "EEE, MMM d, yyyy 'at' h:mm a")}
@@ -473,11 +473,11 @@ function PostDetail({
       {/* Caption / Body */}
       {post.body && (
         <div>
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase text-[#666666]">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase text-text-muted">
             <FileText className="size-3" />
             Caption
           </div>
-          <p className="whitespace-pre-wrap text-sm text-[#FAFAFA] leading-relaxed">
+          <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
             {post.body}
           </p>
         </div>
@@ -485,7 +485,7 @@ function PostDetail({
 
       {/* Media preview placeholder */}
       <div>
-        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase text-[#666666]">
+        <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase text-text-muted">
           <Image className="size-3" />
           Media
         </div>
@@ -494,21 +494,21 @@ function PostDetail({
             {post.media_urls.map((url, i) => (
               <div
                 key={i}
-                className="flex aspect-video items-center justify-center rounded-lg border border-[#2A2A2A] bg-[#1E1E1E] text-xs text-[#666666]"
+                className="flex aspect-video items-center justify-center rounded-lg border border-border bg-accent text-xs text-text-muted"
               >
                 {url}
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-[#2A2A2A] text-xs text-[#666666]">
+          <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border text-xs text-text-muted">
             No media attached
           </div>
         )}
       </div>
 
       {/* Delete action */}
-      <div className="border-t border-[#2A2A2A] pt-4">
+      <div className="border-t border-border pt-4">
         <Button
           variant="ghost"
           size="sm"

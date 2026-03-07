@@ -39,8 +39,8 @@ export default async function ReimbursementsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#FAFAFA]">Reimbursements</h1>
-        <p className="mt-1 text-sm text-[#A0A0A0]">
+        <h1 className="text-2xl font-semibold text-foreground">Reimbursements</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Track expenses owed by projects, record payments, and monitor float
           cost
         </p>

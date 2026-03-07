@@ -103,14 +103,14 @@ export function CommandPalette() {
       />
       <div className="fixed top-[20%] left-1/2 w-full max-w-[640px] -translate-x-1/2">
         <Command
-          className="rounded-xl border border-[#2A2A2A] bg-[#141414] text-[#FAFAFA] shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
+          className="rounded-xl border border-border bg-card text-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
           loop
         >
-          <div className="flex items-center border-b border-[#2A2A2A] px-4">
+          <div className="flex items-center border-b border-border px-4">
             <Search className="mr-2 h-4 w-4 shrink-0 text-[#888]" />
             <Command.Input
               placeholder="Type a command or search..."
-              className="flex h-12 w-full bg-transparent text-sm text-[#FAFAFA] placeholder:text-[#666] outline-none"
+              className="flex h-12 w-full bg-transparent text-sm text-foreground placeholder:text-[#666] outline-none"
             />
           </div>
           <Command.List className="max-h-[320px] overflow-y-auto p-2">
@@ -128,7 +128,7 @@ export function CommandPalette() {
                     key={`recent-${page.href}`}
                     value={`recent ${page.label}`}
                     onSelect={() => navigateTo(page.href, page.label)}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ccc] aria-selected:bg-[#2A2A2A] aria-selected:text-[#FAFAFA]"
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
                   >
                     <Clock className="h-4 w-4 text-[#888]" />
                     {page.label}
@@ -146,7 +146,7 @@ export function CommandPalette() {
                   key={route.href}
                   value={route.label}
                   onSelect={() => navigateTo(route.href, route.label)}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ccc] aria-selected:bg-[#2A2A2A] aria-selected:text-[#FAFAFA]"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
                 >
                   <route.icon className="h-4 w-4 text-[#888]" />
                   {route.label}
@@ -162,7 +162,7 @@ export function CommandPalette() {
                       `${project.label} Workspace`
                     )
                   }
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ccc] aria-selected:bg-[#2A2A2A] aria-selected:text-[#FAFAFA]"
+                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
                 >
                   <FolderOpen className="h-4 w-4 text-[#888]" />
                   {project.label} Workspace
@@ -180,7 +180,7 @@ export function CommandPalette() {
                   setOpen(false);
                   router.push("/tasks?create=true");
                 }}
-                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ccc] aria-selected:bg-[#2A2A2A] aria-selected:text-[#FAFAFA]"
+                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
               >
                 <Plus className="h-4 w-4 text-[#888]" />
                 Create Task
@@ -188,22 +188,22 @@ export function CommandPalette() {
             </Command.Group>
           </Command.List>
 
-          <div className="flex items-center justify-between border-t border-[#2A2A2A] px-4 py-2 text-xs text-[#666]">
+          <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-[#666]">
             <div className="flex gap-3">
               <span>
-                <kbd className="rounded bg-[#2A2A2A] px-1.5 py-0.5 text-[10px] font-medium text-[#999]">
+                <kbd className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
                   ↑↓
                 </kbd>{" "}
                 Navigate
               </span>
               <span>
-                <kbd className="rounded bg-[#2A2A2A] px-1.5 py-0.5 text-[10px] font-medium text-[#999]">
+                <kbd className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
                   ↵
                 </kbd>{" "}
                 Select
               </span>
               <span>
-                <kbd className="rounded bg-[#2A2A2A] px-1.5 py-0.5 text-[10px] font-medium text-[#999]">
+                <kbd className="rounded bg-border px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
                   esc
                 </kbd>{" "}
                 Close

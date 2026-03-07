@@ -17,11 +17,9 @@ function Card({ className, variant = "default", onClick, ...props }: CardProps) 
       data-variant={variant}
       onClick={variant === "interactive" ? onClick : undefined}
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
-        variant === "default" && "border-[#2A2A2A] bg-[#141414] rounded-[12px] p-5",
-        variant === "metric" && "border-[#2A2A2A] bg-[#141414] rounded-[12px] p-5",
+        "flex flex-col gap-6 rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm",
         variant === "interactive" &&
-          "border-[#2A2A2A] bg-[#141414] rounded-[12px] p-5 cursor-pointer transition-colors hover:bg-[#1E1E1E] hover:border-[#3A3A3A]",
+          "cursor-pointer transition-colors hover:bg-card-hover",
         className
       )}
       {...props}
@@ -46,8 +44,8 @@ function MetricCardValue({
 }: MetricCardValueProps) {
   return (
     <div data-slot="metric-card-value" className={cn("flex flex-col gap-1", className)} {...props}>
-      <span className="text-3xl font-bold text-[#FAFAFA]">{value}</span>
-      {subtitle && <span className="text-sm text-[#A0A0A0]">{subtitle}</span>}
+      <span className="text-2xl font-semibold text-foreground">{value}</span>
+      {subtitle && <span className="text-sm text-muted-foreground">{subtitle}</span>}
       {trend !== undefined && trendDirection && (
         <span
           className={cn(
@@ -107,7 +105,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
+      className={cn("leading-none font-semibold text-foreground", className)}
       {...props}
     />
   )

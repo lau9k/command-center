@@ -31,24 +31,24 @@ function KpiCard({
       data-slot="kpi-card"
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-3 rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5",
-        onClick && "cursor-pointer transition-colors hover:bg-[#1E1E1E] hover:border-[#3A3A3A]",
+        "flex flex-col gap-3 rounded-lg border border-border bg-card p-5",
+        onClick && "cursor-pointer transition-colors hover:bg-card-hover hover:border-border",
         className
       )}
       {...props}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm text-[#A0A0A0]">{label}</span>
-        {icon && <span className="text-[#666666]">{icon}</span>}
+        <span className="text-sm text-muted-foreground">{label}</span>
+        {icon && <span className="text-text-muted">{icon}</span>}
       </div>
 
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[32px] font-bold leading-none text-[#FAFAFA]">
+          <span className="text-[32px] font-bold leading-none text-foreground">
             {value}
           </span>
           {subtitle && (
-            <span className="text-xs text-[#A0A0A0]">{subtitle}</span>
+            <span className="text-xs text-muted-foreground">{subtitle}</span>
           )}
           {delta !== undefined && deltaDirection && (
             <span

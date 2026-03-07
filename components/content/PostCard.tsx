@@ -42,7 +42,7 @@ export function PostCard({
   return (
     <div
       className={cn(
-        "group rounded-lg border border-[#2A2A2A] bg-[#141414] p-3 transition-colors hover:border-[#3A3A3A]",
+        "group rounded-lg border border-border bg-card p-3 transition-colors hover:border-ring",
         selected && "border-[#3B82F6] bg-[#3B82F6]/5"
       )}
     >
@@ -50,7 +50,7 @@ export function PostCard({
         {/* Drag handle */}
         <div
           {...dragHandleProps}
-          className="mt-0.5 cursor-grab text-[#666666] opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+          className="mt-0.5 cursor-grab text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </div>
@@ -66,7 +66,7 @@ export function PostCard({
             "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
             selected
               ? "border-[#3B82F6] bg-[#3B82F6]"
-              : "border-[#2A2A2A] hover:border-[#3A3A3A]"
+              : "border-border hover:border-ring"
           )}
         >
           {selected && (
@@ -90,7 +90,7 @@ export function PostCard({
         >
           {/* Thumbnail */}
           {thumbnail && (
-            <div className="mb-2 h-24 w-full overflow-hidden rounded-md bg-[#1E1E1E]">
+            <div className="mb-2 h-24 w-full overflow-hidden rounded-md bg-accent">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={thumbnail}
@@ -101,7 +101,7 @@ export function PostCard({
           )}
 
           {/* Caption - 2 lines max */}
-          <p className="text-sm text-[#FAFAFA] line-clamp-2 leading-snug">
+          <p className="text-sm text-foreground line-clamp-2 leading-snug">
             {caption}
           </p>
 
@@ -115,7 +115,7 @@ export function PostCard({
 
           {/* Scheduled time */}
           {post.scheduled_for && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-[#A0A0A0]">
+            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="size-3" />
               {format(new Date(post.scheduled_for), "MMM d, h:mm a")}
             </div>
@@ -123,7 +123,7 @@ export function PostCard({
 
           {/* Published metrics */}
           {hasMetrics && (
-            <div className="mt-2 flex items-center gap-3 text-xs text-[#A0A0A0]">
+            <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
               {metrics.impressions !== undefined && (
                 <span className="flex items-center gap-1">
                   <Eye className="size-3" />
