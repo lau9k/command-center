@@ -8,6 +8,20 @@
       "enabled": true
     },
     {
+      "id": "daily-afternoon",
+      "template": "afternoon_prompt",
+      "cronHour": 14,
+      "cronMinute": 0,
+      "enabled": true
+    },
+    {
+      "id": "daily-gn",
+      "template": "gn",
+      "cronHour": 20,
+      "cronMinute": 0,
+      "enabled": true
+    },
+    {
       "id": "weekly-recap",
       "template": "weekly_recap",
       "cronDayOfWeek": 0,
@@ -17,5 +31,5 @@
     }
   ],
   "milestoneCheckIntervalMinutes": 60,
-  "timezone": "UTC"
+  "timezone": "America/Los_Angeles"
 }

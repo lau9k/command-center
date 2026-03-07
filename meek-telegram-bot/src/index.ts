@@ -6,6 +6,7 @@ import { log, logError } from "./logger";
 import { startScheduler, stopScheduler } from "./scheduler";
 import { checkSpam } from "./spam-filter";
 import { trackMessage } from "./stats";
+import { handleAutoPin } from "./auto-pin";
 import { handleNewMember } from "./welcome";
 
 async function main(): Promise<void> {
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
     const isSpam = await checkSpam(ctx, spamPatterns);
     if (!isSpam) {
       trackMessage(ctx.from?.id);
+      await handleAutoPin(ctx);
       await next();
     }
   });
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
     const isSpam = await checkSpam(ctx, spamPatterns);
     if (!isSpam) {
       trackMessage(ctx.from?.id);
+      await handleAutoPin(ctx);
       await next();
     }
   });

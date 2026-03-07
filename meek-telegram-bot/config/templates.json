@@ -4,6 +4,8 @@
   },
   "engagement": {
     "gm": "GM MEEK fam! Rise and grind. What are you working on today?",
+    "afternoon_prompt": "What are you building today? Share your $MEEK stack with the community!",
+    "gn": "GN MEEK fam! Rest up and come back stronger tomorrow. $MEEK never sleeps!",
     "milestone_100": "We just hit {count} members! Thank you all for being part of the MEEK community!",
     "milestone_500": "500 members strong! MEEK keeps growing. LFG!",
     "milestone_1000": "1000 members! The MEEK community is unstoppable!",
