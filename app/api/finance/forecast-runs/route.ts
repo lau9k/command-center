@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("forecast_runs")
     .select("*")
@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const body = await request.json();
 
   const { data, error } = await supabase
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const body = await request.json();
   const { id, ...updates } = body;
 
@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 

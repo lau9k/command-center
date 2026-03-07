@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type {
   ScheduledFlow,
   ForecastRun,
@@ -213,7 +213,7 @@ function computeForecast(
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const body = await request.json();
   const { runId } = body as { runId?: string };
 
