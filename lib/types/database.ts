@@ -119,3 +119,67 @@ export interface Invoice {
   created_at: string;
   updated_at: string;
 }
+
+// --- Finance types ---
+
+export type TransactionType = "expense" | "income";
+export type TransactionInterval = "monthly" | "biweekly" | "weekly" | "one_time";
+export type DebtType = "loan" | "credit_line" | "personal";
+
+export interface Transaction {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  type: TransactionType;
+  category: string | null;
+  interval: TransactionInterval;
+  due_day: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Debt {
+  id: string;
+  user_id: string;
+  name: string;
+  type: DebtType;
+  principal: number;
+  balance: number;
+  interest_rate: number | null;
+  min_payment: number | null;
+  due_day: number | null;
+  lender: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CryptoBalance {
+  id: string;
+  user_id: string;
+  symbol: string;
+  name: string | null;
+  quantity: number;
+  cost_basis: number | null;
+  wallet: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BalanceSnapshot {
+  id: string;
+  user_id: string;
+  snapshot_date: string;
+  chequing: number | null;
+  savings: number | null;
+  credit_available: number | null;
+  total_debt: number | null;
+  net_worth: number | null;
+  notes: string | null;
+  created_at: string;
+}
