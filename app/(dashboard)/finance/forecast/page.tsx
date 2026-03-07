@@ -21,10 +21,10 @@ export default async function ForecastPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#FAFAFA]">
+        <h1 className="text-2xl font-semibold text-foreground">
           Cash Flow Forecast
         </h1>
-        <p className="mt-1 text-sm text-[#A0A0A0]">
+        <p className="mt-1 text-sm text-muted-foreground">
           Scenario-driven runway projections and what-if analysis
         </p>
       </div>

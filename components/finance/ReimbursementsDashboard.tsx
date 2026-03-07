@@ -37,7 +37,7 @@ import type {
 const APR = 0.2599;
 
 const STATUS_COLORS: Record<ReimbursementStatus, string> = {
-  draft: "bg-[#666666]/20 text-[#A0A0A0]",
+  draft: "bg-[#666666]/20 text-muted-foreground",
   submitted: "bg-[#3B82F6]/20 text-[#3B82F6]",
   approved: "bg-[#EAB308]/20 text-[#EAB308]",
   paid: "bg-[#22C55E]/20 text-[#22C55E]",
@@ -336,7 +336,7 @@ export function ReimbursementsDashboard({
       header: "Date",
       accessorKey: "expense_date",
       sortable: true,
-      cell: (row) => <span className="text-[#A0A0A0]">{formatDate(row.expense_date)}</span>,
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.expense_date)}</span>,
     },
   ];
 
@@ -356,19 +356,19 @@ export function ReimbursementsDashboard({
       header: "Date",
       accessorKey: "payment_date",
       sortable: true,
-      cell: (row) => <span className="text-[#A0A0A0]">{formatDate(row.payment_date)}</span>,
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.payment_date)}</span>,
     },
     {
       id: "payment_method",
       header: "Method",
       accessorKey: "payment_method",
-      cell: (row) => <span className="text-[#A0A0A0]">{row.payment_method ?? "—"}</span>,
+      cell: (row) => <span className="text-muted-foreground">{row.payment_method ?? "—"}</span>,
     },
     {
       id: "reference",
       header: "Reference",
       accessorKey: "reference",
-      cell: (row) => <span className="text-[#A0A0A0]">{row.reference ?? "—"}</span>,
+      cell: (row) => <span className="text-muted-foreground">{row.reference ?? "—"}</span>,
     },
   ];
 
@@ -405,7 +405,7 @@ export function ReimbursementsDashboard({
       <div className="flex items-center gap-3">
         <Button
           onClick={() => setCreateOpen(true)}
-          className="gap-2 bg-[#FAFAFA] text-[#141414] hover:bg-[#E0E0E0]"
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="size-4" />
           New Request
@@ -413,7 +413,7 @@ export function ReimbursementsDashboard({
         <Button
           variant="outline"
           onClick={() => setReconciliationOpen(true)}
-          className="gap-2 border-[#2A2A2A] text-[#A0A0A0] hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+          className="gap-2 border-border text-muted-foreground hover:border-ring hover:text-foreground"
         >
           <TrendingUp className="size-4" />
           Record Payment
@@ -423,9 +423,9 @@ export function ReimbursementsDashboard({
       {/* Requests grouped by wallet */}
       {Array.from(groupedByWallet.entries()).map(([wallet, walletRequests]) => (
         <div key={wallet}>
-          <h3 className="mb-3 text-sm font-semibold text-[#FAFAFA]">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">
             {wallet}
-            <span className="ml-2 text-xs font-normal text-[#A0A0A0]">
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
               {walletRequests.length} request{walletRequests.length !== 1 ? "s" : ""} ·{" "}
               {formatCurrency(
                 walletRequests
@@ -436,33 +436,33 @@ export function ReimbursementsDashboard({
             </span>
           </h3>
 
-          <div className="overflow-hidden rounded-[12px] border border-[#2A2A2A]">
+          <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2A2A2A] bg-[#0A0A0A]">
+                <tr className="border-b border-border bg-background">
                   <th className="w-8 px-4 py-3" />
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Title
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Total
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Paid
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Outstanding
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Float Cost
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Days Open
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[#A0A0A0]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Actions
                   </th>
                 </tr>
@@ -485,7 +485,7 @@ export function ReimbursementsDashboard({
       ))}
 
       {requests.length === 0 && (
-        <div className="flex items-center justify-center rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-12 text-sm text-[#A0A0A0]">
+        <div className="flex items-center justify-center rounded-lg border border-border bg-card p-12 text-sm text-muted-foreground">
           No reimbursement requests yet
         </div>
       )}
@@ -493,7 +493,7 @@ export function ReimbursementsDashboard({
       {/* Payment History */}
       {payments.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-[#FAFAFA]">Payment History</h3>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Payment History</h3>
           <DataTable
             columns={paymentColumns}
             data={payments}
@@ -513,13 +513,13 @@ export function ReimbursementsDashboard({
             <Button
               variant="outline"
               onClick={() => setCreateOpen(false)}
-              className="border-[#2A2A2A] text-[#A0A0A0]"
+              className="border-border text-muted-foreground"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreateRequest}
-              className="bg-[#FAFAFA] text-[#141414] hover:bg-[#E0E0E0]"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Create Request
             </Button>
@@ -528,19 +528,19 @@ export function ReimbursementsDashboard({
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Title</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Title</label>
             <Input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="e.g. MEEK March 2026 Expenses"
-              className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]"
+              className="border-border bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Wallet / Project</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Wallet / Project</label>
             <Select value={newWallet} onValueChange={setNewWallet}>
-              <SelectTrigger className="w-full border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]">
+              <SelectTrigger className="w-full border-border bg-background text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -553,18 +553,18 @@ export function ReimbursementsDashboard({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Description</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Description</label>
             <Input
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Optional description"
-              className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]"
+              className="border-border bg-background text-foreground"
             />
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-medium text-[#A0A0A0]">Line Items</label>
+              <label className="text-xs font-medium text-muted-foreground">Line Items</label>
               <button
                 type="button"
                 onClick={() =>
@@ -590,7 +590,7 @@ export function ReimbursementsDashboard({
                       setNewItems(updated);
                     }}
                     placeholder="Description"
-                    className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA] text-xs"
+                    className="border-border bg-background text-foreground text-xs"
                   />
                   <Input
                     value={item.amount}
@@ -602,7 +602,7 @@ export function ReimbursementsDashboard({
                     placeholder="$0.00"
                     type="number"
                     step="0.01"
-                    className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA] text-xs"
+                    className="border-border bg-background text-foreground text-xs"
                   />
                   <Input
                     value={item.expense_date}
@@ -612,13 +612,13 @@ export function ReimbursementsDashboard({
                       setNewItems(updated);
                     }}
                     type="date"
-                    className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA] text-xs"
+                    className="border-border bg-background text-foreground text-xs"
                   />
                 </div>
               ))}
             </div>
 
-            <div className="mt-2 text-right text-xs text-[#A0A0A0]">
+            <div className="mt-2 text-right text-xs text-muted-foreground">
               Total:{" "}
               {formatCurrency(
                 newItems.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0)
@@ -638,14 +638,14 @@ export function ReimbursementsDashboard({
             <Button
               variant="outline"
               onClick={() => setReconciliationOpen(false)}
-              className="border-[#2A2A2A] text-[#A0A0A0]"
+              className="border-border text-muted-foreground"
             >
               Cancel
             </Button>
             <Button
               onClick={handleRecordPayment}
               disabled={selectedForPayment.size === 0 || !paymentAmount}
-              className="bg-[#22C55E] text-[#141414] hover:bg-[#16A34A] disabled:opacity-50"
+              className="bg-[#22C55E] text-white hover:bg-[#16A34A] disabled:opacity-50"
             >
               Record Payment
             </Button>
@@ -654,39 +654,39 @@ export function ReimbursementsDashboard({
       >
         <div className="flex flex-col gap-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Payment Amount</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Payment Amount</label>
             <Input
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
               placeholder="$0.00"
               type="number"
               step="0.01"
-              className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]"
+              className="border-border bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Payment Method</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Payment Method</label>
             <Input
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               placeholder="e.g. e-Transfer, cheque"
-              className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]"
+              className="border-border bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[#A0A0A0]">Reference</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Reference</label>
             <Input
               value={paymentReference}
               onChange={(e) => setPaymentReference(e.target.value)}
               placeholder="e.g. Transfer ID"
-              className="border-[#2A2A2A] bg-[#0A0A0A] text-[#FAFAFA]"
+              className="border-border bg-background text-foreground"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-medium text-[#A0A0A0]">
+            <label className="mb-2 block text-xs font-medium text-muted-foreground">
               Allocate to Requests
             </label>
             <div className="flex flex-col gap-2">
@@ -699,7 +699,7 @@ export function ReimbursementsDashboard({
                       "flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
                       selectedForPayment.has(r.id)
                         ? "border-[#3B82F6] bg-[#3B82F6]/10"
-                        : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
+                        : "border-border bg-background hover:border-ring"
                     )}
                   >
                     <Checkbox
@@ -707,8 +707,8 @@ export function ReimbursementsDashboard({
                       onCheckedChange={() => togglePaymentSelection(r.id)}
                     />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-[#FAFAFA]">{r.title}</p>
-                      <p className="text-xs text-[#A0A0A0]">
+                      <p className="text-sm font-medium text-foreground">{r.title}</p>
+                      <p className="text-xs text-muted-foreground">
                         Outstanding: {formatCurrency(r.amount_outstanding)}
                       </p>
                     </div>
@@ -719,10 +719,10 @@ export function ReimbursementsDashboard({
           </div>
 
           {selectedForPayment.size > 0 && (
-            <div className="rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-3 text-xs text-[#A0A0A0]">
+            <div className="rounded-lg border border-border bg-background p-3 text-xs text-muted-foreground">
               <p>
                 Selected total outstanding:{" "}
-                <span className="text-[#FAFAFA]">
+                <span className="text-foreground">
                   {formatCurrency(
                     requestSummaries
                       .filter((r) => selectedForPayment.has(r.id))
@@ -778,21 +778,21 @@ function RequestRow({
   return (
     <>
       <tr
-        className="border-b border-[#2A2A2A] bg-[#141414] transition-colors hover:bg-[#1E1E1E] cursor-pointer"
+        className="border-b border-border bg-card transition-colors hover:bg-card-hover cursor-pointer"
         onClick={onToggle}
       >
         <td className="px-4 py-3">
           {expanded ? (
-            <ChevronDown className="size-4 text-[#A0A0A0]" />
+            <ChevronDown className="size-4 text-muted-foreground" />
           ) : (
-            <ChevronRight className="size-4 text-[#A0A0A0]" />
+            <ChevronRight className="size-4 text-muted-foreground" />
           )}
         </td>
-        <td className="px-4 py-3 text-[#FAFAFA] font-medium">{request.title}</td>
+        <td className="px-4 py-3 text-foreground font-medium">{request.title}</td>
         <td className="px-4 py-3">
           <ReimbursementStatusBadge status={request.status} />
         </td>
-        <td className="px-4 py-3 text-[#FAFAFA]">{formatCurrency(Number(request.total_amount))}</td>
+        <td className="px-4 py-3 text-foreground">{formatCurrency(Number(request.total_amount))}</td>
         <td className="px-4 py-3 text-[#22C55E]">
           {request.amount_paid > 0 ? formatCurrency(request.amount_paid) : "—"}
         </td>
@@ -806,14 +806,14 @@ function RequestRow({
             {request.float_cost > 0 ? formatCurrency(request.float_cost) : "—"}
           </span>
         </td>
-        <td className="px-4 py-3 text-[#A0A0A0]">
+        <td className="px-4 py-3 text-muted-foreground">
           {request.status !== "paid" ? `${request.days_open}d` : "—"}
         </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
           {next && (
             <button
               onClick={() => onStatusChange(request.id, next)}
-              className="rounded-md bg-[#1E1E1E] px-2.5 py-1 text-xs font-medium text-[#3B82F6] transition-colors hover:bg-[#2A2A2A]"
+              className="rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-[#3B82F6] transition-colors hover:bg-border"
             >
               Mark {next}
             </button>
@@ -822,8 +822,8 @@ function RequestRow({
       </tr>
       {expanded && request.items.length > 0 && (
         <tr>
-          <td colSpan={9} className="bg-[#0A0A0A] px-8 py-4">
-            <p className="mb-2 text-xs font-medium text-[#A0A0A0]">
+          <td colSpan={9} className="bg-background px-8 py-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
               Line Items ({request.items.length})
             </p>
             <DataTable

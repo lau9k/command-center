@@ -190,7 +190,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
 
         {selectedIds.size > 0 && (
           <div className="flex shrink-0 items-center gap-2">
-            <span className="text-sm text-[#A0A0A0]">
+            <span className="text-sm text-muted-foreground">
               {selectedIds.size} selected
             </span>
             {schedulableCount > 0 && (
@@ -203,7 +203,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
               variant="ghost"
               size="sm"
               onClick={() => setSelectedIds(new Set())}
-              className="text-xs text-[#A0A0A0]"
+              className="text-xs text-muted-foreground"
             >
               Clear
             </Button>
@@ -226,10 +226,10 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
                       className="size-2.5 rounded-full"
                       style={{ backgroundColor: column.color }}
                     />
-                    <h3 className="text-sm font-semibold text-[#FAFAFA]">
+                    <h3 className="text-sm font-semibold text-foreground">
                       {column.label}
                     </h3>
-                    <span className="rounded-full bg-[#1E1E1E] px-2 py-0.5 text-xs text-[#A0A0A0]">
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
                       {items.length}
                     </span>
                   </div>
@@ -242,7 +242,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        "flex min-h-[200px] flex-col gap-2 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-2 transition-colors",
+                        "flex min-h-[200px] flex-col gap-2 rounded-lg border border-border bg-background p-2 transition-colors",
                         snapshot.isDraggingOver && "border-[#3B82F6]/30 bg-[#3B82F6]/5"
                       )}
                     >
@@ -272,7 +272,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
 
                       {items.length === 0 && (
                         <div className="flex flex-1 items-center justify-center py-8">
-                          <p className="text-xs text-[#666666]">
+                          <p className="text-xs text-text-muted">
                             Drop posts here
                           </p>
                         </div>

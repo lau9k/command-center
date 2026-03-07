@@ -32,7 +32,7 @@ const statusVariant: Record<string, string> = {
   active: "bg-[#22C55E]/20 text-[#22C55E]",
   paused: "bg-[#EAB308]/20 text-[#EAB308]",
   completed: "bg-[#3B82F6]/20 text-[#3B82F6]",
-  archived: "bg-[#666666]/20 text-[#A0A0A0]",
+  archived: "bg-[#666666]/20 text-muted-foreground",
 };
 
 function formatDueDate(date: string | null): string {
@@ -54,13 +54,13 @@ export function ProjectSummaryCards({ projects }: ProjectSummaryCardsProps) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-[#FAFAFA]">Projects</h2>
+      <h2 className="text-lg font-semibold text-foreground">Projects</h2>
       <div className="grid gap-4 md:grid-cols-2">
         {projects.map((project) => (
           <Card key={project.id} variant="interactive" className="gap-4">
             <CardHeader className="px-0">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[#FAFAFA]">{project.name}</CardTitle>
+                <CardTitle className="text-foreground">{project.name}</CardTitle>
                 <Badge
                   className={
                     statusVariant[project.status] ?? statusVariant.active
@@ -69,7 +69,7 @@ export function ProjectSummaryCards({ projects }: ProjectSummaryCardsProps) {
                   {project.status}
                 </Badge>
               </div>
-              <span className="text-sm text-[#A0A0A0]">
+              <span className="text-sm text-muted-foreground">
                 {project.taskCount} task{project.taskCount !== 1 ? "s" : ""}
               </span>
             </CardHeader>
@@ -82,10 +82,10 @@ export function ProjectSummaryCards({ projects }: ProjectSummaryCardsProps) {
                       key={task.id}
                       className="flex items-center justify-between text-sm"
                     >
-                      <span className="truncate text-[#FAFAFA]">
+                      <span className="truncate text-foreground">
                         {task.title}
                       </span>
-                      <span className="ml-2 shrink-0 text-xs text-[#666666]">
+                      <span className="ml-2 shrink-0 text-xs text-text-muted">
                         {formatDueDate(task.due_date)}
                       </span>
                     </li>

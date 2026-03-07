@@ -91,8 +91,8 @@ const RechartsArea = dynamic(
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="rounded-lg border border-[#2A2A2A] bg-[#141414] px-3 py-2 text-xs shadow-lg">
-                        <p className="mb-1 text-[#A0A0A0]">
+                      <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-lg">
+                        <p className="mb-1 text-muted-foreground">
                           {new Date(label + "T00:00:00").toLocaleDateString(
                             "en-CA",
                             {
@@ -202,7 +202,7 @@ const RechartsArea = dynamic(
 
 function ChartSkeleton() {
   return (
-    <div className="flex h-[400px] items-center justify-center text-sm text-[#666666]">
+    <div className="flex h-[400px] items-center justify-center text-sm text-text-muted">
       Loading chart...
     </div>
   );
@@ -238,7 +238,7 @@ function buildFlowColumns(
         <span
           className={cn(
             "font-medium",
-            row.direction === "inflow" ? "text-[#22C55E]" : "text-[#FAFAFA]"
+            row.direction === "inflow" ? "text-[#22C55E]" : "text-foreground"
           )}
         >
           {row.direction === "inflow" ? "+" : "-"}
@@ -252,7 +252,7 @@ function buildFlowColumns(
       accessorKey: "cadence",
       sortable: true,
       cell: (row) => (
-        <span className="capitalize text-[#A0A0A0]">
+        <span className="capitalize text-muted-foreground">
           {row.cadence.replace(/_/g, " ")}
         </span>
       ),
@@ -263,7 +263,7 @@ function buildFlowColumns(
       accessorKey: "due_day",
       sortable: true,
       cell: (row) => (
-        <span className="text-[#A0A0A0]">
+        <span className="text-muted-foreground">
           {row.due_day ? `Day ${row.due_day}` : "—"}
         </span>
       ),
@@ -273,7 +273,7 @@ function buildFlowColumns(
       header: "Prob.",
       accessorKey: "probability",
       cell: (row) => (
-        <span className="text-[#A0A0A0]">
+        <span className="text-muted-foreground">
           {Math.round(Number(row.probability) * 100)}%
         </span>
       ),
@@ -292,7 +292,7 @@ function buildFlowColumns(
               "rounded p-1 transition-colors",
               row.is_active
                 ? "text-[#22C55E] hover:bg-[#22C55E]/10"
-                : "text-[#666666] hover:bg-[#666666]/10"
+                : "text-text-muted hover:bg-accent"
             )}
             title={row.is_active ? "Disable" : "Enable"}
           >
@@ -303,7 +303,7 @@ function buildFlowColumns(
               e.stopPropagation();
               onDelete(row.id);
             }}
-            className="rounded p-1 text-[#666666] transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+            className="rounded p-1 text-text-muted transition-colors hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
             title="Delete"
           >
             <Trash2 className="size-3.5" />
@@ -543,7 +543,7 @@ export function ForecastDashboard({
     <div className="flex flex-col gap-6">
       {/* Scenario Selector */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
           {runs.map((run) => (
             <button
               key={run.id}
@@ -551,8 +551,8 @@ export function ForecastDashboard({
               className={cn(
                 "rounded-md px-4 py-2 text-sm font-medium transition-colors",
                 selectedScenario === run.id
-                  ? "bg-[#1E1E1E] text-[#FAFAFA]"
-                  : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {run.name}
@@ -568,7 +568,7 @@ export function ForecastDashboard({
                   "rounded-md px-4 py-2 text-sm font-medium transition-colors",
                   selectedScenario === r.runId
                     ? "bg-[#A855F7]/20 text-[#A855F7]"
-                    : "text-[#666666] hover:text-[#A855F7]"
+                    : "text-text-muted hover:text-[#A855F7]"
                 )}
               >
                 {r.runName}
@@ -581,7 +581,7 @@ export function ForecastDashboard({
           <select
             value={compareScenario}
             onChange={(e) => setCompareScenario(e.target.value)}
-            className="rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-xs text-[#A0A0A0] outline-none"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-muted-foreground outline-none"
           >
             <option value="">Compare with...</option>
             {results
@@ -599,7 +599,7 @@ export function ForecastDashboard({
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
               showWhatIf
                 ? "border-[#A855F7] bg-[#A855F7]/10 text-[#A855F7]"
-                : "border-[#2A2A2A] bg-[#0A0A0A] text-[#A0A0A0] hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+                : "border-border bg-background text-muted-foreground hover:border-ring hover:text-foreground"
             )}
           >
             What-if
@@ -672,12 +672,12 @@ export function ForecastDashboard({
       )}
 
       {/* Chart */}
-      <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
+      <div className="rounded-lg border border-border bg-card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#FAFAFA]">
+          <h3 className="text-sm font-semibold text-foreground">
             Cash Balance Projection
             {activeResult && (
-              <span className="ml-2 text-xs font-normal text-[#A0A0A0]">
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
                 — {runs.find((r) => r.id === selectedScenario)?.name ?? activeResult.runName}
               </span>
             )}
@@ -698,14 +698,14 @@ export function ForecastDashboard({
             overlayName={compareResult?.runName}
           />
         ) : (
-          <div className="flex h-[400px] items-center justify-center text-sm text-[#666666]">
+          <div className="flex h-[400px] items-center justify-center text-sm text-text-muted">
             No forecast data available
           </div>
         )}
 
         {/* Income event markers legend */}
         {activeResult && (
-          <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#A0A0A0]">
+          <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
             {activeResult.timeSeries
               .filter((p) => p.events.length > 0)
               .slice(0, 8)
@@ -732,14 +732,14 @@ export function ForecastDashboard({
 
       {/* What-if Panel */}
       {showWhatIf && (
-        <div className="rounded-[12px] border border-[#A855F7]/30 bg-[#141414] p-5">
+        <div className="rounded-lg border border-[#A855F7]/30 bg-card p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[#FAFAFA]">
+            <h3 className="text-sm font-semibold text-foreground">
               What-if Analysis
             </h3>
             <button
               onClick={() => setShowWhatIf(false)}
-              className="text-[#666666] hover:text-[#FAFAFA]"
+              className="text-text-muted hover:text-foreground"
             >
               <X className="size-4" />
             </button>
@@ -748,7 +748,7 @@ export function ForecastDashboard({
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             {/* Type selector */}
             <div>
-              <label className="mb-1 block text-xs text-[#A0A0A0]">
+              <label className="mb-1 block text-xs text-muted-foreground">
                 Action
               </label>
               <select
@@ -756,7 +756,7 @@ export function ForecastDashboard({
                 onChange={(e) =>
                   setWhatIf({ ...whatIf, type: e.target.value as WhatIfType })
                 }
-                className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
               >
                 <option value="delay_payment">Delay Payment</option>
                 <option value="cut_expense">Cut Expense</option>
@@ -769,7 +769,7 @@ export function ForecastDashboard({
             {(whatIf.type === "delay_payment" ||
               whatIf.type === "cut_expense") && (
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Flow
                 </label>
                 <select
@@ -777,7 +777,7 @@ export function ForecastDashboard({
                   onChange={(e) =>
                     setWhatIf({ ...whatIf, flowName: e.target.value })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 >
                   <option value="">Select flow...</option>
                   {outflowNames.map((name) => (
@@ -791,7 +791,7 @@ export function ForecastDashboard({
 
             {whatIf.type === "delay_payment" && (
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Delay (days)
                 </label>
                 <input
@@ -803,14 +803,14 @@ export function ForecastDashboard({
                       delayDays: parseInt(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 />
               </div>
             )}
 
             {whatIf.type === "cut_expense" && (
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Keep % (e.g., 0.8 = 80%)
                 </label>
                 <input
@@ -825,7 +825,7 @@ export function ForecastDashboard({
                       factor: parseFloat(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 />
               </div>
             )}
@@ -833,7 +833,7 @@ export function ForecastDashboard({
             {whatIf.type === "add_income" && (
               <>
                 <div>
-                  <label className="mb-1 block text-xs text-[#A0A0A0]">
+                  <label className="mb-1 block text-xs text-muted-foreground">
                     Name
                   </label>
                   <input
@@ -843,11 +843,11 @@ export function ForecastDashboard({
                       setWhatIf({ ...whatIf, name: e.target.value })
                     }
                     placeholder="e.g., Side project payment"
-                    className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-[#A0A0A0]">
+                  <label className="mb-1 block text-xs text-muted-foreground">
                     Amount
                   </label>
                   <input
@@ -859,7 +859,7 @@ export function ForecastDashboard({
                         amount: parseFloat(e.target.value) || 0,
                       })
                     }
-                    className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                   />
                 </div>
               </>
@@ -868,7 +868,7 @@ export function ForecastDashboard({
             {(whatIf.type === "add_income" ||
               whatIf.type === "add_recurring") && (
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Date
                 </label>
                 <input
@@ -877,7 +877,7 @@ export function ForecastDashboard({
                   onChange={(e) =>
                     setWhatIf({ ...whatIf, date: e.target.value })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 />
               </div>
             )}
@@ -896,7 +896,7 @@ export function ForecastDashboard({
                 setWhatIf(INITIAL_WHATIF);
                 setShowWhatIf(false);
               }}
-              className="rounded-lg border border-[#2A2A2A] px-4 py-2 text-sm text-[#A0A0A0] transition-colors hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+              className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-ring hover:text-foreground"
             >
               Cancel
             </button>
@@ -907,9 +907,9 @@ export function ForecastDashboard({
       {/* Scheduled Flows Table */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#FAFAFA]">
+          <h3 className="text-sm font-semibold text-foreground">
             Scheduled Flows
-            <span className="ml-2 text-xs font-normal text-[#A0A0A0]">
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
               {activeFlows.length} active
               {inactiveFlows.length > 0 && `, ${inactiveFlows.length} inactive`}
             </span>
@@ -918,7 +918,7 @@ export function ForecastDashboard({
             <button
               onClick={() => computeAll()}
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg border border-[#2A2A2A] px-3 py-2 text-xs text-[#A0A0A0] transition-colors hover:border-[#3A3A3A] hover:text-[#FAFAFA] disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
             >
               {loading ? "Computing..." : "Recompute"}
             </button>
@@ -928,7 +928,7 @@ export function ForecastDashboard({
                 "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
                 showAddFlow
                   ? "border-[#3B82F6] bg-[#3B82F6]/10 text-[#3B82F6]"
-                  : "border-[#2A2A2A] bg-[#0A0A0A] text-[#A0A0A0] hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+                  : "border-border bg-background text-muted-foreground hover:border-ring hover:text-foreground"
               )}
             >
               <Plus className="size-3.5" />
@@ -939,10 +939,10 @@ export function ForecastDashboard({
 
         {/* Add flow form */}
         {showAddFlow && (
-          <div className="mb-4 rounded-[12px] border border-[#3B82F6]/30 bg-[#141414] p-4">
+          <div className="mb-4 rounded-lg border border-[#3B82F6]/30 bg-card p-4">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Name
                 </label>
                 <input
@@ -952,11 +952,11 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, name: e.target.value })
                   }
                   placeholder="Flow name"
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Amount
                 </label>
                 <input
@@ -966,11 +966,11 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, amount: e.target.value })
                   }
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Direction
                 </label>
                 <select
@@ -981,14 +981,14 @@ export function ForecastDashboard({
                       direction: e.target.value as FlowDirection,
                     })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 >
                   <option value="outflow">Outflow</option>
                   <option value="inflow">Inflow</option>
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Cadence
                 </label>
                 <select
@@ -999,7 +999,7 @@ export function ForecastDashboard({
                       cadence: e.target.value as FlowCadence,
                     })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 >
                   <option value="monthly">Monthly</option>
                   <option value="biweekly">Biweekly</option>
@@ -1008,7 +1008,7 @@ export function ForecastDashboard({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Due Day
                 </label>
                 <input
@@ -1020,11 +1020,11 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, due_day: e.target.value })
                   }
                   placeholder="1-28"
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Category
                 </label>
                 <input
@@ -1034,11 +1034,11 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, category: e.target.value })
                   }
                   placeholder="e.g., housing"
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none placeholder:text-[#666666]"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-[#A0A0A0]">
+                <label className="mb-1 block text-xs text-muted-foreground">
                   Probability
                 </label>
                 <input
@@ -1050,7 +1050,7 @@ export function ForecastDashboard({
                   onChange={(e) =>
                     setNewFlow({ ...newFlow, probability: e.target.value })
                   }
-                  className="w-full rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] px-3 py-2 text-sm text-[#FAFAFA] outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none"
                 />
               </div>
               <div className="flex items-end gap-2">
@@ -1063,7 +1063,7 @@ export function ForecastDashboard({
                 </button>
                 <button
                   onClick={() => setShowAddFlow(false)}
-                  className="rounded-lg border border-[#2A2A2A] px-4 py-2 text-sm text-[#A0A0A0] transition-colors hover:text-[#FAFAFA]"
+                  className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Cancel
                 </button>

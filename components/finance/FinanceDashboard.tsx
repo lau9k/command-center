@@ -119,10 +119,10 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-[#2A2A2A] bg-[#141414] px-3 py-2 text-xs shadow-lg">
-      {label && <p className="mb-1 text-[#A0A0A0]">{label}</p>}
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-lg">
+      {label && <p className="mb-1 text-muted-foreground">{label}</p>}
       {payload.map((p, i) => (
-        <p key={i} className="text-[#FAFAFA]">
+        <p key={i} className="text-foreground">
           {p.name}: {formatCurrencyFull(p.value)}
         </p>
       ))}
@@ -157,7 +157,7 @@ const TRANSACTION_COLUMNS: ColumnDef<Transaction>[] = [
       <span
         className={cn(
           "font-medium",
-          row.type === "income" ? "text-[#22C55E]" : "text-[#FAFAFA]"
+          row.type === "income" ? "text-[#22C55E]" : "text-foreground"
         )}
       >
         {row.type === "income" ? "+" : "-"}
@@ -179,7 +179,7 @@ const TRANSACTION_COLUMNS: ColumnDef<Transaction>[] = [
               CATEGORY_COLORS[row.category ?? ""] ?? DEFAULT_COLOR,
           }}
         />
-        <span className="capitalize text-[#A0A0A0]">
+        <span className="capitalize text-muted-foreground">
           {(row.category ?? "—").replace(/_/g, " ")}
         </span>
       </span>
@@ -191,7 +191,7 @@ const TRANSACTION_COLUMNS: ColumnDef<Transaction>[] = [
     accessorKey: "interval",
     sortable: true,
     cell: (row) => (
-      <span className="capitalize text-[#A0A0A0]">
+      <span className="capitalize text-muted-foreground">
         {row.interval.replace(/_/g, " ")}
       </span>
     ),
@@ -202,7 +202,7 @@ const TRANSACTION_COLUMNS: ColumnDef<Transaction>[] = [
     accessorKey: "due_day",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#A0A0A0]">
+      <span className="text-muted-foreground">
         {row.due_day ? `Day ${row.due_day}` : "—"}
       </span>
     ),
@@ -229,7 +229,7 @@ const DEBT_COLUMNS: ColumnDef<Debt>[] = [
     accessorKey: "principal",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#A0A0A0]">
+      <span className="text-muted-foreground">
         {formatCurrencyFull(Number(row.principal))}
       </span>
     ),
@@ -240,7 +240,7 @@ const DEBT_COLUMNS: ColumnDef<Debt>[] = [
     accessorKey: "interest_rate",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#A0A0A0]">
+      <span className="text-muted-foreground">
         {row.interest_rate != null ? `${row.interest_rate}%` : "0%"}
       </span>
     ),
@@ -251,7 +251,7 @@ const DEBT_COLUMNS: ColumnDef<Debt>[] = [
     accessorKey: "min_payment",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#A0A0A0]">
+      <span className="text-muted-foreground">
         {row.min_payment != null
           ? formatCurrencyFull(Number(row.min_payment))
           : "—"}
@@ -263,7 +263,7 @@ const DEBT_COLUMNS: ColumnDef<Debt>[] = [
     header: "Lender",
     accessorKey: "lender",
     cell: (row) => (
-      <span className="text-[#A0A0A0]">{row.lender ?? "—"}</span>
+      <span className="text-muted-foreground">{row.lender ?? "—"}</span>
     ),
   },
 ];
@@ -462,7 +462,7 @@ export function FinanceDashboard({
     <div className="flex flex-col gap-6">
       {/* Wallet Context Switcher + True Personal Spend Toggle */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-1">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
           {WALLET_VIEWS.map((view) => (
             <button
               key={view.id}
@@ -470,8 +470,8 @@ export function FinanceDashboard({
               className={cn(
                 "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
                 walletView === view.id
-                  ? "bg-[#1E1E1E] text-[#FAFAFA]"
-                  : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {view.icon}
@@ -486,7 +486,7 @@ export function FinanceDashboard({
             "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
             truePersonalSpend
               ? "border-[#3B82F6] bg-[#3B82F6]/10 text-[#3B82F6]"
-              : "border-[#2A2A2A] bg-[#0A0A0A] text-[#A0A0A0] hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+              : "border-border bg-background text-muted-foreground hover:border-ring hover:text-foreground"
           )}
         >
           {truePersonalSpend ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -543,8 +543,8 @@ export function FinanceDashboard({
       {walletView !== "debts" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Spending Breakdown Pie */}
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-            <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+          <div className="rounded-lg border border-border bg-card p-5">
+            <h3 className="mb-4 text-sm font-semibold text-foreground">
               Spending Breakdown
             </h3>
             {categoryBreakdown.length > 0 ? (
@@ -580,11 +580,11 @@ export function FinanceDashboard({
                           className="inline-block size-2 rounded-full"
                           style={{ backgroundColor: c.fill }}
                         />
-                        <span className="capitalize text-[#A0A0A0]">
+                        <span className="capitalize text-muted-foreground">
                           {c.name}
                         </span>
                       </span>
-                      <span className="text-[#FAFAFA]">
+                      <span className="text-foreground">
                         {formatCurrency(c.value)}
                       </span>
                     </div>
@@ -592,15 +592,15 @@ export function FinanceDashboard({
                 </div>
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-[#666666]">
+              <p className="py-8 text-center text-sm text-text-muted">
                 No expense data
               </p>
             )}
           </div>
 
           {/* Top Categories Bar Chart */}
-          <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-            <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+          <div className="rounded-lg border border-border bg-card p-5">
+            <h3 className="mb-4 text-sm font-semibold text-foreground">
               Top Expense Categories
             </h3>
             {barData.length > 0 ? (
@@ -630,7 +630,7 @@ export function FinanceDashboard({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="py-8 text-center text-sm text-[#666666]">
+              <p className="py-8 text-center text-sm text-text-muted">
                 No expense data
               </p>
             )}
@@ -640,8 +640,8 @@ export function FinanceDashboard({
 
       {/* Rolling Average Burn Chart */}
       {walletView === "overview" && rollingBurnData.length > 1 && (
-        <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-          <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
             Monthly Burn &amp; 3-Month Rolling Average
           </h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -682,7 +682,7 @@ export function FinanceDashboard({
       {/* Transaction / Debt list */}
       {walletView === "debts" ? (
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-[#FAFAFA]">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">
             Debt Accounts
           </h3>
           <DataTable
@@ -695,7 +695,7 @@ export function FinanceDashboard({
       ) : (
         <div>
           <div className="mb-3 flex items-start justify-between gap-4">
-            <h3 className="text-sm font-semibold text-[#FAFAFA]">
+            <h3 className="text-sm font-semibold text-foreground">
               {walletView === "expenses"
                 ? "Expenses"
                 : walletView === "income"

@@ -83,9 +83,9 @@ function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-[#2A2A2A] bg-[#141414] px-3 py-2 text-xs shadow-lg">
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-lg">
       {payload.map((p, i) => (
-        <p key={i} className="text-[#FAFAFA]">
+        <p key={i} className="text-foreground">
           {p.name}: {formatCurrencyFull(p.value)}
         </p>
       ))}
@@ -106,14 +106,14 @@ function VestingTimeline({ events }: { events: VestingEvent[] }) {
   if (events.length === 0) return null;
 
   return (
-    <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-      <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+    <div className="rounded-lg border border-border bg-card p-5">
+      <h3 className="mb-4 text-sm font-semibold text-foreground">
         Vesting Timeline
       </h3>
       <div className="space-y-3">
         {events.map((evt, i) => (
           <div key={i} className="flex items-center gap-4">
-            <div className="w-28 shrink-0 text-xs text-[#A0A0A0]">
+            <div className="w-28 shrink-0 text-xs text-muted-foreground">
               {new Date(evt.unlockDate + "T00:00:00").toLocaleDateString(
                 "en-CA",
                 { month: "short", year: "numeric" }
@@ -121,12 +121,12 @@ function VestingTimeline({ events }: { events: VestingEvent[] }) {
             </div>
             <div className="flex-1">
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-xs text-[#FAFAFA]">{evt.label}</span>
-                <span className="text-xs text-[#A0A0A0]">
+                <span className="text-xs text-foreground">{evt.label}</span>
+                <span className="text-xs text-muted-foreground">
                   {formatQuantity(evt.amount)} tokens
                 </span>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-[#1E1E1E]">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-accent">
                 <div
                   className="h-full rounded-full bg-[#8B5CF6]"
                   style={{ width: `${Math.min(evt.pctOfTotal, 100)}%` }}
@@ -150,8 +150,8 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     sortable: true,
     cell: (row) => (
       <div>
-        <span className="font-medium text-[#FAFAFA]">{row.symbol}</span>
-        <span className="ml-2 text-xs text-[#A0A0A0]">{row.name}</span>
+        <span className="font-medium text-foreground">{row.symbol}</span>
+        <span className="ml-2 text-xs text-muted-foreground">{row.name}</span>
       </div>
     ),
   },
@@ -161,7 +161,7 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     accessorKey: "chain",
     sortable: true,
     cell: (row) => (
-      <span className="capitalize text-[#A0A0A0]">{row.chain}</span>
+      <span className="capitalize text-muted-foreground">{row.chain}</span>
     ),
   },
   {
@@ -170,7 +170,7 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     accessorKey: "liquid",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#FAFAFA]">{formatQuantity(row.liquid)}</span>
+      <span className="text-foreground">{formatQuantity(row.liquid)}</span>
     ),
   },
   {
@@ -179,7 +179,7 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     accessorKey: "locked",
     sortable: true,
     cell: (row) => (
-      <span className={row.locked > 0 ? "text-[#EAB308]" : "text-[#A0A0A0]"}>
+      <span className={row.locked > 0 ? "text-[#EAB308]" : "text-muted-foreground"}>
         {row.locked > 0 ? formatQuantity(row.locked) : "—"}
       </span>
     ),
@@ -190,7 +190,7 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     accessorKey: "price_cad",
     sortable: true,
     cell: (row) => (
-      <span className="text-[#FAFAFA]">{formatCurrencyFull(row.price_cad)}</span>
+      <span className="text-foreground">{formatCurrencyFull(row.price_cad)}</span>
     ),
   },
   {
@@ -199,7 +199,7 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
     accessorKey: "market_value_cad",
     sortable: true,
     cell: (row) => (
-      <span className="font-medium text-[#FAFAFA]">
+      <span className="font-medium text-foreground">
         {formatCurrency(row.market_value_cad)}
       </span>
     ),
@@ -327,7 +327,7 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* Wallet filter */}
-      <div className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-1">
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
         {wallets.map((w) => (
           <button
             key={w}
@@ -335,8 +335,8 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
             className={cn(
               "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
               walletFilter === w
-                ? "bg-[#1E1E1E] text-[#FAFAFA]"
-                : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             <Wallet className="size-4" />
@@ -381,16 +381,16 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
       {/* Holdings table + Structure donut */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Holdings table (2/3) */}
-        <div className="lg:col-span-2 rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-          <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
             Holdings
           </h3>
           <DataTable columns={COLUMNS} data={rows} pageSize={10} />
         </div>
 
         {/* Structure donut (1/3) */}
-        <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
-          <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
             Structure
           </h3>
           {structureData.length > 0 ? (
@@ -426,18 +426,18 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
                       className="size-2.5 rounded-full"
                       style={{ backgroundColor: entry.fill }}
                     />
-                    <span className="text-xs text-[#A0A0A0]">
+                    <span className="text-xs text-muted-foreground">
                       {entry.name}
                     </span>
                   </div>
                 ))}
               </div>
-              <p className="text-center text-lg font-bold text-[#FAFAFA]">
+              <p className="text-center text-lg font-bold text-foreground">
                 {formatCurrency(totalMarketValue)}
               </p>
             </div>
           ) : (
-            <p className="text-sm text-[#A0A0A0]">No holdings data</p>
+            <p className="text-sm text-muted-foreground">No holdings data</p>
           )}
         </div>
       </div>

@@ -15,8 +15,8 @@ export default async function TreasuryPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#FAFAFA]">Treasury</h1>
-        <p className="mt-1 text-sm text-[#A0A0A0]">
+        <h1 className="text-2xl font-semibold text-foreground">Treasury</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Crypto holdings, market value, and token structure
         </p>
       </div>

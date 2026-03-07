@@ -57,21 +57,21 @@ function Drawer({ open, onClose, title, children, footer, className }: DrawerPro
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-[420px] max-w-full flex-col border-l border-[#2A2A2A] bg-[#141414] shadow-xl transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 flex w-[420px] max-w-full flex-col border-l border-border bg-card shadow-xl transition-transform duration-300 ease-in-out",
           open ? "translate-x-0" : "translate-x-full",
           className
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2A2A2A] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
           {title && (
-            <h2 className="text-lg font-semibold text-[#FAFAFA]">{title}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           )}
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="ml-auto text-[#A0A0A0] hover:text-[#FAFAFA]"
+            className="ml-auto text-muted-foreground hover:text-foreground"
           >
             <XIcon className="size-5" />
             <span className="sr-only">Close</span>
@@ -83,7 +83,7 @@ function Drawer({ open, onClose, title, children, footer, className }: DrawerPro
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center gap-3 border-t border-[#2A2A2A] px-5 py-4">
+          <div className="flex items-center gap-3 border-t border-border px-5 py-4">
             {footer}
           </div>
         )}

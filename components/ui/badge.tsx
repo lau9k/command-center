@@ -50,7 +50,7 @@ function Badge({
 type StatusType = "draft" | "ready" | "scheduled" | "published"
 
 const statusColors: Record<StatusType, string> = {
-  draft: "bg-[#666666]/20 text-[#A0A0A0]",
+  draft: "bg-[#666666]/20 text-muted-foreground",
   ready: "bg-[#EAB308]/20 text-[#EAB308]",
   scheduled: "bg-[#3B82F6]/20 text-[#3B82F6]",
   published: "bg-[#22C55E]/20 text-[#22C55E]",
@@ -81,7 +81,7 @@ function StatusBadge({
 type PriorityType = "low" | "medium" | "high" | "urgent"
 
 const priorityColors: Record<PriorityType, string> = {
-  low: "bg-[#666666]/20 text-[#A0A0A0]",
+  low: "bg-[#666666]/20 text-muted-foreground",
   medium: "bg-[#EAB308]/20 text-[#EAB308]",
   high: "bg-[#F97316]/20 text-[#F97316]",
   urgent: "bg-[#EF4444]/20 text-[#EF4444]",

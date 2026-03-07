@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MobileSidebar } from "./MobileSidebar";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
 import type { Notification } from "@/lib/types/database";
@@ -62,6 +63,8 @@ export async function Header({ projects }: HeaderProps) {
             </span>
           </>
         )}
+        <Separator orientation="vertical" className="h-5" />
+        <ThemeToggle />
         <Separator orientation="vertical" className="h-5" />
         <form action="/auth/sign-out" method="post">
           <Button variant="ghost" size="sm" type="submit">

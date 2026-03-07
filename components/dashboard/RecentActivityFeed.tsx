@@ -58,7 +58,7 @@ const columns: ColumnDef<ActivityItem>[] = [
     accessorKey: "title",
     sortable: true,
     cell: (row) => (
-      <span className="truncate text-[#FAFAFA]">{row.title}</span>
+      <span className="truncate text-foreground">{row.title}</span>
     ),
   },
   {
@@ -70,7 +70,7 @@ const columns: ColumnDef<ActivityItem>[] = [
           {row.projectName}
         </ProjectBadge>
       ) : (
-        <span className="text-[#666666]">-</span>
+        <span className="text-text-muted">-</span>
       ),
   },
   {
@@ -79,7 +79,7 @@ const columns: ColumnDef<ActivityItem>[] = [
     accessorKey: "updatedAt",
     sortable: true,
     cell: (row) => (
-      <span className="text-xs text-[#A0A0A0]">{relativeTime(row.updatedAt)}</span>
+      <span className="text-xs text-muted-foreground">{relativeTime(row.updatedAt)}</span>
     ),
   },
 ];
@@ -94,7 +94,7 @@ export function RecentActivityFeed({ items }: RecentActivityFeedProps) {
   if (items.length === 0) {
     return (
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-[#FAFAFA]">
+        <h2 className="text-lg font-semibold text-foreground">
           Recent Activity
         </h2>
         <EmptyState
@@ -107,7 +107,7 @@ export function RecentActivityFeed({ items }: RecentActivityFeedProps) {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold text-[#FAFAFA]">Recent Activity</h2>
+      <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
       <DataTable
         columns={columns}
         data={items}

@@ -5,10 +5,10 @@ import type { Project } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
 
 const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  paused: "bg-yellow-100 text-yellow-800",
-  completed: "bg-blue-100 text-blue-800",
-  archived: "bg-gray-100 text-gray-800",
+  active: "bg-[#22C55E]/20 text-[#22C55E]",
+  paused: "bg-[#EAB308]/20 text-[#EAB308]",
+  completed: "bg-[#3B82F6]/20 text-[#3B82F6]",
+  archived: "bg-[#6B7280]/20 text-[#6B7280]",
 };
 
 interface Tab {
@@ -47,7 +47,7 @@ export default async function ProjectLayout({
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{project.name}</h1>
           <Badge className={statusColors[project.status] ?? ""}>
             {project.status}
           </Badge>
