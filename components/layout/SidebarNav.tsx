@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CheckSquare,
+  Coins,
   DollarSign,
   FileText,
   FolderOpen,
@@ -27,10 +28,12 @@ const modules = [
 
 interface SidebarNavProps {
   projects: Project[];
+  hasMeekWallet?: boolean;
 }
 
-export function SidebarNav({ projects }: SidebarNavProps) {
+export function SidebarNav({ projects, hasMeekWallet }: SidebarNavProps) {
   const pathname = usePathname();
+  const financeExpanded = pathname.startsWith("/finance");
 
   return (
     <div className="flex h-full flex-col">
@@ -54,19 +57,34 @@ export function SidebarNav({ projects }: SidebarNavProps) {
                 : pathname.startsWith(item.href);
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                  isActive
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground"
+              <div key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+                {item.href === "/finance" && financeExpanded && hasMeekWallet && (
+                  <Link
+                    href="/finance/treasury"
+                    className={cn(
+                      "ml-7 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                      pathname === "/finance/treasury"
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <Coins className="h-3.5 w-3.5" />
+                    Treasury
+                  </Link>
                 )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
+              </div>
             );
           })}
         </div>

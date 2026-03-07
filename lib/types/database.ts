@@ -168,6 +168,11 @@ export interface CryptoBalance {
   quantity: number;
   cost_basis: number | null;
   wallet: string | null;
+  chain: string | null;
+  liquid_amount: number;
+  locked_amount: number;
+  last_price_usd: number | null;
+  last_price_updated_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
