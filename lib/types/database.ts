@@ -257,3 +257,101 @@ export interface ReimbursementSummary {
 export interface ReimbursementRequestWithItems extends ReimbursementRequest {
   items: ReimbursementItem[];
 }
+
+// --- Forecast types ---
+
+export type FlowDirection = "inflow" | "outflow";
+export type FlowCadence = "monthly" | "biweekly" | "weekly" | "one_time";
+
+export interface ScheduledFlow {
+  id: string;
+  user_id: string;
+  name: string;
+  amount: number;
+  direction: FlowDirection;
+  cadence: FlowCadence;
+  due_day: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  category: string | null;
+  probability: number;
+  earliest_date: string | null;
+  latest_date: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ForecastTransformType =
+  | "toggle_flow"
+  | "delay_flow"
+  | "scale_flow"
+  | "add_one_time";
+
+export interface ForecastTransform {
+  type: ForecastTransformType;
+  flow_name?: string;
+  active?: boolean;
+  delay_days?: number;
+  factor?: number;
+  name?: string;
+  amount?: number;
+  direction?: FlowDirection;
+  date?: string;
+}
+
+export interface ForecastRun {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  horizon_days: number;
+  starting_cash: number;
+  transforms: ForecastTransform[];
+  is_preset: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CashForecast {
+  id: string;
+  user_id: string;
+  forecast_run_id: string;
+  forecast_date: string;
+  day_index: number;
+  base_balance: number;
+  best_balance: number;
+  worst_balance: number;
+  inflows: number;
+  outflows: number;
+  events: ForecastEvent[];
+  created_at: string;
+}
+
+export interface ForecastEvent {
+  name: string;
+  amount: number;
+  direction: FlowDirection;
+  type?: string;
+}
+
+export interface ForecastDayPoint {
+  date: string;
+  dayIndex: number;
+  base: number;
+  best: number;
+  worst: number;
+  inflows: number;
+  outflows: number;
+  events: ForecastEvent[];
+}
+
+export interface ForecastResult {
+  runId: string;
+  runName: string;
+  timeSeries: ForecastDayPoint[];
+  runway: number;
+  minBalance: number;
+  cashZeroDate: string | null;
+}
