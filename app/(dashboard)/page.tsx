@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
+import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
 import {
@@ -165,7 +166,10 @@ export default async function DashboardPage() {
       </div>
 
       {/* 1. AI Focus Panel */}
-      <AIFocusPanel />
+      <div className="flex items-start justify-between">
+        <AIFocusPanel />
+        <SessionPromptButton />
+      </div>
 
       {/* 2. KPI Strip */}
       <KPIStrip
