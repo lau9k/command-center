@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 const APR = 0.2599;
 const DAYS_PER_YEAR = 365;
 
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   // Get all non-paid reimbursement requests
   const { data: requests, error: reqError } = await supabase
