@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
 import type {
   Transaction,
@@ -8,7 +8,7 @@ import type {
 } from "@/lib/types/database";
 
 export default async function FinancePage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const [transactionsRes, debtsRes, snapshotsRes, reimbursementRequestsRes] =
     await Promise.all([

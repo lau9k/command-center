@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { TreasuryDashboard } from "@/components/finance/TreasuryDashboard";
 import type { CryptoBalance } from "@/lib/types/database";
 
 export default async function TreasuryPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data } = await supabase
     .from("crypto_balances")

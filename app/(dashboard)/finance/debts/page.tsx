@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { DebtsDashboard } from "@/components/finance/DebtsDashboard";
 import type { Debt, DebtWithProjections, DebtPayoffProjection } from "@/lib/types/database";
 
@@ -79,7 +79,7 @@ function enrichDebt(debt: Debt): DebtWithProjections {
 }
 
 export default async function DebtsPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data } = await supabase
     .from("debts")
