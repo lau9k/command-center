@@ -6,6 +6,8 @@ export type ContactSource = "manual" | "referral" | "website" | "linkedin" | "ot
 export type NotificationType = "task" | "alert" | "info" | "signal";
 export type TaskFeedbackAction = "approved" | "rejected" | "edited";
 export type MemoryType = "contact" | "meeting" | "email" | "content" | "task";
+export type ContentPostStatus = "draft" | "ready" | "scheduled" | "published";
+export type InvoiceStatus = "draft" | "sent" | "overdue" | "paid" | "cancelled";
 
 export interface Project {
   id: string;
@@ -86,5 +88,34 @@ export interface MemoryStat {
   count: number;
   last_synced_at: string | null;
   metadata: Record<string, unknown> | null;
+  updated_at: string;
+}
+
+export interface ContentPost {
+  id: string;
+  project_id: string | null;
+  title: string | null;
+  body: string | null;
+  platform: string | null;
+  type: string;
+  status: ContentPostStatus;
+  scheduled_for: string | null;
+  late_post_id: string | null;
+  media_urls: string[] | null;
+  metrics: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  project_id: string | null;
+  title: string;
+  amount: number;
+  status: InvoiceStatus;
+  due_date: string | null;
+  recipient: string | null;
+  notes: string | null;
+  created_at: string;
   updated_at: string;
 }

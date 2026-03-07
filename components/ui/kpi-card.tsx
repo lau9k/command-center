@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 interface KpiCardProps extends React.ComponentProps<"div"> {
   label: string
   value: string | number
+  subtitle?: string
   delta?: number
   deltaDirection?: "up" | "down"
   icon?: React.ReactNode
@@ -16,6 +17,7 @@ interface KpiCardProps extends React.ComponentProps<"div"> {
 function KpiCard({
   label,
   value,
+  subtitle,
   delta,
   deltaDirection,
   icon,
@@ -45,6 +47,9 @@ function KpiCard({
           <span className="text-[32px] font-bold leading-none text-[#FAFAFA]">
             {value}
           </span>
+          {subtitle && (
+            <span className="text-xs text-[#A0A0A0]">{subtitle}</span>
+          )}
           {delta !== undefined && deltaDirection && (
             <span
               className={cn(
