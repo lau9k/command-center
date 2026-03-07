@@ -45,4 +45,139 @@ function Badge({
   )
 }
 
-export { Badge, badgeVariants }
+// --- Status Badge ---
+
+type StatusType = "draft" | "ready" | "scheduled" | "published"
+
+const statusColors: Record<StatusType, string> = {
+  draft: "bg-[#666666]/20 text-[#A0A0A0]",
+  ready: "bg-[#EAB308]/20 text-[#EAB308]",
+  scheduled: "bg-[#3B82F6]/20 text-[#3B82F6]",
+  published: "bg-[#22C55E]/20 text-[#22C55E]",
+}
+
+function StatusBadge({
+  status,
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { status: StatusType }) {
+  return (
+    <span
+      data-slot="status-badge"
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        statusColors[status],
+        className
+      )}
+      {...props}
+    >
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  )
+}
+
+// --- Priority Badge ---
+
+type PriorityType = "low" | "medium" | "high" | "urgent"
+
+const priorityColors: Record<PriorityType, string> = {
+  low: "bg-[#666666]/20 text-[#A0A0A0]",
+  medium: "bg-[#EAB308]/20 text-[#EAB308]",
+  high: "bg-[#F97316]/20 text-[#F97316]",
+  urgent: "bg-[#EF4444]/20 text-[#EF4444]",
+}
+
+function PriorityBadge({
+  priority,
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { priority: PriorityType }) {
+  return (
+    <span
+      data-slot="priority-badge"
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        priorityColors[priority],
+        className
+      )}
+      {...props}
+    >
+      {priority.charAt(0).toUpperCase() + priority.slice(1)}
+    </span>
+  )
+}
+
+// --- Platform Badge ---
+
+type PlatformType = "linkedin" | "twitter" | "youtube" | "instagram" | "tiktok"
+
+const platformColors: Record<PlatformType, { bg: string; text: string }> = {
+  linkedin: { bg: "bg-[#0A66C2]/20", text: "text-[#0A66C2]" },
+  twitter: { bg: "bg-[#1DA1F2]/20", text: "text-[#1DA1F2]" },
+  youtube: { bg: "bg-[#FF0000]/20", text: "text-[#FF0000]" },
+  instagram: { bg: "bg-[#E1306C]/20", text: "text-[#E1306C]" },
+  tiktok: { bg: "bg-[#00F2EA]/20", text: "text-[#00F2EA]" },
+}
+
+const platformLabels: Record<PlatformType, string> = {
+  linkedin: "LinkedIn",
+  twitter: "X",
+  youtube: "YouTube",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+}
+
+function PlatformBadge({
+  platform,
+  className,
+  ...props
+}: React.ComponentProps<"span"> & { platform: PlatformType }) {
+  const c = platformColors[platform]
+  return (
+    <span
+      data-slot="platform-badge"
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        c.bg,
+        c.text,
+        className
+      )}
+      {...props}
+    >
+      {platformLabels[platform]}
+    </span>
+  )
+}
+
+// --- Project Badge ---
+
+function ProjectBadge({
+  className,
+  children,
+  color = "#A855F7",
+  ...props
+}: React.ComponentProps<"span"> & { color?: string }) {
+  return (
+    <span
+      data-slot="project-badge"
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        className
+      )}
+      style={{ backgroundColor: `${color}20`, color }}
+      {...props}
+    >
+      {children}
+    </span>
+  )
+}
+
+export {
+  Badge,
+  badgeVariants,
+  StatusBadge,
+  PriorityBadge,
+  PlatformBadge,
+  ProjectBadge,
+}
+export type { StatusType, PriorityType, PlatformType }
