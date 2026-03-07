@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { ForecastDashboard } from "@/components/finance/ForecastDashboard";
 import type { ScheduledFlow, ForecastRun } from "@/lib/types/database";
 
 export default async function ForecastPage() {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const [flowsRes, runsRes] = await Promise.all([
     supabase
