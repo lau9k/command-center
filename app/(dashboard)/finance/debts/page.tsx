@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { DebtsDashboard } from "@/components/finance/DebtsDashboard";
 import type { Debt, DebtWithProjections, DebtPayoffProjection } from "@/lib/types/database";
 
 function calculatePayoffProjection(debt: Debt): DebtPayoffProjection {
@@ -9,7 +9,6 @@ function calculatePayoffProjection(debt: Debt): DebtPayoffProjection {
   const monthlyRate = rate / 12;
   const monthlyInterestCost = balance * monthlyRate;
 
-  // No interest or no payment → special cases
   if (rate === 0) {
     if (minPayment <= 0) {
       return {
@@ -31,24 +30,20 @@ function calculatePayoffProjection(debt: Debt): DebtPayoffProjection {
   }
 
   if (minPayment <= monthlyInterestCost) {
-    // Payment doesn't cover interest — never pays off
     return {
       monthsToPayoff: null,
       projectedPayoffDate: null,
-      totalInterestCost: monthlyInterestCost * 12, // annual estimate
+      totalInterestCost: monthlyInterestCost * 12,
       monthlyInterestCost,
     };
   }
 
-  // Standard amortization formula: n = -ln(1 - r*PV/PMT) / ln(1+r)
   const months = Math.ceil(
     -Math.log(1 - (monthlyRate * balance) / minPayment) /
       Math.log(1 + monthlyRate)
   );
-
   const totalPaid = minPayment * months;
   const totalInterestCost = totalPaid - balance;
-
   const payoffDate = new Date();
   payoffDate.setMonth(payoffDate.getMonth() + months);
 
@@ -83,82 +78,26 @@ function enrichDebt(debt: Debt): DebtWithProjections {
   };
 }
 
-export async function GET(request: NextRequest) {
+export default async function DebtsPage() {
   const supabase = await createClient();
-  const { searchParams } = new URL(request.url);
-  const withProjections = searchParams.get("projections") !== "false";
 
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("debts")
     .select("*")
     .order("balance", { ascending: false });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const debts: DebtWithProjections[] = ((data as Debt[]) ?? []).map(enrichDebt);
 
-  if (withProjections) {
-    const enriched: DebtWithProjections[] = (data as Debt[]).map(enrichDebt);
-    return NextResponse.json(enriched);
-  }
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-[#FAFAFA]">Debts</h1>
+        <p className="mt-1 text-sm text-[#A0A0A0]">
+          Track balances, interest costs, and projected payoff dates
+        </p>
+      </div>
 
-  return NextResponse.json(data);
-}
-
-export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const body = await request.json();
-
-  const { data, error } = await supabase
-    .from("debts")
-    .insert(body)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data, { status: 201 });
-}
-
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient();
-  const body = await request.json();
-  const { id, ...updates } = body;
-
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
-  }
-
-  const { data, error } = await supabase
-    .from("debts")
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data);
-}
-
-export async function DELETE(request: NextRequest) {
-  const supabase = await createClient();
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
-
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
-  }
-
-  const { error } = await supabase.from("debts").delete().eq("id", id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
+      <DebtsDashboard debts={debts} />
+    </div>
+  );
 }

@@ -138,6 +138,8 @@ export interface Transaction {
   start_date: string | null;
   end_date: string | null;
   notes: string | null;
+  split_group_id: string | null;
+  is_reimbursable?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -354,4 +356,31 @@ export interface ForecastResult {
   runway: number;
   minBalance: number;
   cashZeroDate: string | null;
+}
+
+// --- Debts with projections ---
+
+export interface DebtPayoffProjection {
+  monthsToPayoff: number | null;
+  projectedPayoffDate: string | null;
+  totalInterestCost: number;
+  monthlyInterestCost: number;
+}
+
+export interface DebtWithProjections extends Debt {
+  utilization: number;
+  nextDueDate: string | null;
+  projection: DebtPayoffProjection;
+}
+
+// --- Wallet P&L ---
+
+export interface WalletPnlMonthly {
+  wallet_id: string;
+  month: string;
+  income: number;
+  expenses: number;
+  net: number;
+  reimbursable_expenses: number;
+  transaction_count: number;
 }
