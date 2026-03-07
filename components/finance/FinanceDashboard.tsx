@@ -17,6 +17,8 @@ import {
   Cell,
   BarChart,
   Bar,
+  ComposedChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -135,6 +137,16 @@ const TRANSACTION_COLUMNS: ColumnDef<Transaction>[] = [
     header: "Name",
     accessorKey: "name",
     sortable: true,
+    cell: (row) => (
+      <span className="flex items-center gap-2">
+        <span>{row.name}</span>
+        {row.split_group_id && (
+          <span className="rounded bg-[#3B82F6]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#3B82F6]">
+            Split
+          </span>
+        )}
+      </span>
+    ),
   },
   {
     id: "amount",
@@ -357,15 +369,46 @@ export function FinanceDashboard({
     }));
   }, [categoryBreakdown]);
 
+  // --- Group split transactions in All Wallets view ---
+  const groupedTransactions = useMemo(() => {
+    if (walletView !== "overview") return effectiveTransactions;
+
+    const splitGroups = new Map<string, Transaction[]>();
+    const nonSplit: Transaction[] = [];
+
+    effectiveTransactions.forEach((t) => {
+      if (t.split_group_id) {
+        const group = splitGroups.get(t.split_group_id) ?? [];
+        group.push(t);
+        splitGroups.set(t.split_group_id, group);
+      } else {
+        nonSplit.push(t);
+      }
+    });
+
+    // For each split group, show one representative row with total amount
+    const splitRepresentatives: Transaction[] = [];
+    splitGroups.forEach((members) => {
+      const totalAmount = members.reduce((s, m) => s + Number(m.amount), 0);
+      splitRepresentatives.push({
+        ...members[0],
+        amount: totalAmount,
+        notes: `Split across ${members.length} wallets`,
+      });
+    });
+
+    return [...nonSplit, ...splitRepresentatives];
+  }, [effectiveTransactions, walletView]);
+
   // --- Filtered transactions for the table ---
   const displayedTransactions = useMemo(() => {
-    let filtered = effectiveTransactions;
+    let filtered = groupedTransactions;
 
     // Filter by wallet view
     if (walletView === "expenses") {
-      filtered = filtered.filter((t) => t.type === "expense");
+      filtered = effectiveTransactions.filter((t) => t.type === "expense");
     } else if (walletView === "income") {
-      filtered = filtered.filter((t) => t.type === "income");
+      filtered = effectiveTransactions.filter((t) => t.type === "income");
     }
 
     // Apply filter bar
@@ -381,7 +424,39 @@ export function FinanceDashboard({
     }
 
     return filtered;
-  }, [effectiveTransactions, walletView, filterValues]);
+  }, [effectiveTransactions, groupedTransactions, walletView, filterValues]);
+
+  // --- Rolling average burn data for overview chart ---
+  const rollingBurnData = useMemo(() => {
+    // Group expenses by month (using start_date or created_at)
+    const monthlyExpenses = new Map<string, number>();
+    effectiveTransactions
+      .filter((t) => t.type === "expense")
+      .forEach((t) => {
+        const dateStr = t.start_date ?? t.created_at;
+        const d = new Date(dateStr);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        monthlyExpenses.set(
+          monthKey,
+          (monthlyExpenses.get(monthKey) ?? 0) + Number(t.amount)
+        );
+      });
+
+    const sortedMonths = Array.from(monthlyExpenses.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]));
+
+    return sortedMonths.map((entry, i, arr) => {
+      const windowStart = Math.max(0, i - 2);
+      const window = arr.slice(windowStart, i + 1);
+      const avg =
+        window.reduce((s, [, v]) => s + v, 0) / window.length;
+      return {
+        month: entry[0],
+        expenses: entry[1],
+        rollingAvg: Math.round(avg),
+      };
+    });
+  }, [effectiveTransactions]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -560,6 +635,47 @@ export function FinanceDashboard({
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Rolling Average Burn Chart */}
+      {walletView === "overview" && rollingBurnData.length > 1 && (
+        <div className="rounded-[12px] border border-[#2A2A2A] bg-[#141414] p-5">
+          <h3 className="mb-4 text-sm font-semibold text-[#FAFAFA]">
+            Monthly Burn &amp; 3-Month Rolling Average
+          </h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={rollingBurnData}>
+              <XAxis
+                dataKey="month"
+                tick={{ fill: "#666666", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: "#666666", fontSize: 11 }}
+                tickFormatter={(v) => formatCurrency(v)}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Bar
+                dataKey="expenses"
+                name="Monthly Expenses"
+                fill="#EF4444"
+                fillOpacity={0.3}
+                radius={[4, 4, 0, 0]}
+              />
+              <Line
+                type="monotone"
+                dataKey="rollingAvg"
+                name="3-Mo Avg"
+                stroke="#EF4444"
+                strokeWidth={2}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       )}
 
