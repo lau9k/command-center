@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   DollarSign,
   TrendingDown,
@@ -8,6 +8,8 @@ import {
   Wallet,
   CreditCard,
   Landmark,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   PieChart,
@@ -29,7 +31,9 @@ import type {
   Transaction,
   Debt,
   BalanceSnapshot,
+  ReimbursementRequest,
 } from "@/lib/types/database";
+import { TransactionDetailDrawer } from "@/components/finance/TransactionDetailDrawer";
 
 // --- Category colors ---
 const CATEGORY_COLORS: Record<string, string> = {
@@ -257,25 +261,43 @@ interface FinanceDashboardProps {
   transactions: Transaction[];
   debts: Debt[];
   snapshots: BalanceSnapshot[];
+  reimbursementRequests?: ReimbursementRequest[];
 }
 
 export function FinanceDashboard({
   transactions,
   debts,
   snapshots,
+  reimbursementRequests = [],
 }: FinanceDashboardProps) {
   const [walletView, setWalletView] = useState<WalletView>("overview");
   const [filterValues, setFilterValues] = useState<FilterValues>({
     category: [],
     interval: [],
   });
+  const [truePersonalSpend, setTruePersonalSpend] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleTransactionClick = useCallback((row: Transaction) => {
+    setSelectedTransaction(row);
+    setDrawerOpen(true);
+  }, []);
+
+  // Filter out reimbursable transactions when "True Personal Spend" is active
+  const effectiveTransactions = useMemo(() => {
+    if (!truePersonalSpend) return transactions;
+    return transactions.filter(
+      (t) => !(t as Transaction & { is_reimbursable?: boolean }).is_reimbursable
+    );
+  }, [transactions, truePersonalSpend]);
 
   // --- Computed data ---
   const latestSnapshot = snapshots[0] ?? null;
 
   const monthlyExpenses = useMemo(
     () =>
-      transactions
+      effectiveTransactions
         .filter((t) => t.type === "expense" && t.interval !== "one_time")
         .reduce((sum, t) => {
           const amt = Number(t.amount);
@@ -283,12 +305,12 @@ export function FinanceDashboard({
           if (t.interval === "weekly") return sum + amt * 4;
           return sum + amt;
         }, 0),
-    [transactions]
+    [effectiveTransactions]
   );
 
   const monthlyIncome = useMemo(
     () =>
-      transactions
+      effectiveTransactions
         .filter((t) => t.type === "income" && t.interval !== "one_time")
         .reduce((sum, t) => {
           const amt = Number(t.amount);
@@ -296,7 +318,7 @@ export function FinanceDashboard({
           if (t.interval === "weekly") return sum + amt * 4;
           return sum + amt;
         }, 0),
-    [transactions]
+    [effectiveTransactions]
   );
 
   const totalDebt = useMemo(
@@ -309,7 +331,7 @@ export function FinanceDashboard({
   // --- Spending breakdown by category (pie chart) ---
   const categoryBreakdown = useMemo(() => {
     const map = new Map<string, number>();
-    transactions
+    effectiveTransactions
       .filter((t) => t.type === "expense" && t.interval !== "one_time")
       .forEach((t) => {
         const cat = t.category ?? "other";
@@ -323,7 +345,7 @@ export function FinanceDashboard({
         fill: CATEGORY_COLORS[name] ?? DEFAULT_COLOR,
       }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions]);
+  }, [effectiveTransactions]);
 
   // --- Monthly trend bar chart (income vs expenses by category group) ---
   const barData = useMemo(() => {
@@ -337,7 +359,7 @@ export function FinanceDashboard({
 
   // --- Filtered transactions for the table ---
   const displayedTransactions = useMemo(() => {
-    let filtered = transactions;
+    let filtered = effectiveTransactions;
 
     // Filter by wallet view
     if (walletView === "expenses") {
@@ -359,27 +381,42 @@ export function FinanceDashboard({
     }
 
     return filtered;
-  }, [transactions, walletView, filterValues]);
+  }, [effectiveTransactions, walletView, filterValues]);
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Wallet Context Switcher */}
-      <div className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-1">
-        {WALLET_VIEWS.map((view) => (
-          <button
-            key={view.id}
-            onClick={() => setWalletView(view.id)}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
-              walletView === view.id
-                ? "bg-[#1E1E1E] text-[#FAFAFA]"
-                : "text-[#A0A0A0] hover:text-[#FAFAFA]"
-            )}
-          >
-            {view.icon}
-            {view.label}
-          </button>
-        ))}
+      {/* Wallet Context Switcher + True Personal Spend Toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-[#0A0A0A] p-1">
+          {WALLET_VIEWS.map((view) => (
+            <button
+              key={view.id}
+              onClick={() => setWalletView(view.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                walletView === view.id
+                  ? "bg-[#1E1E1E] text-[#FAFAFA]"
+                  : "text-[#A0A0A0] hover:text-[#FAFAFA]"
+              )}
+            >
+              {view.icon}
+              {view.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setTruePersonalSpend((v) => !v)}
+          className={cn(
+            "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+            truePersonalSpend
+              ? "border-[#3B82F6] bg-[#3B82F6]/10 text-[#3B82F6]"
+              : "border-[#2A2A2A] bg-[#0A0A0A] text-[#A0A0A0] hover:border-[#3A3A3A] hover:text-[#FAFAFA]"
+          )}
+        >
+          {truePersonalSpend ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+          True Personal Spend
+        </button>
       </div>
 
       {/* KPI Strip */}
@@ -560,9 +597,22 @@ export function FinanceDashboard({
             data={displayedTransactions}
             rowKey={(row) => row.id}
             pageSize={15}
+            onRowClick={handleTransactionClick}
           />
         </div>
       )}
+
+      {/* Transaction Detail Drawer */}
+      <TransactionDetailDrawer
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+        reimbursementRequests={reimbursementRequests}
+        onUpdate={() => window.location.reload()}
+      />
     </div>
   );
 }
