@@ -183,3 +183,77 @@ export interface BalanceSnapshot {
   notes: string | null;
   created_at: string;
 }
+
+// --- Reimbursement types ---
+
+export type ReimbursementStatus = "draft" | "submitted" | "approved" | "paid";
+
+export interface ReimbursementRequest {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  wallet: string;
+  status: ReimbursementStatus;
+  submitted_at: string | null;
+  approved_at: string | null;
+  paid_at: string | null;
+  total_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReimbursementItem {
+  id: string;
+  user_id: string;
+  reimbursement_request_id: string;
+  transaction_id: string | null;
+  description: string;
+  amount: number;
+  expense_date: string;
+  receipt_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReimbursementPayment {
+  id: string;
+  user_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  reference: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReimbursementPaymentAllocation {
+  id: string;
+  user_id: string;
+  payment_id: string;
+  reimbursement_request_id: string;
+  amount: number;
+  created_at: string;
+}
+
+export interface ReimbursementSummary {
+  id: string;
+  user_id: string;
+  title: string;
+  wallet: string;
+  status: ReimbursementStatus;
+  total_amount: number;
+  submitted_at: string | null;
+  approved_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  amount_paid: number;
+  amount_outstanding: number;
+  item_count: number;
+  float_cost: number;
+}
+
+export interface ReimbursementRequestWithItems extends ReimbursementRequest {
+  items: ReimbursementItem[];
+}
