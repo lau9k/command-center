@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
+import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 
 const statusColors: Record<string, string> = {
   active: "bg-[#22C55E]/20 text-[#22C55E]",
@@ -51,6 +52,7 @@ export default async function ProjectLayout({
           <Badge className={statusColors[project.status] ?? ""}>
             {project.status}
           </Badge>
+          <SessionPromptButton projectKey={project.name.toLowerCase()} />
         </div>
         {project.description && (
           <p className="mt-1 text-muted-foreground">{project.description}</p>
