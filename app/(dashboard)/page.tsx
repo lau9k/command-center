@@ -16,6 +16,29 @@ export default async function DashboardPage() {
   const serviceClient = createServiceClient();
 
   // Parallel data fetching for all KPI + section data
+  // Fetch community member count from Telegram API (non-blocking)
+  async function fetchCommunityMemberCount(): Promise<number | null> {
+    try {
+      const token = process.env.MEEK_COMMUNITY_BOT_TOKEN;
+      const chatId = process.env.MEEK_COMMUNITY_CHAT_ID || "-1003661922248";
+      if (!token) return null;
+
+      const res = await fetch(
+        `https://api.telegram.org/bot${token}/getChatMemberCount`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId }),
+          next: { revalidate: 300 },
+        }
+      );
+      const data = await res.json();
+      return data.ok ? data.result : null;
+    } catch {
+      return null;
+    }
+  }
+
   const [
     tasksRes,
     projectsRes,
@@ -26,6 +49,7 @@ export default async function DashboardPage() {
     invoicesRes,
     memoryRes,
     pipelineCountRes,
+    communityMemberCount,
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -53,6 +77,7 @@ export default async function DashboardPage() {
       .in("status", ["sent", "overdue"]),
     supabase.from("memory_stats").select("count"),
     supabase.from("pipeline_items").select("id", { count: "exact", head: true }),
+    fetchCommunityMemberCount(),
   ]);
 
   const tasks = tasksRes.data ?? [];
@@ -207,6 +232,7 @@ export default async function DashboardPage() {
         contentScheduledCount={contentScheduledCount}
         contentPublishedCount={contentPublishedCount}
         pipelineItemCount={pipelineItemCount}
+        communityMemberCount={communityMemberCount}
       />
 
       {/* 3. Content Calendar Preview */}

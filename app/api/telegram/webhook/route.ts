@@ -167,15 +167,37 @@ async function handleStats(chatId: number) {
     .eq("project_id", MEEK_PROJECT_ID)
     .in("status", ["scheduled", "ready"]);
 
+  // Fetch community member count from the community bot
+  let communityMemberCount: number | null = null;
+  try {
+    const communityToken = process.env.MEEK_COMMUNITY_BOT_TOKEN;
+    const communityChatId = process.env.MEEK_COMMUNITY_CHAT_ID || "-1003661922248";
+    if (communityToken) {
+      const res = await fetch(
+        `https://api.telegram.org/bot${communityToken}/getChatMemberCount`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: communityChatId }),
+        }
+      );
+      const data = await res.json();
+      if (data.ok) communityMemberCount = data.result;
+    }
+  } catch (err) {
+    console.error("[TG] Failed to fetch community member count:", err);
+  }
+
   let msg = "📊 *MEEK Community Stats*\n\n";
   msg += `*Content Pipeline*\n`;
   msg += `   Total Posts: ${postCount ?? 0}\n`;
   msg += `   Published: ${publishedCount ?? 0}\n`;
   msg += `   Upcoming: ${scheduledCount ?? 0}\n\n`;
-  msg += `*Community Metrics*\n`;
+  msg += `*Community*\n`;
+  msg += `   👥 Members: ${communityMemberCount !== null ? communityMemberCount.toLocaleString() : "_unavailable_"}\n\n`;
+  msg += `*Market Metrics*\n`;
   msg += `   💰 Wallet Count: _coming soon_\n`;
   msg += `   📈 Market Cap: _coming soon_\n`;
-  msg += `   👥 Holder Count: _coming soon_\n`;
 
   await sendMessage(chatId, msg);
 }
