@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import ContactDetail from "@/components/contacts/ContactDetail";
 
 const statusColors: Record<ContactStatus, "default" | "secondary" | "outline" | "destructive"> = {
   active: "default",
@@ -73,6 +74,7 @@ export default function ProjectContactsPage() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [form, setForm] = useState<ContactFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   const fetchContacts = useCallback(async () => {
     const { data } = await supabase
@@ -162,6 +164,15 @@ export default function ProjectContactsPage() {
     return <p className="text-sm text-muted-foreground">Loading contacts...</p>;
   }
 
+  if (selectedContact) {
+    return (
+      <ContactDetail
+        contact={selectedContact}
+        onBack={() => setSelectedContact(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -190,7 +201,11 @@ export default function ProjectContactsPage() {
           </TableHeader>
           <TableBody>
             {contacts.map((contact) => (
-              <TableRow key={contact.id}>
+              <TableRow
+                key={contact.id}
+                className="cursor-pointer"
+                onClick={() => setSelectedContact(contact)}
+              >
                 <TableCell className="font-medium">{contact.name}</TableCell>
                 <TableCell>{contact.email ?? "—"}</TableCell>
                 <TableCell>{contact.company ?? "—"}</TableCell>
@@ -201,7 +216,7 @@ export default function ProjectContactsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon-xs"
