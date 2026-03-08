@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
+import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
 import type {
   Transaction,
   Debt,
@@ -38,6 +39,10 @@ export default async function FinancePage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Track income, expenses, debts, and net worth
         </p>
+      </div>
+
+      <div className="mb-6">
+        <ConnectedAccounts />
       </div>
 
       <FinanceDashboard

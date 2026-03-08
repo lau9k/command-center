@@ -11,12 +11,14 @@ import { decrypt } from "@/lib/plaid-crypto";
 
 export const runtime = "nodejs";
 
-async function syncTransactions(request: NextRequest) {
-  const cronKey = process.env.CRON_KEY;
-  const headerKey = request.headers.get("x-cron-key");
+async function syncTransactions(request: NextRequest, requireCronKey = true) {
+  if (requireCronKey) {
+    const cronKey = process.env.CRON_KEY;
+    const headerKey = request.headers.get("x-cron-key");
 
-  if (!cronKey || headerKey !== cronKey) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!cronKey || headerKey !== cronKey) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const clientId = process.env.PLAID_CLIENT_ID;
@@ -152,9 +154,10 @@ async function syncTransactions(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return syncTransactions(request);
+  return syncTransactions(request, true);
 }
 
 export async function POST(request: NextRequest) {
-  return syncTransactions(request);
+  // POST from frontend doesn't require cron key
+  return syncTransactions(request, false);
 }
