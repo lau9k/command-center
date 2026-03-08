@@ -17,6 +17,7 @@ export default async function DashboardPage() {
     projectsRes,
     contentRes,
     contactsRes,
+    contactsCountRes,
     invoicesRes,
     memoryRes,
   ] = await Promise.all([
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
       .select("id, project_id, title, scheduled_for, updated_at, projects(id, name, color)")
       .order("updated_at", { ascending: false }),
     supabase.from("contacts").select("id, project_id, name, updated_at, projects(id, name, color)").order("updated_at", { ascending: false }),
+    supabase.from("contacts").select("id", { count: "exact", head: true }),
     supabase
       .from("invoices")
       .select("amount, status")
@@ -45,6 +47,7 @@ export default async function DashboardPage() {
   const projects = projectsRes.data ?? [];
   const contentPosts = contentRes.data ?? [];
   const contacts = contactsRes.data ?? [];
+  const totalContactsCount = contactsCountRes.count ?? 0;
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
 
@@ -176,7 +179,7 @@ export default async function DashboardPage() {
         activeTasks={activeTasks}
         activeProjectCount={activeProjectIds.size}
         contentThisWeek={contentThisWeek}
-        contactsCount={contacts.length}
+        contactsCount={totalContactsCount}
         openInvoiceTotal={openInvoiceTotal}
         memoryRecords={memoryRecords}
       />
