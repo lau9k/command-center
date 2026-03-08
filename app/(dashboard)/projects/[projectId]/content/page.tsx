@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { MeekCalendar } from "@/components/content/MeekCalendar";
 import type { ContentPost } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectContentPage({
   params,
 }: {

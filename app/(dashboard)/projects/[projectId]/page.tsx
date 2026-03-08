@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { MeekCalendarStrip } from "@/components/content/MeekCalendarStrip";
 
+export const dynamic = "force-dynamic";
+
 const taskStatusConfig: Record<string, { label: string; icon: typeof Circle }> =
   {
     todo: { label: "To Do", icon: Circle },
