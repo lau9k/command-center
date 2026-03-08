@@ -148,6 +148,21 @@ export interface Invoice {
   updated_at: string;
 }
 
+// --- Conversation types ---
+
+export interface Conversation {
+  id: string;
+  project_id: string | null;
+  user_id: string;
+  contact_id: string | null;
+  summary: string | null;
+  channel: string | null;
+  last_message_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Import types ---
 
 export type ImportStatus = "pending" | "processing" | "complete" | "failed";
