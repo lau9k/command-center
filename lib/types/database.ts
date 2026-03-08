@@ -44,6 +44,9 @@ export interface Contact {
   company: string | null;
   source: ContactSource;
   status: ContactStatus;
+  tags: string[];
+  score: number;
+  last_contact_date: string | null;
   created_at: string;
   updated_at: string;
 }
