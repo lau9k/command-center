@@ -1,25 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
+import { ContentCalendarPreview } from "@/components/dashboard/ContentCalendarPreview";
 import {
   RecentActivityFeed,
   type ActivityItem,
 } from "@/components/dashboard/RecentActivityFeed";
+import type { ContentPost } from "@/lib/types/database";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const serviceClient = createServiceClient();
 
   // Parallel data fetching for all KPI + section data
   const [
     tasksRes,
     projectsRes,
     contentRes,
+    allContentRes,
     contactsRes,
     contactsCountRes,
     invoicesRes,
     memoryRes,
+    pipelineCountRes,
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -34,6 +40,11 @@ export default async function DashboardPage() {
       .from("content_posts")
       .select("id, project_id, title, scheduled_for, updated_at, projects(id, name, color)")
       .order("updated_at", { ascending: false }),
+    serviceClient
+      .from("content_posts")
+      .select("id, status, scheduled_at, scheduled_for, platforms, platform, project_id, title, caption")
+      .order("scheduled_at", { ascending: true, nullsFirst: false })
+      .returns<ContentPost[]>(),
     supabase.from("contacts").select("id, project_id, name, updated_at, projects(id, name, color)").order("updated_at", { ascending: false }),
     supabase.from("contacts").select("id", { count: "exact", head: true }),
     supabase
@@ -41,15 +52,18 @@ export default async function DashboardPage() {
       .select("amount, status")
       .in("status", ["sent", "overdue"]),
     supabase.from("memory_stats").select("count"),
+    supabase.from("pipeline_items").select("id", { count: "exact", head: true }),
   ]);
 
   const tasks = tasksRes.data ?? [];
   const projects = projectsRes.data ?? [];
   const contentPosts = contentRes.data ?? [];
+  const allContent = (allContentRes.data ?? []) as ContentPost[];
   const contacts = contactsRes.data ?? [];
   const totalContactsCount = contactsCountRes.count ?? 0;
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
+  const pipelineItemCount = pipelineCountRes.count ?? 0;
 
   // --- KPI computations ---
   const activeTasks = tasks.filter((t) => t.status !== "done").length;
@@ -64,6 +78,12 @@ export default async function DashboardPage() {
     const d = new Date(p.scheduled_for);
     return d >= now && d <= weekFromNow;
   }).length;
+
+  // Content status breakdown
+  const totalContentPosts = allContent.length;
+  const contentDraftCount = allContent.filter((p) => p.status === "draft").length;
+  const contentScheduledCount = allContent.filter((p) => p.status === "scheduled").length;
+  const contentPublishedCount = allContent.filter((p) => p.status === "published").length;
 
   const openInvoiceTotal = invoices.reduce(
     (sum, inv) => sum + Number(inv.amount ?? 0),
@@ -182,12 +202,20 @@ export default async function DashboardPage() {
         contactsCount={totalContactsCount}
         openInvoiceTotal={openInvoiceTotal}
         memoryRecords={memoryRecords}
+        totalContentPosts={totalContentPosts}
+        contentDraftCount={contentDraftCount}
+        contentScheduledCount={contentScheduledCount}
+        contentPublishedCount={contentPublishedCount}
+        pipelineItemCount={pipelineItemCount}
       />
 
-      {/* 3. Project Summary Cards */}
+      {/* 3. Content Calendar Preview */}
+      <ContentCalendarPreview posts={allContent} />
+
+      {/* 4. Project Summary Cards */}
       <ProjectSummaryCards projects={projectSummaries} />
 
-      {/* 4. Recent Activity Feed */}
+      {/* 5. Recent Activity Feed */}
       <RecentActivityFeed items={recentActivity} />
     </div>
   );
