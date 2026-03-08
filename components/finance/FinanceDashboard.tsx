@@ -10,6 +10,9 @@ import {
   Landmark,
   Eye,
   EyeOff,
+  CalendarClock,
+  Receipt,
+  AlertTriangle,
 } from "lucide-react";
 import {
   PieChart,
@@ -60,6 +63,47 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const DEFAULT_COLOR = "#666666";
+
+// --- Essential expense categories (used for Monthly Nut & Weekly Budget) ---
+const ESSENTIAL_CATEGORIES = new Set([
+  "housing",
+  "utilities",
+  "insurance",
+  "transportation",
+  "debt_payment",
+  "health",
+]);
+
+// --- Upcoming payment helpers ---
+function getDaysUntilDue(dueDay: number): number {
+  const today = new Date();
+  const currentDay = today.getDate();
+  const lastDayOfMonth = new Date(
+    today.getFullYear(),
+    today.getMonth() + 1,
+    0
+  ).getDate();
+  const effectiveDueDay = Math.min(dueDay, lastDayOfMonth);
+
+  if (effectiveDueDay >= currentDay) {
+    return effectiveDueDay - currentDay;
+  }
+  // Already passed this month — treat as overdue
+  return effectiveDueDay - currentDay; // negative = overdue
+}
+
+function getDueColor(daysUntil: number): string {
+  if (daysUntil <= 2) return "#EF4444"; // red
+  if (daysUntil <= 6) return "#EAB308"; // yellow
+  return "#22C55E"; // green
+}
+
+function getDueGroup(daysUntil: number): string {
+  if (daysUntil <= 0) return "Overdue";
+  if (daysUntil <= 7) return "This Week";
+  if (daysUntil <= 14) return "Next 2 Weeks";
+  return "Rest of Month";
+}
 
 // --- Wallet views ---
 type WalletView = "overview" | "expenses" | "income" | "debts";
@@ -340,6 +384,102 @@ export function FinanceDashboard({
 
   const monthlySavings = monthlyIncome - monthlyExpenses;
 
+  // --- Monthly Nut: total essential recurring expenses ---
+  const monthlyEssentials = useMemo(
+    () =>
+      effectiveTransactions
+        .filter(
+          (t) =>
+            t.type === "expense" &&
+            t.interval !== "one_time" &&
+            ESSENTIAL_CATEGORIES.has(t.category ?? "")
+        )
+        .reduce((sum, t) => {
+          const amt = Number(t.amount);
+          if (t.interval === "biweekly") return sum + amt * 2;
+          if (t.interval === "weekly") return sum + amt * 4;
+          return sum + amt;
+        }, 0),
+    [effectiveTransactions]
+  );
+
+  // --- Weekly Discretionary Budget ---
+  const weeklyBudget = useMemo(() => {
+    const discretionary = (monthlyIncome - monthlyEssentials) / 4.33;
+    return Math.max(0, discretionary);
+  }, [monthlyIncome, monthlyEssentials]);
+
+  // Weekly discretionary spend (non-essential expenses normalized to weekly)
+  const weeklySpent = useMemo(() => {
+    return effectiveTransactions
+      .filter(
+        (t) =>
+          t.type === "expense" &&
+          t.interval !== "one_time" &&
+          !ESSENTIAL_CATEGORIES.has(t.category ?? "")
+      )
+      .reduce((sum, t) => {
+        const amt = Number(t.amount);
+        if (t.interval === "monthly") return sum + amt / 4.33;
+        if (t.interval === "biweekly") return sum + amt / 2.165;
+        return sum + amt; // weekly
+      }, 0);
+  }, [effectiveTransactions]);
+
+  // --- Upcoming Payments: recurring expenses sorted by due_day ---
+  const upcomingPayments = useMemo(() => {
+    const recurring = effectiveTransactions.filter(
+      (t) => t.type === "expense" && t.interval !== "one_time" && t.due_day != null
+    );
+
+    return recurring
+      .map((t) => ({
+        ...t,
+        daysUntil: getDaysUntilDue(t.due_day!),
+      }))
+      .sort((a, b) => a.daysUntil - b.daysUntil);
+  }, [effectiveTransactions]);
+
+  // Group upcoming payments
+  const paymentGroups = useMemo(() => {
+    const groups = new Map<string, typeof upcomingPayments>();
+    const order = ["Overdue", "This Week", "Next 2 Weeks", "Rest of Month"];
+
+    for (const p of upcomingPayments) {
+      const group = getDueGroup(p.daysUntil);
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group)!.push(p);
+    }
+
+    return order
+      .filter((g) => groups.has(g))
+      .map((g) => ({ label: g, items: groups.get(g)! }));
+  }, [upcomingPayments]);
+
+  // --- Invoicing Tracker: outstanding vs received reimbursements ---
+  const outstandingReimbursements = useMemo(
+    () =>
+      reimbursementRequests.filter(
+        (r) => r.status === "submitted" || r.status === "approved"
+      ),
+    [reimbursementRequests]
+  );
+
+  const receivedReimbursements = useMemo(
+    () => reimbursementRequests.filter((r) => r.status === "paid"),
+    [reimbursementRequests]
+  );
+
+  const totalOutstanding = useMemo(
+    () => outstandingReimbursements.reduce((s, r) => s + Number(r.total_amount), 0),
+    [outstandingReimbursements]
+  );
+
+  const totalReceived = useMemo(
+    () => receivedReimbursements.reduce((s, r) => s + Number(r.total_amount), 0),
+    [receivedReimbursements]
+  );
+
   // --- Spending breakdown by category (pie chart) ---
   const categoryBreakdown = useMemo(() => {
     const map = new Map<string, number>();
@@ -426,33 +566,37 @@ export function FinanceDashboard({
     return filtered;
   }, [effectiveTransactions, groupedTransactions, walletView, filterValues]);
 
-  // --- Rolling average burn data for overview chart ---
+  // --- Monthly income vs expenses data for overview chart ---
   const rollingBurnData = useMemo(() => {
-    // Group expenses by month (using start_date or created_at)
-    const monthlyExpenses = new Map<string, number>();
-    effectiveTransactions
-      .filter((t) => t.type === "expense")
-      .forEach((t) => {
-        const dateStr = t.start_date ?? t.created_at;
-        const d = new Date(dateStr);
-        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        monthlyExpenses.set(
-          monthKey,
-          (monthlyExpenses.get(monthKey) ?? 0) + Number(t.amount)
-        );
-      });
+    // Group expenses and income by month (using start_date or created_at)
+    const monthlyExp = new Map<string, number>();
+    const monthlyInc = new Map<string, number>();
+    effectiveTransactions.forEach((t) => {
+      const dateStr = t.start_date ?? t.created_at;
+      const d = new Date(dateStr);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (t.type === "expense") {
+        monthlyExp.set(monthKey, (monthlyExp.get(monthKey) ?? 0) + Number(t.amount));
+      } else {
+        monthlyInc.set(monthKey, (monthlyInc.get(monthKey) ?? 0) + Number(t.amount));
+      }
+    });
 
-    const sortedMonths = Array.from(monthlyExpenses.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]));
+    const allMonths = new Set([...monthlyExp.keys(), ...monthlyInc.keys()]);
+    const sortedMonths = Array.from(allMonths).sort();
 
-    return sortedMonths.map((entry, i, arr) => {
+    return sortedMonths.map((month, i) => {
+      const expenses = monthlyExp.get(month) ?? 0;
+      const income = monthlyInc.get(month) ?? 0;
       const windowStart = Math.max(0, i - 2);
-      const window = arr.slice(windowStart, i + 1);
+      const windowSlice = sortedMonths.slice(windowStart, i + 1);
       const avg =
-        window.reduce((s, [, v]) => s + v, 0) / window.length;
+        windowSlice.reduce((s, m) => s + (monthlyExp.get(m) ?? 0), 0) /
+        windowSlice.length;
       return {
-        month: entry[0],
-        expenses: entry[1],
+        month,
+        expenses,
+        income,
         rollingAvg: Math.round(avg),
       };
     });
@@ -493,6 +637,86 @@ export function FinanceDashboard({
           True Personal Spend
         </button>
       </div>
+
+      {/* Weekly Budget + Monthly Nut Cards */}
+      {walletView !== "debts" && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Weekly Discretionary Budget Card */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-semibold text-foreground">
+                This Week&apos;s Budget
+              </span>
+              <Wallet className="size-4 text-muted-foreground" />
+            </div>
+            <div className="mb-2 text-[32px] font-bold leading-none text-foreground">
+              {formatCurrency(Math.max(0, weeklyBudget - weeklySpent))}
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                remaining
+              </span>
+            </div>
+            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {formatCurrency(weeklySpent)} spent of{" "}
+                {formatCurrency(weeklyBudget)}
+              </span>
+              <span>
+                {weeklyBudget > 0
+                  ? `${Math.min(100, Math.round((weeklySpent / weeklyBudget) * 100))}%`
+                  : "0%"}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, weeklyBudget > 0 ? (weeklySpent / weeklyBudget) * 100 : 0)}%`,
+                  backgroundColor:
+                    weeklySpent > weeklyBudget ? "#EF4444" : "#22C55E",
+                }}
+              />
+            </div>
+            {weeklySpent > weeklyBudget && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-[#EF4444]">
+                <AlertTriangle className="size-3.5" />
+                Over budget by {formatCurrency(weeklySpent - weeklyBudget)}
+              </div>
+            )}
+          </div>
+
+          {/* Monthly Nut Card */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-semibold text-foreground">
+                Monthly Nut
+              </span>
+              <Receipt className="size-4 text-muted-foreground" />
+            </div>
+            <div className="mb-2 text-[32px] font-bold leading-none text-foreground">
+              {formatCurrency(monthlyEssentials)}
+            </div>
+            <p className="mb-2 text-xs text-muted-foreground">
+              Essential recurring expenses (housing, utilities, insurance,
+              transport, health, debt)
+            </p>
+            <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
+              <span className="text-muted-foreground">vs Income</span>
+              <span
+                className={cn(
+                  "font-medium",
+                  monthlyIncome - monthlyEssentials >= 0
+                    ? "text-[#22C55E]"
+                    : "text-[#EF4444]"
+                )}
+              >
+                {monthlyIncome - monthlyEssentials >= 0 ? "+" : ""}
+                {formatCurrency(monthlyIncome - monthlyEssentials)} gap
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -598,10 +822,10 @@ export function FinanceDashboard({
             )}
           </div>
 
-          {/* Top Categories Bar Chart */}
+          {/* Where Your Money Goes Bar Chart */}
           <div className="rounded-lg border border-border bg-card p-5">
             <h3 className="mb-4 text-sm font-semibold text-foreground">
-              Top Expense Categories
+              Where Your Money Goes
             </h3>
             {barData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -638,44 +862,200 @@ export function FinanceDashboard({
         </div>
       )}
 
-      {/* Rolling Average Burn Chart */}
-      {walletView === "overview" && rollingBurnData.length > 1 && (
+      {/* Monthly Income vs Expenses Chart */}
+      {walletView === "overview" && (
         <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">
-            Monthly Burn &amp; 3-Month Rolling Average
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            Monthly Income vs Expenses
           </h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={rollingBurnData}>
-              <XAxis
-                dataKey="month"
-                tick={{ fill: "#666666", fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: "#666666", fontSize: 11 }}
-                tickFormatter={(v) => formatCurrency(v)}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar
-                dataKey="expenses"
-                name="Monthly Expenses"
-                fill="#EF4444"
-                fillOpacity={0.3}
-                radius={[4, 4, 0, 0]}
-              />
-              <Line
-                type="monotone"
-                dataKey="rollingAvg"
-                name="3-Mo Avg"
-                stroke="#EF4444"
-                strokeWidth={2}
-                dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Cyan line = 3-month trend
+          </p>
+          {rollingBurnData.length >= 2 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={rollingBurnData}>
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: "#666666", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "#666666", fontSize: 11 }}
+                  tickFormatter={(v) => formatCurrency(v)}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar
+                  dataKey="income"
+                  name="Income"
+                  fill="#22C55E"
+                  fillOpacity={0.3}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="expenses"
+                  name="Expenses"
+                  fill="#EF4444"
+                  fillOpacity={0.3}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="rollingAvg"
+                  name="3-Mo Avg Expenses"
+                  stroke="#06B6D4"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Need at least 2 months of data to show trends
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Upcoming Payments & Invoicing Tracker */}
+      {walletView !== "debts" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Upcoming Payments Section */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <CalendarClock className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">
+                Upcoming Payments
+              </h3>
+            </div>
+            {paymentGroups.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {paymentGroups.map((group) => (
+                  <div key={group.label}>
+                    <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </h4>
+                    <div className="flex flex-col gap-1.5">
+                      {group.items.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-muted/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block size-2 rounded-full"
+                              style={{
+                                backgroundColor: getDueColor(p.daysUntil),
+                              }}
+                            />
+                            <span className="text-foreground">{p.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              {p.daysUntil < 0
+                                ? `${Math.abs(p.daysUntil)}d overdue`
+                                : p.daysUntil === 0
+                                  ? "Due today"
+                                  : `in ${p.daysUntil}d`}
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {formatCurrency(Number(p.amount))}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No recurring payments with due dates
+              </p>
+            )}
+          </div>
+
+          {/* Invoicing Tracker */}
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Receipt className="size-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">
+                Money Owed to Me
+              </h3>
+            </div>
+            <div className="mb-4 rounded-md bg-muted/50 px-3 py-2 text-center">
+              <span className="text-2xl font-bold text-foreground">
+                {formatCurrency(totalOutstanding)}
+              </span>
+              <span className="ml-2 text-sm text-muted-foreground">
+                outstanding
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Outstanding column */}
+              <div>
+                <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Outstanding
+                </h4>
+                {outstandingReimbursements.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    {outstandingReimbursements.map((r) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-foreground">{r.title}</span>
+                          <span className="text-[10px] capitalize text-muted-foreground">
+                            {r.status}
+                          </span>
+                        </div>
+                        <span className="font-medium text-[#EAB308]">
+                          {formatCurrency(Number(r.total_amount))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-xs text-muted-foreground">
+                    None
+                  </p>
+                )}
+              </div>
+              {/* Received column */}
+              <div>
+                <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Received
+                </h4>
+                {receivedReimbursements.length > 0 ? (
+                  <div className="flex flex-col gap-1.5">
+                    {receivedReimbursements.map((r) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
+                      >
+                        <span className="text-foreground">{r.title}</span>
+                        <span className="font-medium text-[#22C55E]">
+                          {formatCurrency(Number(r.total_amount))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-4 text-center text-xs text-muted-foreground">
+                    None yet
+                  </p>
+                )}
+                {totalReceived > 0 && (
+                  <div className="mt-2 border-t border-border pt-2 text-right text-xs text-muted-foreground">
+                    Total: {formatCurrency(totalReceived)}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

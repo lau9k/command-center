@@ -28,7 +28,6 @@ export default async function FinancePage() {
       supabase
         .from("reimbursement_requests")
         .select("*")
-        .neq("status", "paid")
         .order("created_at", { ascending: false }),
     ]);
 
