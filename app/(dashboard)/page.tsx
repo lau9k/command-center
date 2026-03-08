@@ -73,8 +73,6 @@ export default async function DashboardPage() {
       .from("invoices")
       .select("amount, status")
       .in("status", ["sent", "overdue"]),
-    supabase.from("memory_stats").select("count"),
-    supabase.from("pipeline_items").select("id", { count: "exact", head: true }),
     fetchCommunityMemberCount(),
     serviceClient.from("memory_stats").select("count"),
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
