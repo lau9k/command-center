@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ForecastDashboard } from "@/components/finance/ForecastDashboard";
 import type { ScheduledFlow, ForecastRun } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function ForecastPage() {
   const supabase = createServiceClient();
 

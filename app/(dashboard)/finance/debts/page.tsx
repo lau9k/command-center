@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { DebtsDashboard } from "@/components/finance/DebtsDashboard";
 import type { Debt, DebtWithProjections, DebtPayoffProjection } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 function calculatePayoffProjection(debt: Debt): DebtPayoffProjection {
   const balance = Number(debt.balance);
   const rate = Number(debt.interest_rate ?? 0) / 100;

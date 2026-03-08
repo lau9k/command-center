@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineBoard } from "@/components/dashboard/PipelineBoard";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProjectPipelinePage({
   params,
 }: {
