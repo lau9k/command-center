@@ -1,23 +1,41 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Layers } from "lucide-react";
+import { createServiceClient } from "@/lib/supabase/service";
+import { PipelineBoard } from "@/components/dashboard/PipelineBoard";
 
-export default function ProjectPipelinePage() {
+export default async function ProjectPipelinePage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  const { projectId } = await params;
+  const supabase = createServiceClient();
+
+  const [stagesResult, itemsResult] = await Promise.all([
+    supabase
+      .from("pipeline_stages")
+      .select("id, name, slug, sort_order, color, pipeline_id")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("pipeline_items")
+      .select(
+        "id, pipeline_id, stage_id, project_id, title, entity_type, metadata, sort_order, created_at, updated_at"
+      )
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  const stages = stagesResult.data ?? [];
+  const items = itemsResult.data ?? [];
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Pipeline</h2>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            Pipeline View
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Pipeline management is coming soon.
-          </p>
-        </CardContent>
-      </Card>
+      <div>
+        <h2 className="text-xl font-semibold text-foreground">Pipeline</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage deals and track progress through stages
+        </p>
+      </div>
+      <PipelineBoard stages={stages} items={items} />
     </div>
   );
 }
