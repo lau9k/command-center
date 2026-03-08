@@ -310,6 +310,36 @@ export interface ReimbursementRequestWithItems extends ReimbursementRequest {
   items: ReimbursementItem[];
 }
 
+// --- Plaid types ---
+
+export type PlaidItemStatus = "active" | "inactive";
+
+export interface PlaidItem {
+  id: string;
+  user_id: string;
+  item_id: string;
+  access_token_encrypted: string;
+  plaid_cursor: string | null;
+  institution_name: string | null;
+  status: PlaidItemStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaidAccount {
+  id: string;
+  user_id: string;
+  plaid_item_id: string;
+  account_id: string;
+  name: string | null;
+  official_name: string | null;
+  type: string | null;
+  subtype: string | null;
+  mask: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Forecast types ---
 
 export type FlowDirection = "inflow" | "outflow";
