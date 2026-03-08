@@ -27,7 +27,7 @@ interface RecentPage {
 const staticRoutes = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Master Tasks", href: "/tasks", icon: CheckSquare },
-  { label: "Import", href: "/import", icon: Upload },
+  { label: "Import", href: "/admin/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
