@@ -182,6 +182,14 @@ function extractCommand(message: TelegramMessage): string | null {
   return null;
 }
 
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    handler: "telegram-webhook",
+    message: "Telegram Bot webhook is active. Send POST requests from Telegram.",
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
