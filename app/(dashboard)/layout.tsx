@@ -3,6 +3,8 @@ import { Header } from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

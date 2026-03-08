@@ -11,6 +11,8 @@ import {
 } from "@/components/dashboard/RecentActivityFeed";
 import type { ContentPost } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const serviceClient = createServiceClient();
 
@@ -55,6 +57,33 @@ export default async function DashboardPage() {
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
     fetchCommunityMemberCount(),
   ]);
+
+  // Log query errors server-side for debugging KPI issues
+  const queryResults = [
+    { name: "tasks", error: tasksRes.error },
+    { name: "projects", error: projectsRes.error },
+    { name: "content_posts", error: contentRes.error },
+    { name: "all_content", error: allContentRes.error },
+    { name: "contacts", error: contactsRes.error },
+    { name: "contacts_count", error: contactsCountRes.error, count: contactsCountRes.count },
+    { name: "invoices", error: invoicesRes.error },
+    { name: "memory_stats", error: memoryRes.error },
+    { name: "pipeline_count", error: pipelineCountRes.error, count: pipelineCountRes.count },
+  ];
+
+  for (const q of queryResults) {
+    if (q.error) {
+      console.error(`[Dashboard KPI] ${q.name} query error:`, q.error.message);
+    }
+  }
+
+  console.log("[Dashboard KPI] counts:", {
+    tasks: tasksRes.data?.length ?? 0,
+    contacts: contactsCountRes.count,
+    pipeline: pipelineCountRes.count,
+    content: allContentRes.data?.length ?? 0,
+    community: communityMemberCount,
+  });
 
   const tasks = tasksRes.data ?? [];
   const projects = projectsRes.data ?? [];

@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ContentKanban } from "@/components/content/ContentKanban";
 import type { ContentPost } from "@/lib/types/database";
 
+export const dynamic = "force-dynamic";
+
 export default async function ContentQueuePage() {
   const supabase = await createClient();
 
