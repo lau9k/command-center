@@ -99,13 +99,14 @@ export async function smartRecall(
 
 export async function smartDigest(
   query: string,
-  options?: { email?: string; record_id?: string }
+  options?: { email?: string; record_id?: string; token_budget?: number }
 ): Promise<SmartDigestResponse | null> {
   try {
+    const { token_budget = 2000, ...rest } = options ?? {};
     const response = await client.memory.smartDigest({
-      token_budget: 2000,
+      token_budget,
       include_properties: true,
-      ...options,
+      ...rest,
     });
     return response.data ?? null;
   } catch (error) {

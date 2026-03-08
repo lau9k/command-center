@@ -29,11 +29,28 @@ export interface PersonizeContextResult {
 
 export interface SmartRecallResult {
   success: boolean;
-  memories: Array<{
-    text: string;
-    score?: number;
-    metadata?: Record<string, unknown>;
-  }>;
+  memories: Array<SmartRecallItem>;
+}
+
+export interface SmartRecallItem {
+  id: string;
+  text: string;
+  score: number;
+  relevance_tier: "direct" | "partial" | "might";
+  record_id: string | null;
+  type: string;
+  topic: string;
+  timestamp: string | null;
+}
+
+export interface SmartDigestResult {
+  recordId: string;
+  type: string;
+  properties: Record<string, string>;
+  memories: { id: string; text: string; createdAt: string }[];
+  compiledContext: string;
+  tokenEstimate: number;
+  tokenBudget: number;
 }
 
 export interface GenerateWithContextResult {
