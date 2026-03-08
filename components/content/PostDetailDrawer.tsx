@@ -21,6 +21,7 @@ const STATUS_TRANSITIONS: Record<ContentPostStatus, ContentPostStatus | null> = 
   ready: "scheduled",
   scheduled: "published",
   published: null,
+  failed: "draft",
 };
 
 interface PostDetailDrawerProps {

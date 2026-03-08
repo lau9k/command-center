@@ -47,13 +47,14 @@ function Badge({
 
 // --- Status Badge ---
 
-type StatusType = "draft" | "ready" | "scheduled" | "published"
+type StatusType = "draft" | "ready" | "scheduled" | "published" | "failed"
 
 const statusColors: Record<StatusType, string> = {
   draft: "bg-[#666666]/20 text-muted-foreground",
   ready: "bg-[#EAB308]/20 text-[#EAB308]",
   scheduled: "bg-[#3B82F6]/20 text-[#3B82F6]",
   published: "bg-[#22C55E]/20 text-[#22C55E]",
+  failed: "bg-[#EF4444]/20 text-[#EF4444]",
 }
 
 function StatusBadge({
@@ -109,14 +110,15 @@ function PriorityBadge({
 
 // --- Platform Badge ---
 
-type PlatformType = "linkedin" | "twitter" | "youtube" | "instagram" | "tiktok"
+type PlatformType = "linkedin" | "twitter" | "youtube" | "instagram" | "tiktok" | "telegram"
 
 const platformColors: Record<PlatformType, { bg: string; text: string }> = {
   linkedin: { bg: "bg-[#0A66C2]/20", text: "text-[#0A66C2]" },
   twitter: { bg: "bg-[#1DA1F2]/20", text: "text-[#1DA1F2]" },
   youtube: { bg: "bg-[#FF0000]/20", text: "text-[#FF0000]" },
-  instagram: { bg: "bg-[#E1306C]/20", text: "text-[#E1306C]" },
+  instagram: { bg: "bg-[#E4405F]/20", text: "text-[#E4405F]" },
   tiktok: { bg: "bg-[#00F2EA]/20", text: "text-[#00F2EA]" },
+  telegram: { bg: "bg-[#0088CC]/20", text: "text-[#0088CC]" },
 }
 
 const platformLabels: Record<PlatformType, string> = {
@@ -125,6 +127,7 @@ const platformLabels: Record<PlatformType, string> = {
   youtube: "YouTube",
   instagram: "Instagram",
   tiktok: "TikTok",
+  telegram: "Telegram",
 }
 
 function PlatformBadge({

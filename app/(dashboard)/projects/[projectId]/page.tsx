@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Task } from "@/lib/types/database";
+import { createServiceClient } from "@/lib/supabase/service";
+import type { Task, ContentPost } from "@/lib/types/database";
 import {
   Card,
   CardContent,
@@ -19,6 +20,7 @@ import {
   Circle,
   Plus,
 } from "lucide-react";
+import { MeekCalendarStrip } from "@/components/content/MeekCalendarStrip";
 
 const taskStatusConfig: Record<string, { label: string; icon: typeof Circle }> =
   {
@@ -35,6 +37,8 @@ export default async function ProjectSummaryPage({
   const { projectId } = await params;
   const supabase = await createClient();
 
+  const serviceClient = createServiceClient();
+
   const [
     { count: totalTasks },
     { count: todoCount },
@@ -43,6 +47,7 @@ export default async function ProjectSummaryPage({
     { count: totalContacts },
     { count: pipelineCount },
     { data: recentTasks },
+    { data: contentPosts },
   ] = await Promise.all([
     supabase
       .from("tasks")
@@ -78,6 +83,12 @@ export default async function ProjectSummaryPage({
       .order("updated_at", { ascending: false })
       .limit(5)
       .returns<Task[]>(),
+    serviceClient
+      .from("content_posts")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("scheduled_at", { ascending: true, nullsFirst: false })
+      .returns<ContentPost[]>(),
   ]);
 
   const statusBreakdown = [
@@ -159,6 +170,11 @@ export default async function ProjectSummaryPage({
           </Link>
         </Button>
       </div>
+
+      {/* Content Calendar Strip */}
+      {contentPosts && contentPosts.length > 0 && (
+        <MeekCalendarStrip posts={contentPosts} projectId={projectId} />
+      )}
 
       <Card>
         <CardHeader>
