@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Task, ContentPost } from "@/lib/types/database";
 import {
@@ -35,8 +34,6 @@ export default async function ProjectSummaryPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const supabase = await createClient();
-
   const serviceClient = createServiceClient();
 
   const [
@@ -49,34 +46,34 @@ export default async function ProjectSummaryPage({
     { data: recentTasks },
     { data: contentPosts },
   ] = await Promise.all([
-    supabase
+    serviceClient
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId),
-    supabase
+    serviceClient
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId)
       .eq("status", "todo"),
-    supabase
+    serviceClient
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId)
       .eq("status", "in_progress"),
-    supabase
+    serviceClient
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId)
       .eq("status", "done"),
-    supabase
+    serviceClient
       .from("contacts")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId),
-    supabase
+    serviceClient
       .from("pipeline_items")
       .select("id", { count: "exact", head: true })
       .eq("project_id", projectId),
-    supabase
+    serviceClient
       .from("tasks")
       .select("*")
       .eq("project_id", projectId)

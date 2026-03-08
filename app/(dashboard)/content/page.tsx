@@ -22,8 +22,9 @@ export default async function ContentPage() {
     supabase
       .from("content_posts")
       .select("*, projects:project_id(id, name, color)")
-      .gte("scheduled_at", weekStart.toISOString())
-      .lte("scheduled_at", weekEnd.toISOString())
+      .or(
+        `and(scheduled_at.gte.${weekStart.toISOString()},scheduled_at.lte.${weekEnd.toISOString()}),and(scheduled_for.gte.${weekStart.toISOString()},scheduled_for.lte.${weekEnd.toISOString()})`
+      )
       .order("scheduled_at", { ascending: true, nullsFirst: false }),
     supabase
       .from("projects")
