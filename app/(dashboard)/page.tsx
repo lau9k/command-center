@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
@@ -12,7 +11,6 @@ import {
 import type { ContentPost } from "@/lib/types/database";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
   const serviceClient = createServiceClient();
 
   // Parallel data fetching for all KPI + section data
@@ -51,16 +49,16 @@ export default async function DashboardPage() {
     pipelineCountRes,
     communityMemberCount,
   ] = await Promise.all([
-    supabase
+    serviceClient
       .from("tasks")
       .select("id, project_id, title, status, priority, due_date, updated_at, projects(id, name, slug, color, status)")
       .order("updated_at", { ascending: false }),
-    supabase
+    serviceClient
       .from("projects")
       .select("id, name, slug, status")
       .eq("status", "active")
       .order("name", { ascending: true }),
-    supabase
+    serviceClient
       .from("content_posts")
       .select("id, project_id, title, scheduled_for, updated_at, projects(id, name, color)")
       .order("updated_at", { ascending: false }),
@@ -69,15 +67,17 @@ export default async function DashboardPage() {
       .select("id, status, scheduled_at, scheduled_for, platforms, platform, project_id, title, caption")
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .returns<ContentPost[]>(),
-    supabase.from("contacts").select("id, project_id, name, updated_at, projects(id, name, color)").order("updated_at", { ascending: false }),
-    supabase.from("contacts").select("id", { count: "exact", head: true }),
-    supabase
+    serviceClient.from("contacts").select("id, project_id, name, updated_at, projects(id, name, color)").order("updated_at", { ascending: false }),
+    serviceClient.from("contacts").select("id", { count: "exact", head: true }),
+    serviceClient
       .from("invoices")
       .select("amount, status")
       .in("status", ["sent", "overdue"]),
     supabase.from("memory_stats").select("count"),
     supabase.from("pipeline_items").select("id", { count: "exact", head: true }),
     fetchCommunityMemberCount(),
+    serviceClient.from("memory_stats").select("count"),
+    serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
   ]);
 
   const tasks = tasksRes.data ?? [];
