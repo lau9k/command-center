@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import {
@@ -9,11 +9,14 @@ import {
   DollarSign,
   FileText,
   FolderOpen,
+  Layers,
   LayoutDashboard,
+  Loader2,
   Plus,
   Search,
   Settings,
   Upload,
+  Users,
 } from "lucide-react";
 
 const RECENT_PAGES_KEY = "command-palette-recent-pages";
@@ -21,6 +24,14 @@ const MAX_RECENT = 10;
 
 interface RecentPage {
   label: string;
+  href: string;
+}
+
+interface SearchResult {
+  id: string;
+  type: "contact" | "pipeline" | "content" | "task";
+  title: string;
+  subtitle: string | null;
   href: string;
 }
 
@@ -41,6 +52,26 @@ const projectWorkspaces = [
   { label: "Eventium", id: "eventium" },
   { label: "Telco", id: "telco" },
 ];
+
+const typeIcons = {
+  contact: Users,
+  pipeline: Layers,
+  content: FileText,
+  task: CheckSquare,
+} as const;
+
+const typeLabels = {
+  contact: "Contacts",
+  pipeline: "Pipeline",
+  content: "Content",
+  task: "Tasks",
+} as const;
+
+const groupHeadingClass =
+  "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[#666]";
+
+const itemClass =
+  "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground";
 
 function getRecentPages(): RecentPage[] {
   if (typeof window === "undefined") return [];
@@ -64,7 +95,11 @@ function addRecentPage(page: RecentPage) {
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,6 +116,47 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Reset state when closing
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  }, [open]);
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/search?q=${encodeURIComponent(query)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results);
+        }
+      } catch {
+        // Silently fail — results stay empty
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const recentPages = useMemo(() => getRecentPages(), [openCount]);
 
@@ -92,6 +168,19 @@ export function CommandPalette() {
     },
     [router]
   );
+
+  // Group search results by type
+  const groupedResults = useMemo(() => {
+    const groups: Partial<Record<SearchResult["type"], SearchResult[]>> = {};
+    for (const result of searchResults) {
+      if (!groups[result.type]) groups[result.type] = [];
+      groups[result.type]!.push(result);
+    }
+    return groups;
+  }, [searchResults]);
+
+  const hasSearchResults = searchResults.length > 0;
+  const isActiveSearch = query.length >= 2;
 
   if (!open) return null;
 
@@ -105,87 +194,141 @@ export function CommandPalette() {
         <Command
           className="rounded-xl border border-border bg-card text-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
           loop
+          shouldFilter={!isActiveSearch}
         >
           <div className="flex items-center border-b border-border px-4">
-            <Search className="mr-2 h-4 w-4 shrink-0 text-[#888]" />
+            {isSearching ? (
+              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-[#888]" />
+            ) : (
+              <Search className="mr-2 h-4 w-4 shrink-0 text-[#888]" />
+            )}
             <Command.Input
-              placeholder="Type a command or search..."
+              placeholder="Search contacts, tasks, pipeline, content..."
               className="flex h-12 w-full bg-transparent text-sm text-foreground placeholder:text-[#666] outline-none"
+              value={query}
+              onValueChange={setQuery}
             />
           </div>
           <Command.List className="max-h-[320px] overflow-y-auto p-2">
             <Command.Empty className="py-6 text-center text-sm text-[#666]">
-              No results found.
+              {isActiveSearch
+                ? "No results found."
+                : "Start typing to search across all entities."}
             </Command.Empty>
 
-            {recentPages.length > 0 && (
-              <Command.Group
-                heading="Recent"
-                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[#666]"
-              >
-                {recentPages.map((page) => (
-                  <Command.Item
-                    key={`recent-${page.href}`}
-                    value={`recent ${page.label}`}
-                    onSelect={() => navigateTo(page.href, page.label)}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
+            {/* Search results — shown when actively searching */}
+            {isActiveSearch &&
+              hasSearchResults &&
+              (
+                Object.entries(groupedResults) as [
+                  SearchResult["type"],
+                  SearchResult[],
+                ][]
+              ).map(([type, results]) => {
+                const Icon = typeIcons[type];
+                return (
+                  <Command.Group
+                    key={type}
+                    heading={typeLabels[type]}
+                    className={groupHeadingClass}
                   >
-                    <Clock className="h-4 w-4 text-[#888]" />
-                    {page.label}
+                    {results.map((result) => (
+                      <Command.Item
+                        key={`search-${result.id}`}
+                        value={`search ${result.type} ${result.title} ${result.subtitle ?? ""}`}
+                        onSelect={() =>
+                          navigateTo(result.href, result.title)
+                        }
+                        className={itemClass}
+                      >
+                        <Icon className="h-4 w-4 shrink-0 text-[#888]" />
+                        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                          <span className="truncate">{result.title}</span>
+                          {result.subtitle && (
+                            <span className="truncate text-xs text-[#666]">
+                              {result.subtitle}
+                            </span>
+                          )}
+                        </div>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                );
+              })}
+
+            {/* Default groups — shown when NOT actively searching */}
+            {!isActiveSearch && (
+              <>
+                {recentPages.length > 0 && (
+                  <Command.Group
+                    heading="Recent"
+                    className={groupHeadingClass}
+                  >
+                    {recentPages.map((page) => (
+                      <Command.Item
+                        key={`recent-${page.href}`}
+                        value={`recent ${page.label}`}
+                        onSelect={() => navigateTo(page.href, page.label)}
+                        className={itemClass}
+                      >
+                        <Clock className="h-4 w-4 text-[#888]" />
+                        {page.label}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )}
+
+                <Command.Group
+                  heading="Navigation"
+                  className={groupHeadingClass}
+                >
+                  {staticRoutes.map((route) => (
+                    <Command.Item
+                      key={route.href}
+                      value={route.label}
+                      onSelect={() => navigateTo(route.href, route.label)}
+                      className={itemClass}
+                    >
+                      <route.icon className="h-4 w-4 text-[#888]" />
+                      {route.label}
+                    </Command.Item>
+                  ))}
+                  {projectWorkspaces.map((project) => (
+                    <Command.Item
+                      key={project.id}
+                      value={`${project.label} project workspace`}
+                      onSelect={() =>
+                        navigateTo(
+                          `/projects/${project.id}`,
+                          `${project.label} Workspace`
+                        )
+                      }
+                      className={itemClass}
+                    >
+                      <FolderOpen className="h-4 w-4 text-[#888]" />
+                      {project.label} Workspace
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+
+                <Command.Group
+                  heading="Create"
+                  className={groupHeadingClass}
+                >
+                  <Command.Item
+                    value="Create Task"
+                    onSelect={() => {
+                      setOpen(false);
+                      router.push("/tasks?create=true");
+                    }}
+                    className={itemClass}
+                  >
+                    <Plus className="h-4 w-4 text-[#888]" />
+                    Create Task
                   </Command.Item>
-                ))}
-              </Command.Group>
+                </Command.Group>
+              </>
             )}
-
-            <Command.Group
-              heading="Navigation"
-              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[#666]"
-            >
-              {staticRoutes.map((route) => (
-                <Command.Item
-                  key={route.href}
-                  value={route.label}
-                  onSelect={() => navigateTo(route.href, route.label)}
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
-                >
-                  <route.icon className="h-4 w-4 text-[#888]" />
-                  {route.label}
-                </Command.Item>
-              ))}
-              {projectWorkspaces.map((project) => (
-                <Command.Item
-                  key={project.id}
-                  value={`${project.label} project workspace`}
-                  onSelect={() =>
-                    navigateTo(
-                      `/projects/${project.id}`,
-                      `${project.label} Workspace`
-                    )
-                  }
-                  className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
-                >
-                  <FolderOpen className="h-4 w-4 text-[#888]" />
-                  {project.label} Workspace
-                </Command.Item>
-              ))}
-            </Command.Group>
-
-            <Command.Group
-              heading="Create"
-              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[#666]"
-            >
-              <Command.Item
-                value="Create Task"
-                onSelect={() => {
-                  setOpen(false);
-                  router.push("/tasks?create=true");
-                }}
-                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground"
-              >
-                <Plus className="h-4 w-4 text-[#888]" />
-                Create Task
-              </Command.Item>
-            </Command.Group>
           </Command.List>
 
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-[#666]">
