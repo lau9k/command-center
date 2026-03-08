@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 
 export const runtime = "nodejs";
 
@@ -167,12 +168,15 @@ async function handleStats(chatId: number) {
     .eq("project_id", MEEK_PROJECT_ID)
     .in("status", ["scheduled", "ready"]);
 
+  const communityMembers = await fetchCommunityMemberCount();
+
   let msg = "📊 *MEEK Community Stats*\n\n";
   msg += `*Content Pipeline*\n`;
   msg += `   Total Posts: ${postCount ?? 0}\n`;
   msg += `   Published: ${publishedCount ?? 0}\n`;
   msg += `   Upcoming: ${scheduledCount ?? 0}\n\n`;
   msg += `*Community Metrics*\n`;
+  msg += `   👥 Telegram Members: ${communityMembers > 0 ? communityMembers.toLocaleString() : "_unavailable_"}\n`;
   msg += `   💰 Wallet Count: _coming soon_\n`;
   msg += `   📈 Market Cap: _coming soon_\n`;
   msg += `   👥 Holder Count: _coming soon_\n`;

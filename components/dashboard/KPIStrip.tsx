@@ -6,6 +6,7 @@ import {
   Brain,
   FileText,
   Layers,
+  MessageCircle,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 
@@ -21,6 +22,7 @@ interface KPIStripProps {
   contentScheduledCount: number;
   contentPublishedCount: number;
   pipelineItemCount: number;
+  communityMemberCount: number;
 }
 
 export function KPIStrip({
@@ -35,6 +37,7 @@ export function KPIStrip({
   contentScheduledCount,
   contentPublishedCount,
   pipelineItemCount,
+  communityMemberCount,
 }: KPIStripProps) {
   const formattedInvoices =
     openInvoiceTotal > 0
@@ -78,6 +81,12 @@ export function KPIStrip({
         value={pipelineItemCount}
         subtitle="deals tracked"
         icon={<Layers className="size-5" />}
+      />
+      <KpiCard
+        label="Community"
+        value={communityMemberCount}
+        subtitle="Telegram members"
+        icon={<MessageCircle className="size-5" />}
       />
       <KpiCard
         label="Open Invoices"

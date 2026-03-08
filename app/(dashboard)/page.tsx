@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -24,6 +25,7 @@ export default async function DashboardPage() {
     invoicesRes,
     memoryRes,
     pipelineCountRes,
+    communityMemberCount,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -51,6 +53,7 @@ export default async function DashboardPage() {
       .in("status", ["sent", "overdue"]),
     serviceClient.from("memory_stats").select("count"),
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
+    fetchCommunityMemberCount(),
   ]);
 
   const tasks = tasksRes.data ?? [];
@@ -205,6 +208,7 @@ export default async function DashboardPage() {
         contentScheduledCount={contentScheduledCount}
         contentPublishedCount={contentPublishedCount}
         pipelineItemCount={pipelineItemCount}
+        communityMemberCount={communityMemberCount}
       />
 
       {/* 3. Content Calendar Preview */}
