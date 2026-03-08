@@ -6,7 +6,7 @@ export type ContactSource = "manual" | "referral" | "website" | "linkedin" | "ot
 export type NotificationType = "task" | "alert" | "info" | "signal";
 export type TaskFeedbackAction = "approved" | "rejected" | "edited";
 export type MemoryType = "contact" | "meeting" | "email" | "content" | "task";
-export type ContentPostStatus = "draft" | "ready" | "scheduled" | "published";
+export type ContentPostStatus = "draft" | "ready" | "scheduled" | "published" | "failed";
 export type InvoiceStatus = "draft" | "sent" | "overdue" | "paid" | "cancelled";
 
 export interface Project {
@@ -103,9 +103,37 @@ export interface ContentPost {
   late_post_id: string | null;
   media_urls: string[] | null;
   metrics: Record<string, unknown>;
+  // Buffer-style fields
+  caption: string | null;
+  image_url: string | null;
+  platforms: string[];
+  scheduled_at: string | null;
+  published_at: string | null;
+  engagement: Record<string, unknown>;
+  buffer_id: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type BufferPostStatus = "draft" | "scheduled" | "published" | "failed";
+
+export const PLATFORM_COLORS: Record<string, string> = {
+  twitter: "#1DA1F2",
+  instagram: "#E4405F",
+  tiktok: "#00F2EA",
+  telegram: "#0088CC",
+  linkedin: "#0A66C2",
+  youtube: "#FF0000",
+};
+
+export const PLATFORM_LABELS: Record<string, string> = {
+  twitter: "Twitter/X",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  telegram: "Telegram",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+};
 
 export interface Invoice {
   id: string;
