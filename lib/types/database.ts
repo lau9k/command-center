@@ -120,6 +120,23 @@ export interface Invoice {
   updated_at: string;
 }
 
+// --- Import types ---
+
+export type ImportStatus = "pending" | "processing" | "complete" | "failed";
+
+export interface Import {
+  id: string;
+  filename: string;
+  record_count: number;
+  status: ImportStatus;
+  mapped_data: Record<string, string | null>[];
+  field_mapping: Record<string, string>;
+  processed_count: number;
+  error_count: number;
+  error_details: { index: number; email: string | null; error: string }[];
+  created_at: string;
+}
+
 // --- Finance types ---
 
 export type TransactionType = "expense" | "income";

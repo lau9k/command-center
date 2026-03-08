@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       .insert({
         filename: body.filename,
         record_count: body.mapped_data.length,
-        status: "complete",
+        status: "pending",
         mapped_data: body.mapped_data,
         field_mapping: body.field_mapping,
       })
