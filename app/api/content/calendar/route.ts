@@ -21,10 +21,7 @@ export async function GET(request: NextRequest) {
     .from("content_posts")
     .select("*, projects:project_id(id, name, color)")
     .or(
-      `scheduled_at.gte.${start},scheduled_for.gte.${start}`
-    )
-    .or(
-      `scheduled_at.lte.${end},scheduled_for.lte.${end}`
+      `and(scheduled_at.gte.${start},scheduled_at.lte.${end}),and(scheduled_for.gte.${start},scheduled_for.lte.${end})`
     )
     .order("scheduled_at", { ascending: true, nullsFirst: false });
 
