@@ -28,6 +28,25 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
 }
 
+const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = {
+  todo: "in_progress",
+  in_progress: "done",
+  done: "todo",
+};
+
+const STATUS_LABELS: Record<TaskStatus, string> = {
+  todo: "Open",
+  in_progress: "In Progress",
+  done: "Done",
+};
+
+const STATUS_COLORS: Record<TaskStatus, string> = {
+  todo: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  in_progress:
+    "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  done: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+};
+
 export function TaskCard({
   task,
   onStatusChange,
@@ -40,6 +59,10 @@ export function TaskCard({
   function handleCheckedChange(checked: boolean | "indeterminate") {
     if (checked === "indeterminate") return;
     onStatusChange(task.id, checked ? "done" : "todo");
+  }
+
+  function handleStatusCycle() {
+    onStatusChange(task.id, STATUS_CYCLE[task.status]);
   }
 
   async function handleDelete() {
@@ -85,6 +108,17 @@ export function TaskCard({
             />
           )}
           <PriorityBadge priority={task.priority} />
+          <button
+            type="button"
+            onClick={handleStatusCycle}
+            className={cn(
+              "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:opacity-80 cursor-pointer",
+              STATUS_COLORS[task.status]
+            )}
+            title="Click to cycle status"
+          >
+            {STATUS_LABELS[task.status]}
+          </button>
           {task.due_date && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <CalendarIcon className="size-3" />
