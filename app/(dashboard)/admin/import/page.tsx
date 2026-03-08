@@ -335,8 +335,8 @@ export default function AdminImportPage() {
       <div>
         <h1 className="text-2xl font-semibold">Airtable Data Import</h1>
         <p className="text-sm text-muted-foreground">
-          Import cleaned Airtable CSV data into contacts and sales pipeline
-          tables.
+          Import cleaned Airtable CSV data into contacts, sales pipeline,
+          content, conversations, and team tables.
         </p>
         <Badge variant="secondary" className="mt-2">
           Admin
@@ -353,6 +353,30 @@ export default function AdminImportPage() {
         title="Sales Pipeline Import"
         description="Upload sales pipeline CSV. Maps Deal Name, Company, Stage, and deal metadata. Creates default stages if pipeline doesn't exist."
         endpoint="/api/import/sales-pipeline"
+      />
+
+      <ImportSection
+        title="Content Master Import"
+        description="Upload content master CSV (341 rows). Maps Title, Brand, Content Type, Core Message, Tone, Status, and Week Of into content_posts table."
+        endpoint="/api/import/content-master"
+      />
+
+      <ImportSection
+        title="Conversations Import"
+        description="Upload conversations CSV (98 rows). Maps Summary, Channel, Direction, Message, Date, Status, and Contact (fuzzy name match) into conversations table."
+        endpoint="/api/import/conversations"
+      />
+
+      <ImportSection
+        title="Hackathon Participants Import"
+        description="Upload hackathon participants CSV (60 rows). Maps Name, Email, LinkedIn, Role, AI Experience, and event metadata into contacts table under the Hackathons project. Upserts on email."
+        endpoint="/api/import/hackathon-participants"
+      />
+
+      <ImportSection
+        title="Team Members Import"
+        description="Upload team members CSV (11 rows). Maps Name, Role, Email, Project Assignment, Status, Skills, and Notes into contacts table. Upserts on email."
+        endpoint="/api/import/team-members"
       />
     </div>
   );
