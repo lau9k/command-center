@@ -19,9 +19,14 @@ interface TelegramUpdate {
 
 async function sendMessage(chatId: number, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  if (!token) {
+    console.error("[TG] TELEGRAM_BOT_TOKEN is not set");
+    throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  }
 
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  console.log(`[TG] sendMessage -> chat_id=${chatId}, text_length=${text.length}`);
+
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -30,6 +35,13 @@ async function sendMessage(chatId: number, text: string) {
       parse_mode: "Markdown",
     }),
   });
+
+  const resBody = await res.json();
+  if (!resBody.ok) {
+    console.error("[TG] sendMessage failed:", JSON.stringify(resBody));
+  } else {
+    console.log("[TG] sendMessage succeeded, message_id:", resBody.result?.message_id);
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -191,15 +203,21 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const tokenPresent = !!process.env.TELEGRAM_BOT_TOKEN;
+  console.log(`[TG] POST /api/telegram/webhook hit — token_present=${tokenPresent}`);
+
   try {
     const update: TelegramUpdate = await request.json();
+    console.log("[TG] Incoming update:", JSON.stringify(update));
 
     if (!update.message?.text) {
+      console.log("[TG] No message text, skipping");
       return NextResponse.json({ ok: true });
     }
 
     const chatId = update.message.chat.id;
     const command = extractCommand(update.message);
+    console.log(`[TG] chat_id=${chatId}, command=${command}, text="${update.message.text}"`);
 
     switch (command) {
       case "/content":
@@ -222,13 +240,14 @@ export async function POST(request: NextRequest) {
         );
         break;
       default:
-        // Ignore non-command messages
+        console.log("[TG] Unknown command or plain message, ignoring");
         break;
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Telegram webhook error:", err);
+    console.error("[TG] Webhook error:", err);
+    // Always return 200 so Telegram doesn't stop sending updates
     return NextResponse.json({ ok: true });
   }
 }
