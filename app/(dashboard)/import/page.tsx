@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
 import {
@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Loader2,
   Send,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,13 +37,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const PERSONIZE_FIELDS = [
   { value: "first_name", label: "First Name" },
@@ -66,6 +62,19 @@ interface ImportResult {
   id: string;
   record_count: number;
   status: string;
+}
+
+interface PersonizeProgress {
+  total: number;
+  processed: number;
+  errors: number;
+  status: string;
+}
+
+interface PersonizeResult {
+  imported: number;
+  errors: number;
+  details: { index: number; email: string | null; error: string }[];
 }
 
 function guessMapping(csvHeader: string): string {
@@ -95,6 +104,21 @@ export default function ImportPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Personize state
+  const [personizeSending, setPersonizeSending] = useState(false);
+  const [personizeProgress, setPersonizeProgress] =
+    useState<PersonizeProgress | null>(null);
+  const [personizeResult, setPersonizeResult] =
+    useState<PersonizeResult | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const handleFile = useCallback((f: File) => {
     setFile(f);
@@ -143,6 +167,10 @@ export default function ImportPage() {
     setAllRows([]);
     setColumnMapping({});
     setImportResult(null);
+    setPersonizeSending(false);
+    setPersonizeProgress(null);
+    setPersonizeResult(null);
+    if (pollingRef.current) clearInterval(pollingRef.current);
     setStep(1);
   }
 
@@ -224,8 +252,83 @@ export default function ImportPage() {
     }
   }
 
+  function startPolling(importId: string) {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/import/personize/status?id=${importId}`
+        );
+        if (!res.ok) return;
+
+        const progress: PersonizeProgress = await res.json();
+        setPersonizeProgress(progress);
+
+        if (progress.status === "complete" || progress.status === "failed") {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      } catch {
+        // Silently retry on next poll
+      }
+    }, 2000);
+  }
+
+  async function sendToPersonize() {
+    if (!importResult) return;
+
+    setPersonizeSending(true);
+    setPersonizeResult(null);
+    setPersonizeProgress({ total: importResult.record_count, processed: 0, errors: 0, status: "processing" });
+
+    // Start polling for progress
+    startPolling(importResult.id);
+
+    try {
+      const response = await fetch("/api/import/personize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ import_id: importResult.id }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to send to Personize");
+      }
+
+      const result: PersonizeResult = await response.json();
+      setPersonizeResult(result);
+
+      if (result.errors === 0) {
+        toast.success(`Successfully sent ${result.imported} contacts to Personize`);
+      } else {
+        toast.warning(
+          `Sent ${result.imported} contacts, ${result.errors} failed`
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to send to Personize"
+      );
+    } finally {
+      setPersonizeSending(false);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+  }
+
   const hasFile = file !== null && csvHeaders.length > 0;
   const hasMappings = activeMappedFields.length > 0;
+
+  const progressPercent =
+    personizeProgress && personizeProgress.total > 0
+      ? Math.round(
+          (personizeProgress.processed / personizeProgress.total) * 100
+        )
+      : 0;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -474,7 +577,7 @@ export default function ImportPage() {
               </div>
             )}
 
-            {importResult && (
+            {importResult && !personizeSending && !personizeResult && (
               <div className="space-y-4">
                 <div className="flex flex-col items-center gap-3 py-4">
                   <CheckCircle2 className="h-10 w-10 text-green-500" />
@@ -513,21 +616,110 @@ export default function ImportPage() {
                     Import Another File
                   </Button>
 
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0}>
-                          <Button disabled>
-                            <Send className="mr-2 h-4 w-4" />
-                            Send to Personize
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Personize API integration coming soon
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Button onClick={sendToPersonize}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send to Personize
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Personize sending progress */}
+            {personizeSending && personizeProgress && (
+              <div className="space-y-4 py-4">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-lg font-medium">
+                    Sending to Personize...
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {personizeProgress.processed} of{" "}
+                    {personizeProgress.total} contacts processed
+                    {personizeProgress.errors > 0 &&
+                      ` (${personizeProgress.errors} errors)`}
+                  </p>
+                </div>
+
+                <Progress value={progressPercent} className="w-full" />
+
+                <p className="text-center text-xs text-muted-foreground">
+                  {progressPercent}% complete — rate limited to 1 contact/sec
+                </p>
+              </div>
+            )}
+
+            {/* Personize results */}
+            {personizeResult && (
+              <div className="space-y-4">
+                <div className="flex flex-col items-center gap-3 py-4">
+                  {personizeResult.errors === 0 ? (
+                    <CheckCircle2 className="h-10 w-10 text-green-500" />
+                  ) : personizeResult.imported > 0 ? (
+                    <AlertCircle className="h-10 w-10 text-yellow-500" />
+                  ) : (
+                    <AlertCircle className="h-10 w-10 text-red-500" />
+                  )}
+                  <p className="text-lg font-medium">
+                    {personizeResult.errors === 0
+                      ? "All Contacts Sent Successfully"
+                      : personizeResult.imported > 0
+                        ? "Completed with Errors"
+                        : "Send Failed"}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-green-600">
+                        {personizeResult.imported}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Successful
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-red-600">
+                        {personizeResult.errors}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Failed
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">
+                        {importResult?.record_count ?? 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                    </div>
+                  </div>
+                </div>
+
+                {personizeResult.details.length > 0 && (
+                  <div className="rounded-lg border p-4">
+                    <p className="mb-2 text-sm font-medium">Error Details</p>
+                    <div className="max-h-40 space-y-1 overflow-y-auto">
+                      {personizeResult.details.map((detail, i) => (
+                        <p key={i} className="text-xs text-muted-foreground">
+                          <span className="font-mono">
+                            #{detail.index + 1}
+                          </span>{" "}
+                          {detail.email && (
+                            <span className="font-medium">
+                              {detail.email}:{" "}
+                            </span>
+                          )}
+                          {detail.error}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-start pt-2">
+                  <Button variant="outline" onClick={clearFile}>
+                    Import Another File
+                  </Button>
                 </div>
               </div>
             )}
