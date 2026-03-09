@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import client from "@/lib/personize/client";
+import { memorizeSchema } from "@/lib/validations";
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -13,14 +14,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { content, tags, collectionId } = await request.json();
-
-    if (!content || !tags || !Array.isArray(tags) || tags.length === 0) {
-      return NextResponse.json(
-        { error: "content (string) and tags (non-empty array) are required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = memorizeSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { content, tags, collectionId } = parsed.data;
 
     const response = await client.memory.memorize({
       content,

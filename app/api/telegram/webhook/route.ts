@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const telegramUpdateSchema = z.object({
+  update_id: z.number().int(),
+  message: z
+    .object({
+      message_id: z.number().int(),
+      chat: z.object({ id: z.number().int() }),
+      text: z.string().optional(),
+      entities: z
+        .array(
+          z.object({
+            type: z.string(),
+            offset: z.number().int(),
+            length: z.number().int(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+});
 
 const MEEK_PROJECT_ID = "00000000-0000-0000-0000-000000000002";
 
@@ -211,7 +232,13 @@ export async function POST(request: NextRequest) {
   console.log(`[TG] POST /api/telegram/webhook hit — token_present=${tokenPresent}`);
 
   try {
-    const update: TelegramUpdate = await request.json();
+    const raw = await request.json();
+    const parsed = telegramUpdateSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.error("[TG] Invalid update payload:", parsed.error.message);
+      return NextResponse.json({ ok: true });
+    }
+    const update = parsed.data as TelegramUpdate;
     console.log("[TG] Incoming update:", JSON.stringify(update));
 
     if (!update.message?.text) {

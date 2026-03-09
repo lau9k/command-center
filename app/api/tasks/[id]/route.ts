@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { updateTaskSchema } from "@/lib/validations";
 
 export async function GET(
   _request: NextRequest,
@@ -30,9 +31,14 @@ export async function PUT(
   const supabase = createServiceClient();
   const body = await request.json();
 
+  const parsed = updateTaskSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("tasks")
-    .update(body)
+    .update(parsed.data)
     .eq("id", id)
     .select("*, projects(id, name, color)")
     .single();

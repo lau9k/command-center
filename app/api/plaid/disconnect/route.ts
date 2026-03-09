@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { plaidDisconnectSchema } from "@/lib/validations";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { item_id } = body as { item_id?: string };
-
-  if (!item_id) {
-    return NextResponse.json(
-      { error: "item_id is required" },
-      { status: 400 }
-    );
+  const parsed = plaidDisconnectSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+  const { item_id } = parsed.data;
 
   const supabase = createServiceClient();
 

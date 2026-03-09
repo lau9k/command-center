@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createDebtSchema, updateDebtSchema, validateIdParam } from "@/lib/validations";
 import type { Debt, DebtWithProjections, DebtPayoffProjection } from "@/lib/types/database";
 
 function calculatePayoffProjection(debt: Debt): DebtPayoffProjection {
@@ -109,9 +110,14 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
+  const parsed = createDebtSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("debts")
-    .insert(body)
+    .insert(parsed.data)
     .select()
     .single();
 
@@ -125,11 +131,13 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
-  const { id, ...updates } = body;
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = updateDebtSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+
+  const { id, ...updates } = parsed.data;
 
   const { data, error } = await supabase
     .from("debts")
@@ -150,8 +158,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!validateIdParam(id)) {
+    return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
   }
 
   const { error } = await supabase.from("debts").delete().eq("id", id);

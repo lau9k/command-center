@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
+  const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const hasAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  let hasServiceKey = false;
+  try { createServiceClient(); hasServiceKey = true; } catch { /* missing */ }
+
   const envVars = {
-    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NEXT_PUBLIC_SUPABASE_URL: hasUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: hasAnonKey,
+    supabase_service_key: hasServiceKey,
   };
 
-  const allSet = Object.values(envVars).every(Boolean);
+  const allSet = hasUrl && hasAnonKey && hasServiceKey;
 
   if (!allSet) {
     return NextResponse.json({
@@ -20,10 +25,7 @@ export async function GET() {
   }
 
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = createServiceClient();
 
     const { error } = await supabase.from("transactions").select("id").limit(1);
 

@@ -8,6 +8,7 @@ import { StatusBadge, PlatformBadge, EmptyState, Drawer } from "@/components/ui"
 import type { PlatformType, StatusType } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { ContentForm } from "@/components/dashboard/ContentForm";
+import { sanitizeText } from "@/lib/sanitize";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
@@ -374,7 +375,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                   Caption
                 </h4>
                 <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-                  {drawerPost.body ?? drawerPost.caption}
+                  {sanitizeText(drawerPost.body ?? drawerPost.caption ?? "")}
                 </p>
               </div>
             )}

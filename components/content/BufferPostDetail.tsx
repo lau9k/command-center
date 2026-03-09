@@ -8,6 +8,7 @@ import {
   BarChart3,
   Image as ImageIcon,
 } from "lucide-react";
+import { sanitizeText } from "@/lib/sanitize";
 
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
@@ -119,7 +120,7 @@ export function BufferPostDetail({
               Caption
             </div>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-              {caption}
+              {sanitizeText(caption)}
             </p>
           </div>
         )}

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 // Allow long-running sequential calls (up to 5 minutes)
 export const maxDuration = 300;
+
+const personizeImportSchema = z.object({
+  import_id: z.string().uuid("import_id must be a valid UUID"),
+});
 
 interface PersonizeRequestBody {
   import_id: string;
@@ -62,17 +67,18 @@ export async function POST(request: NextRequest) {
 
   let body: PersonizeRequestBody;
   try {
-    body = (await request.json()) as PersonizeRequestBody;
+    const raw = await request.json();
+    const parsed = personizeImportSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+    body = parsed.data;
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },
-      { status: 400 }
-    );
-  }
-
-  if (!body.import_id) {
-    return NextResponse.json(
-      { error: "import_id is required" },
       { status: 400 }
     );
   }

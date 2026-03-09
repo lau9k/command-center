@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const salesPipelineImportSchema = z.object({
+  rows: z
+    .array(z.record(z.string(), z.string().nullable().optional()))
+    .min(1, "non-empty rows array is required"),
+  project_id: z.string().uuid(),
+  user_id: z.string().min(1),
+});
 
 const DEFAULT_STAGES = [
   { name: "Lead", slug: "lead", sort_order: 0, color: "#6B7280" },
@@ -28,25 +37,19 @@ interface DealRow {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
+    const raw = await request.json();
+    const parsed = salesPipelineImportSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+    const body = parsed.data as {
       rows: DealRow[];
       project_id: string;
       user_id: string;
     };
-
-    if (!body.rows || !Array.isArray(body.rows)) {
-      return NextResponse.json(
-        { error: "rows array is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.project_id || !body.user_id) {
-      return NextResponse.json(
-        { error: "project_id and user_id are required" },
-        { status: 400 }
-      );
-    }
 
     const supabase = createServiceClient();
 

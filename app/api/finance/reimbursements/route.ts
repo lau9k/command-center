@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createReimbursementRequestSchema, updateReimbursementRequestSchema, validateIdParam } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
   const supabase = createServiceClient();
@@ -51,7 +52,12 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
-  const { items, ...requestData } = body;
+  const parsed = createReimbursementRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
+  const { items, ...requestData } = parsed.data;
 
   // Create the request
   const { data: req, error } = await supabase
@@ -87,11 +93,13 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
-  const { id, ...updates } = body;
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = updateReimbursementRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+
+  const { id, ...updates } = parsed.data;
 
   // Auto-set timestamp fields based on status transitions
   if (updates.status === "submitted" && !updates.submitted_at) {
@@ -123,8 +131,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!validateIdParam(id)) {
+    return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
   }
 
   const { error } = await supabase

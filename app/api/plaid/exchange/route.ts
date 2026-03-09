@@ -6,6 +6,7 @@ import {
 } from "plaid";
 import { createServiceClient } from "@/lib/supabase/service";
 import { encrypt } from "@/lib/plaid-crypto";
+import { plaidExchangeSchema } from "@/lib/validations";
 
 export const runtime = "nodejs";
 
@@ -22,17 +23,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { public_token, institution_name } = body as {
-    public_token?: string;
-    institution_name?: string;
-  };
-
-  if (!public_token) {
-    return NextResponse.json(
-      { error: "public_token is required" },
-      { status: 400 }
-    );
+  const parsed = plaidExchangeSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+  const { public_token, institution_name } = parsed.data;
 
   const configuration = new Configuration({
     basePath: PlaidEnvironments[env],
