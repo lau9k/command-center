@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Users, Tag, Brain, UserX, Search } from "lucide-react";
+import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 
 const TAG_OPTIONS = ["Personize", "Hackathon", "MEEK", "Personal"] as const;
 
@@ -52,6 +53,10 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
 
     return result;
   }, [initialContacts, tagFilter, search]);
+
+  if (initialContacts.length === 0) {
+    return <ModuleEmptyState module="contacts" />;
+  }
 
   return (
     <>

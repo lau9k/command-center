@@ -1,4 +1,5 @@
 import { SettingsThemeToggle } from "./SettingsThemeToggle";
+import { SeedDemoButton } from "./SeedDemoButton";
 
 export default function SettingsPage() {
   return (
@@ -26,6 +27,25 @@ export default function SettingsPage() {
             </p>
           </div>
           <SettingsThemeToggle />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Demo Data</h2>
+          <p className="text-sm text-muted-foreground">
+            Populate all modules with realistic sample data for demo purposes
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Seed Demo Data</p>
+            <p className="text-sm text-muted-foreground">
+              Adds 20 contacts, 15 tasks, 8 content posts, and 10 pipeline deals
+            </p>
+          </div>
+          <SeedDemoButton />
         </div>
       </div>
     </div>

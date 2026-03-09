@@ -29,6 +29,7 @@ import type {
   TaskStatus,
   TaskPriority,
 } from "@/lib/types/database";
+import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 
 interface ProjectOption {
   id: string;
@@ -388,7 +389,9 @@ export function MasterTaskList({
       </div>
 
       {/* Task list */}
-      {sorted.length === 0 ? (
+      {sorted.length === 0 && tasks.length === 0 && !hasFilters ? (
+        <ModuleEmptyState module="tasks" />
+      ) : sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
           <p className="text-sm text-muted-foreground">
             {hasFilters
