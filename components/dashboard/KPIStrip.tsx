@@ -25,6 +25,17 @@ interface KPIStripProps {
   communityMemberCount: number;
 }
 
+/** Display "No data" for zero/NaN values, otherwise return the value. */
+function safeValue(v: number | string): string | number {
+  if (typeof v === "number" && (isNaN(v) || !isFinite(v))) return "No data";
+  return v;
+}
+
+function safeSubtitle(v: number, suffix: string): string {
+  if (isNaN(v) || !isFinite(v) || v === 0) return `no ${suffix}`;
+  return `across ${v} ${suffix}${v !== 1 ? "s" : ""}`;
+}
+
 export function KPIStrip({
   activeTasks,
   activeProjectCount,
@@ -40,9 +51,11 @@ export function KPIStrip({
   communityMemberCount,
 }: KPIStripProps) {
   const formattedInvoices =
-    openInvoiceTotal > 0
-      ? `$${openInvoiceTotal.toLocaleString()}`
-      : "$0";
+    isNaN(openInvoiceTotal) || !isFinite(openInvoiceTotal)
+      ? "No data"
+      : openInvoiceTotal > 0
+        ? `$${openInvoiceTotal.toLocaleString()}`
+        : "$0";
 
   const contentBreakdown = [
     contentScheduledCount > 0 && `${contentScheduledCount} scheduled`,
@@ -54,37 +67,37 @@ export function KPIStrip({
     <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
       <KpiCard
         label="Active Tasks"
-        value={activeTasks}
-        subtitle={`across ${activeProjectCount} project${activeProjectCount !== 1 ? "s" : ""}`}
+        value={safeValue(activeTasks)}
+        subtitle={safeSubtitle(activeProjectCount, "project")}
         icon={<CheckSquare className="size-5" />}
       />
       <KpiCard
         label="Content Engine"
-        value={totalContentPosts}
+        value={safeValue(totalContentPosts)}
         subtitle={contentBreakdown}
         icon={<FileText className="size-5" />}
       />
       <KpiCard
         label="Content This Week"
-        value={contentThisWeek}
+        value={safeValue(contentThisWeek)}
         subtitle="posts scheduled"
         icon={<Calendar className="size-5" />}
       />
       <KpiCard
         label="Contacts"
-        value={contactsCount}
-        subtitle="total tracked"
+        value={safeValue(contactsCount)}
+        subtitle={contactsCount > 0 ? "total tracked" : "none tracked yet"}
         icon={<Users className="size-5" />}
       />
       <KpiCard
         label="Pipeline Items"
-        value={pipelineItemCount}
-        subtitle="deals tracked"
+        value={safeValue(pipelineItemCount)}
+        subtitle={pipelineItemCount > 0 ? "deals tracked" : "no deals yet"}
         icon={<Layers className="size-5" />}
       />
       <KpiCard
         label="Community"
-        value={communityMemberCount}
+        value={safeValue(communityMemberCount)}
         subtitle="Telegram members"
         icon={<MessageCircle className="size-5" />}
       />
@@ -96,8 +109,8 @@ export function KPIStrip({
       />
       <KpiCard
         label="Memory Health"
-        value={memoryRecords}
-        subtitle="records synced"
+        value={safeValue(memoryRecords)}
+        subtitle={memoryRecords > 0 ? "records synced" : "no records yet"}
         icon={<Brain className="size-5" />}
       />
     </section>

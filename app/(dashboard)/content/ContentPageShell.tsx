@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BufferCalendar } from "@/components/content/BufferCalendar";
 import { ContentBoard } from "@/components/dashboard/ContentBoard";
+import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 import type { ContentPost, Project } from "@/lib/types/database";
 
 type PostWithProject = ContentPost & {
@@ -68,7 +69,9 @@ export function ContentPageShell({
         </div>
       </div>
 
-      {view === "calendar" ? (
+      {allPosts.length === 0 ? (
+        <ModuleEmptyState module="content" />
+      ) : view === "calendar" ? (
         <BufferCalendar initialPosts={calendarPosts} projects={projects} />
       ) : (
         <ContentBoard initialPosts={allPosts} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Papa from "papaparse";
 import { toast } from "sonner";
 import {
@@ -184,8 +185,13 @@ const STEP_LABELS = [
 // ---------------------------------------------------------------------------
 
 export default function ImportPage() {
-  const [step, setStep] = useState<Step>(1);
-  const [selectedModule, setSelectedModule] = useState<Module | null>(null);
+  const searchParams = useSearchParams();
+  const preselectedModule = searchParams.get("module") as Module | null;
+  const validModules: Module[] = ["contacts", "content", "tasks", "pipeline"];
+  const initialModule = preselectedModule && validModules.includes(preselectedModule) ? preselectedModule : null;
+
+  const [step, setStep] = useState<Step>(initialModule ? 2 : 1);
+  const [selectedModule, setSelectedModule] = useState<Module | null>(initialModule);
   const [file, setFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);

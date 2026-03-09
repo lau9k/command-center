@@ -9,6 +9,8 @@ import {
   RecentActivityFeed,
   type ActivityItem,
 } from "@/components/dashboard/RecentActivityFeed";
+import { ModuleHealthOverview } from "@/components/dashboard/ModuleHealthOverview";
+import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import type { ContentPost } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -211,6 +213,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <DashboardRefreshListener />
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -224,7 +227,15 @@ export default async function DashboardPage() {
         <SessionPromptButton />
       </div>
 
-      {/* 2. KPI Strip */}
+      {/* 2. Module Health Overview */}
+      <ModuleHealthOverview
+        contactsCount={totalContactsCount}
+        tasksCount={tasks.length}
+        contentCount={allContent.length}
+        pipelineCount={pipelineItemCount}
+      />
+
+      {/* 3. KPI Strip */}
       <KPIStrip
         activeTasks={activeTasks}
         activeProjectCount={activeProjectIds.size}
@@ -240,13 +251,13 @@ export default async function DashboardPage() {
         communityMemberCount={communityMemberCount}
       />
 
-      {/* 3. Content Calendar Preview */}
+      {/* 4. Content Calendar Preview */}
       <ContentCalendarPreview posts={allContent} />
 
-      {/* 4. Project Summary Cards */}
+      {/* 5. Project Summary Cards */}
       <ProjectSummaryCards projects={projectSummaries} />
 
-      {/* 5. Recent Activity Feed */}
+      {/* 6. Recent Activity Feed */}
       <RecentActivityFeed items={recentActivity} />
     </div>
   );
