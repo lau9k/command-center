@@ -5,10 +5,9 @@ import { toast } from "sonner";
 import { Plus, Users, Tag, Brain, UserX, Search } from "lucide-react";
 import type { Contact } from "@/lib/types/database";
 import { ContactsTable } from "@/components/dashboard/ContactsTable";
-import { ContactDetailDrawer } from "@/components/dashboard/ContactDetailDrawer";
+import { ContactDetailPanel } from "@/components/contacts/ContactDetailPanel";
 import { ContactForm } from "@/components/dashboard/ContactForm";
 import type { ContactFormData } from "@/components/dashboard/ContactForm";
-import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,9 +42,8 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
-  // Delete modal state
-  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
-  const [deleting, setDeleting] = useState(false);
+
+
 
   const filteredContacts = useMemo(() => {
     let result = contacts;
@@ -124,24 +122,23 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
     [contacts, refreshContacts]
   );
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/contacts/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete contact");
-      toast.success("Contact deleted");
-      setDeleteTarget(null);
+  const handleContactUpdated = useCallback(
+    (updated: Contact) => {
+      setContacts((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c))
+      );
+      setSelectedContact(updated);
+    },
+    []
+  );
+
+  const handleContactDeleted = useCallback(
+    (id: string) => {
+      setContacts((prev) => prev.filter((c) => c.id !== id));
       setSelectedContact(null);
-      await refreshContacts();
-    } catch {
-      toast.error("Failed to delete — try again");
-    } finally {
-      setDeleting(false);
-    }
-  }, [deleteTarget, refreshContacts]);
+    },
+    []
+  );
 
   function openNewForm() {
     setEditingContact(null);
@@ -240,13 +237,14 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         onSelectContact={setSelectedContact}
       />
 
-      {/* Contact Detail Drawer */}
-      <ContactDetailDrawer
+      {/* Contact Detail Panel */}
+      <ContactDetailPanel
         contact={selectedContact}
         open={selectedContact !== null}
         onClose={() => setSelectedContact(null)}
         onEdit={openEditForm}
-        onDelete={setDeleteTarget}
+        onContactUpdated={handleContactUpdated}
+        onContactDeleted={handleContactDeleted}
       />
 
       {/* Contact Form Drawer */}
@@ -255,16 +253,6 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         onOpenChange={setFormOpen}
         contact={editingContact}
         onSubmit={handleCreateOrEdit}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <ConfirmDeleteModal
-        open={deleteTarget !== null}
-        onOpenChange={(v) => !v && setDeleteTarget(null)}
-        title="Delete Contact"
-        description={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
-        onConfirm={handleDelete}
-        loading={deleting}
       />
     </>
   );
