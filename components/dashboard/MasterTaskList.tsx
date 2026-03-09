@@ -32,6 +32,7 @@ import type {
   TaskPriority,
 } from "@/lib/types/database";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface ProjectOption {
   id: string;
@@ -385,19 +386,12 @@ export function MasterTaskList({
       {sorted.length === 0 && tasks.length === 0 && !hasFilters ? (
         <ModuleEmptyState module="tasks" />
       ) : sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
-          <p className="text-sm text-muted-foreground">
-            {hasFilters
-              ? "No tasks match the current filters."
-              : "No tasks yet. Create your first task."}
-          </p>
-          {!hasFilters && (
-            <Button variant="outline" className="mt-4" onClick={handleOpenCreate}>
-              <Plus />
-              Create Task
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={hasFilters ? <ListFilter /> : <CheckSquare />}
+          title={hasFilters ? "No tasks match the current filters" : "No tasks yet"}
+          description={hasFilters ? "Try adjusting your filters." : "Create your first task to get started."}
+          action={!hasFilters ? { label: "Create Task", onClick: handleOpenCreate } : undefined}
+        />
       ) : (
         <div className="space-y-2">
           {sorted.map((task) => (

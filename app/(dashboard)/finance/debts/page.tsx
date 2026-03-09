@@ -91,8 +91,8 @@ export default async function DebtsPage() {
   const debts: DebtWithProjections[] = ((data as Debt[]) ?? []).map(enrichDebt);
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-semibold text-foreground">Debts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Track balances, interest costs, and projected payoff dates

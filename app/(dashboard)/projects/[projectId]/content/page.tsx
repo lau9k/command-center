@@ -19,8 +19,8 @@ export default async function ProjectContentPage({
     .order("scheduled_at", { ascending: true, nullsFirst: false });
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h2 className="text-lg font-semibold text-foreground">Content Calendar</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Schedule and manage posts across platforms

@@ -54,7 +54,7 @@ export function TelegramHealthCard() {
   const statusConfig = health ? STATUS_CONFIG[health.status] : STATUS_CONFIG.offline;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageCircle className="size-4 text-[#0088CC]" />

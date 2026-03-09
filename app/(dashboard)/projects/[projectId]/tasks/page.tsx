@@ -30,7 +30,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle, ListTodo } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const statusConfig: Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" }> = {
   todo: { label: "To Do", icon: Circle, variant: "outline" },
@@ -154,9 +155,9 @@ export default function ProjectTasksPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Tasks</h2>
+        <h2 className="text-lg font-semibold text-foreground">Tasks</h2>
         <Button onClick={openCreate} size="sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Task
@@ -164,9 +165,11 @@ export default function ProjectTasksPage() {
       </div>
 
       {tasks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No tasks yet. Create your first task to get started.
-        </p>
+        <EmptyState
+          icon={<ListTodo />}
+          title="No tasks yet"
+          description="Create your first task to get started."
+        />
       ) : (
         <Table>
           <TableHeader>

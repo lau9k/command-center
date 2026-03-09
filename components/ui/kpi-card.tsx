@@ -31,7 +31,7 @@ function KpiCard({
       data-slot="kpi-card"
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-3 rounded-lg border border-border bg-card p-5 transition-all duration-150 hover:border-ring/50 hover:shadow-sm",
+        "flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-all duration-150 hover:border-ring/50 hover:shadow-sm",
         onClick && "cursor-pointer hover:bg-card-hover hover:shadow-md",
         className
       )}

@@ -30,8 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 import ContactDetail from "@/components/contacts/ContactDetail";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const statusColors: Record<ContactStatus, "default" | "secondary" | "outline" | "destructive"> = {
   active: "default",
@@ -174,9 +175,9 @@ export default function ProjectContactsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Contacts</h2>
+        <h2 className="text-lg font-semibold text-foreground">Contacts</h2>
         <Button onClick={openCreate} size="sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Contact
@@ -184,9 +185,11 @@ export default function ProjectContactsPage() {
       </div>
 
       {contacts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No contacts yet. Add your first contact to get started.
-        </p>
+        <EmptyState
+          icon={<Users />}
+          title="No contacts yet"
+          description="Add your first contact to get started."
+        />
       ) : (
         <Table>
           <TableHeader>

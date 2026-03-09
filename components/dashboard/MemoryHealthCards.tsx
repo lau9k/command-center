@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import type { MemoryStat, MemoryType } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Brain } from "lucide-react";
 
 interface ProjectWithMemory {
   id: string;
@@ -79,11 +81,11 @@ function getOverallHealth(stats: MemoryStat[]): {
 export function MemoryHealthCards({ projects }: MemoryHealthCardsProps) {
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
-        <p className="text-sm text-muted-foreground">
-          No projects yet — create a project to see memory health
-        </p>
-      </div>
+      <EmptyState
+        icon={<Brain />}
+        title="No projects yet"
+        description="Create a project to see memory health"
+      />
     );
   }
 

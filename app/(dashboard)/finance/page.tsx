@@ -35,17 +35,15 @@ export default async function FinancePage() {
     ]);
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-semibold text-foreground">Finance</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Track income, expenses, debts, and net worth
         </p>
       </div>
 
-      <div className="mb-6">
-        <ConnectedAccounts />
-      </div>
+      <ConnectedAccounts />
 
       <FinanceDashboardLazy
         transactions={(transactionsRes.data as Transaction[]) ?? []}
