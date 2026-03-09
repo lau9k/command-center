@@ -11,6 +11,7 @@ import {
 } from "@/components/dashboard/RecentActivityFeed";
 import { ModuleHealthOverview } from "@/components/dashboard/ModuleHealthOverview";
 import { MemoryFlushCard } from "@/components/dashboard/MemoryFlushCard";
+import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import type { ContentPost } from "@/lib/types/database";
 
@@ -261,7 +262,10 @@ export default async function DashboardPage() {
       {/* 6. Recent Activity Feed */}
       <RecentActivityFeed items={recentActivity} />
 
-      {/* 7. Memory Flush Prompt */}
+      {/* 7. Telegram Bot Health */}
+      <TelegramHealthCard />
+
+      {/* 8. Memory Flush Prompt */}
       <MemoryFlushCard />
     </div>
   );
