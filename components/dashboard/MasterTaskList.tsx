@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   Plus,
   ListFilter,
@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Search,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -98,49 +97,17 @@ export function MasterTaskList({
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
   const [filterStatus, setFilterStatus] = useState<string>(ALL_VALUE);
 
-  const supabase = createClient();
-
-  // Real-time subscription
-  useEffect(() => {
-    const channel = supabase
-      .channel("tasks-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tasks" },
-        async (payload) => {
-          if (payload.eventType === "DELETE") {
-            setTasks((prev) => prev.filter((t) => t.id !== payload.old.id));
-            return;
-          }
-
-          // For INSERT and UPDATE, refetch the task with project join
-          const { data } = await supabase
-            .from("tasks")
-            .select("*, projects(id, name, color)")
-            .eq("id", payload.new.id)
-            .single();
-
-          if (!data) return;
-
-          const taskWithProject = data as TaskWithProject;
-
-          setTasks((prev) => {
-            const exists = prev.find((t) => t.id === taskWithProject.id);
-            if (exists) {
-              return prev.map((t) =>
-                t.id === taskWithProject.id ? taskWithProject : t
-              );
-            }
-            return [...prev, taskWithProject];
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+  const refreshTasks = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tasks");
+      if (res.ok) {
+        const json = await res.json();
+        setTasks((json.data as TaskWithProject[]) ?? []);
+      }
+    } catch {
+      // silent refresh failure
+    }
+  }, []);
 
   const handleStatusChange = useCallback(
     async (taskId: string, status: TaskStatus) => {
@@ -149,12 +116,14 @@ export function MasterTaskList({
         prev.map((t) => (t.id === taskId ? { ...t, status } : t))
       );
 
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status })
-        .eq("id", taskId);
-
-      if (error) {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error("Failed to update");
+      } catch {
         // Revert on error
         setTasks((prev) =>
           prev.map((t) =>
@@ -165,7 +134,7 @@ export function MasterTaskList({
         );
       }
     },
-    [supabase]
+    []
   );
 
   const handleDelete = useCallback(
@@ -174,17 +143,19 @@ export function MasterTaskList({
       // Optimistic delete
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskId);
-
-      if (error && taskToDelete) {
-        // Revert on error
-        setTasks((prev) => [...prev, taskToDelete]);
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+        if (!res.ok && taskToDelete) {
+          // Revert on error
+          setTasks((prev) => [...prev, taskToDelete]);
+        }
+      } catch {
+        if (taskToDelete) {
+          setTasks((prev) => [...prev, taskToDelete]);
+        }
       }
     },
-    [supabase, tasks]
+    [tasks]
   );
 
   const handleEdit = useCallback((task: TaskWithProject) => {
@@ -216,14 +187,23 @@ export function MasterTaskList({
       };
 
       if (taskId) {
-        await supabase.from("tasks").update(payload).eq("id", taskId);
+        await fetch(`/api/tasks/${taskId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
       } else {
-        await supabase.from("tasks").insert(payload);
+        await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
       }
 
+      await refreshTasks();
       setEditingTask(null);
     },
-    [supabase]
+    [refreshTasks]
   );
 
   const handleQuickAdd = useCallback(

@@ -15,15 +15,15 @@ export async function seedTasksIfEmpty() {
 
   if ((count ?? 0) > 0) return;
 
-  // Fetch projects to assign tasks to real project IDs
+  // Fetch first project to get the owner user_id for seed data
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name")
+    .select("id, name, user_id")
     .order("name");
 
-  const projectMap = new Map(
-    (projects ?? []).map((p: { id: string; name: string }) => [p.name, p.id])
-  );
+  const projectList = (projects ?? []) as { id: string; name: string; user_id: string }[];
+  const projectMap = new Map(projectList.map((p) => [p.name, p.id]));
+  const ownerId = projectList[0]?.user_id ?? null;
 
   const now = new Date();
   const daysFromNow = (d: number) => {
@@ -40,6 +40,7 @@ export async function seedTasksIfEmpty() {
       status: "in_progress",
       due_date: daysFromNow(2),
       assignee: "Cyrus",
+      ...(ownerId && { user_id: ownerId }),
     },
     {
       title: "Design sponsor deck for MEEK event",
@@ -48,6 +49,7 @@ export async function seedTasksIfEmpty() {
       status: "todo",
       due_date: daysFromNow(5),
       assignee: "Cyrus",
+      ...(ownerId && { user_id: ownerId }),
     },
     {
       title: "Review hackathon submissions",
@@ -56,6 +58,7 @@ export async function seedTasksIfEmpty() {
       status: "todo",
       due_date: daysFromNow(3),
       assignee: null,
+      ...(ownerId && { user_id: ownerId }),
     },
     {
       title: "Update personal budget spreadsheet",
@@ -64,6 +67,7 @@ export async function seedTasksIfEmpty() {
       status: "todo",
       due_date: daysFromNow(7),
       assignee: "Cyrus",
+      ...(ownerId && { user_id: ownerId }),
     },
     {
       title: "Write launch blog post for Eventium",
@@ -72,6 +76,7 @@ export async function seedTasksIfEmpty() {
       status: "done",
       due_date: daysFromNow(-1),
       assignee: "Cyrus",
+      ...(ownerId && { user_id: ownerId }),
     },
   ];
 

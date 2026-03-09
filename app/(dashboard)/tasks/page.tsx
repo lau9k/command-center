@@ -11,7 +11,7 @@ export default async function TasksPage() {
 
   const supabase = createServiceClient();
 
-  const [{ data: tasks }, { data: projects }] = await Promise.all([
+  const [tasksRes, projectsRes] = await Promise.all([
     supabase
       .from("tasks")
       .select("*, projects(id, name, color)")
@@ -22,6 +22,15 @@ export default async function TasksPage() {
       .order("name", { ascending: true }),
   ]);
 
+  if (tasksRes.error) {
+    console.error("[Tasks] query error:", tasksRes.error.message);
+  }
+  if (projectsRes.error) {
+    console.error("[Tasks] projects query error:", projectsRes.error.message);
+  }
+
+  const tasks = tasksRes.data;
+  const projects = projectsRes.data;
   const allTasks = (tasks as TaskWithProject[]) ?? [];
 
   // KPI computations

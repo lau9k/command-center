@@ -23,6 +23,13 @@ export default async function ContactsPage() {
     })(),
   ]);
 
+  if (contactsRes.error) {
+    console.error("[Contacts] query error:", contactsRes.error.message);
+  }
+  if (taggedThisWeekRes.error) {
+    console.error("[Contacts] tagged-this-week query error:", taggedThisWeekRes.error.message);
+  }
+
   const contacts = (contactsRes.data as Contact[]) ?? [];
   const taggedThisWeek = taggedThisWeekRes.count ?? 0;
 
