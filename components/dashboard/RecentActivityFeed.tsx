@@ -5,6 +5,7 @@ import { CheckSquare, FileText, Users } from "lucide-react";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { ProjectBadge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { activityTypeColor, colors } from "@/lib/design-tokens";
 
 export interface ActivityItem {
   id: string;
@@ -18,13 +19,14 @@ export interface ActivityItem {
 
 function TypeIcon({ type }: { type: ActivityItem["type"] }) {
   const iconClass = "size-4";
+  const colorClass = activityTypeColor[type] ?? "";
   switch (type) {
     case "task":
-      return <CheckSquare className={`${iconClass} text-[#3B82F6]`} />;
+      return <CheckSquare className={`${iconClass} ${colorClass}`} />;
     case "content":
-      return <FileText className={`${iconClass} text-[#A855F7]`} />;
+      return <FileText className={`${iconClass} ${colorClass}`} />;
     case "contact":
-      return <Users className={`${iconClass} text-[#22C55E]`} />;
+      return <Users className={`${iconClass} ${colorClass}`} />;
   }
 }
 
@@ -66,7 +68,7 @@ const columns: ColumnDef<ActivityItem>[] = [
     header: "Project",
     cell: (row) =>
       row.projectName ? (
-        <ProjectBadge color={row.projectColor ?? "#A855F7"}>
+        <ProjectBadge color={row.projectColor ?? colors.accent.purple}>
           {row.projectName}
         </ProjectBadge>
       ) : (

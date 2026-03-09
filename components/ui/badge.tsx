@@ -3,6 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { statusBadgeClass } from "@/lib/design-tokens"
 
 const badgeVariants = cva(
   "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",
@@ -50,11 +51,11 @@ function Badge({
 type StatusType = "draft" | "ready" | "scheduled" | "published" | "failed"
 
 const statusColors: Record<StatusType, string> = {
-  draft: "bg-[#666666]/20 text-muted-foreground",
-  ready: "bg-[#EAB308]/20 text-[#EAB308]",
-  scheduled: "bg-[#3B82F6]/20 text-[#3B82F6]",
-  published: "bg-[#22C55E]/20 text-[#22C55E]",
-  failed: "bg-[#EF4444]/20 text-[#EF4444]",
+  draft: statusBadgeClass.draft,
+  ready: statusBadgeClass.ready,
+  scheduled: statusBadgeClass.scheduled,
+  published: statusBadgeClass.published,
+  failed: statusBadgeClass.failed,
 }
 
 function StatusBadge({
@@ -82,10 +83,10 @@ function StatusBadge({
 type PriorityType = "low" | "medium" | "high" | "urgent"
 
 const priorityColors: Record<PriorityType, string> = {
-  low: "bg-[#666666]/20 text-muted-foreground",
-  medium: "bg-[#EAB308]/20 text-[#EAB308]",
+  low: statusBadgeClass.draft,
+  medium: statusBadgeClass.ready,
   high: "bg-[#F97316]/20 text-[#F97316]",
-  urgent: "bg-[#EF4444]/20 text-[#EF4444]",
+  urgent: statusBadgeClass.failed,
 }
 
 function PriorityBadge({
@@ -116,7 +117,7 @@ const platformColors: Record<PlatformType, { bg: string; text: string }> = {
   linkedin: { bg: "bg-[#0A66C2]/20", text: "text-[#0A66C2]" },
   twitter: { bg: "bg-[#1DA1F2]/20", text: "text-[#1DA1F2]" },
   youtube: { bg: "bg-[#FF0000]/20", text: "text-[#FF0000]" },
-  instagram: { bg: "bg-[#E4405F]/20", text: "text-[#E4405F]" },
+  instagram: { bg: "bg-[#E1306C]/20", text: "text-[#E1306C]" },
   tiktok: { bg: "bg-[#00F2EA]/20", text: "text-[#00F2EA]" },
   telegram: { bg: "bg-[#0088CC]/20", text: "text-[#0088CC]" },
 }

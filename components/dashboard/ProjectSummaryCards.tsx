@@ -8,6 +8,7 @@ import {
   InteractiveCardLink,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { statusBadgeClass } from "@/lib/design-tokens";
 
 interface ProjectTask {
   id: string;
@@ -29,10 +30,10 @@ interface ProjectSummaryCardsProps {
 }
 
 const statusVariant: Record<string, string> = {
-  active: "bg-[#22C55E]/20 text-[#22C55E]",
-  paused: "bg-[#EAB308]/20 text-[#EAB308]",
-  completed: "bg-[#3B82F6]/20 text-[#3B82F6]",
-  archived: "bg-[#666666]/20 text-muted-foreground",
+  active: statusBadgeClass.active,
+  paused: statusBadgeClass.paused,
+  completed: statusBadgeClass.completed,
+  archived: statusBadgeClass.archived,
 };
 
 function formatDueDate(date: string | null): string {

@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, isPast, isToday } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PriorityBadge } from "./PriorityBadge";
 import { ProjectBadge } from "./ProjectBadge";
 import type { TaskWithProject, TaskPriority } from "@/lib/types/database";
@@ -89,11 +90,11 @@ export function TopTasksList({ initialTasks }: TopTasksListProps) {
 
   if (sorted.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
-        <p className="text-sm text-muted-foreground">
-          No active tasks — start a Cowork session to generate some
-        </p>
-      </div>
+      <EmptyState
+        icon={<CheckSquare />}
+        title="No active tasks"
+        description="Start a Cowork session to generate some"
+      />
     );
   }
 

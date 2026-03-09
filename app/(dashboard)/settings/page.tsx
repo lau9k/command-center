@@ -11,7 +11,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+      <div className="rounded-lg border border-border bg-card p-4 space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Appearance</h2>
           <p className="text-sm text-muted-foreground">
@@ -30,7 +30,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+      <div className="rounded-lg border border-border bg-card p-4 space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Demo Data</h2>
           <p className="text-sm text-muted-foreground">

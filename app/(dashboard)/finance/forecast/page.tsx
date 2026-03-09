@@ -21,8 +21,8 @@ export default async function ForecastPage() {
   ]);
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <h1 className="text-2xl font-semibold text-foreground">
           Cash Flow Forecast
         </h1>

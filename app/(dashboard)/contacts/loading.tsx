@@ -11,7 +11,7 @@ export default function ContactsLoading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
           >
             <div className="h-4 w-24 animate-pulse rounded bg-muted" />
             <div className="h-8 w-16 animate-pulse rounded bg-muted" />

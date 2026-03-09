@@ -5,12 +5,13 @@ import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/types/database";
 import type { ContentPost } from "@/lib/types/database";
+import { colors } from "@/lib/design-tokens";
 
 const STATUS_DOTS: Record<string, string> = {
-  published: "#22C55E",
-  scheduled: "#EAB308",
-  draft: "#FFFFFF",
-  failed: "#EF4444",
+  published: colors.accent.green,
+  scheduled: colors.accent.yellow,
+  draft: colors.text.primary,
+  failed: colors.accent.red,
 };
 
 interface BufferPostCardProps {

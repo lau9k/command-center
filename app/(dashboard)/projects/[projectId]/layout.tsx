@@ -4,12 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
+import { statusBadgeClass } from "@/lib/design-tokens";
 
 const statusColors: Record<string, string> = {
-  active: "bg-[#22C55E]/20 text-[#22C55E]",
-  paused: "bg-[#EAB308]/20 text-[#EAB308]",
-  completed: "bg-[#3B82F6]/20 text-[#3B82F6]",
-  archived: "bg-[#6B7280]/20 text-[#6B7280]",
+  active: statusBadgeClass.active,
+  paused: statusBadgeClass.paused,
+  completed: statusBadgeClass.completed,
+  archived: statusBadgeClass.archived,
 };
 
 interface Tab {
@@ -56,7 +57,7 @@ export default async function ProjectLayout({
           <SessionPromptButton projectKey={project.name.toLowerCase()} />
         </div>
         {project.description && (
-          <p className="mt-1 text-muted-foreground">{project.description}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
         )}
       </div>
 

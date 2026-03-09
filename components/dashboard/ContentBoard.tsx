@@ -12,6 +12,7 @@ import { sanitizeText } from "@/lib/sanitize";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
+import { colors } from "@/lib/design-tokens";
 
 const VALID_PLATFORMS = new Set<string>([
   "linkedin",
@@ -22,10 +23,10 @@ const VALID_PLATFORMS = new Set<string>([
 ]);
 
 const COLUMNS: { id: ContentPostStatus; label: string; color: string }[] = [
-  { id: "draft", label: "Draft", color: "#666666" },
-  { id: "ready", label: "Ready", color: "#EAB308" },
-  { id: "scheduled", label: "Scheduled", color: "#3B82F6" },
-  { id: "published", label: "Published", color: "#22C55E" },
+  { id: "draft", label: "Draft", color: colors.text.tertiary },
+  { id: "ready", label: "Ready", color: colors.accent.yellow },
+  { id: "scheduled", label: "Scheduled", color: colors.accent.blue },
+  { id: "published", label: "Published", color: colors.accent.green },
 ];
 
 const STATUS_TRANSITIONS: Record<ContentPostStatus, ContentPostStatus | null> = {

@@ -16,7 +16,7 @@ function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
 /** KPI card skeleton — matches KpiCard layout */
 function KPICardSkeleton() {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-5 w-5 rounded" />
@@ -94,7 +94,7 @@ function KanbanSkeleton({ columns = 3, cardsPerColumn = 3 }: { columns?: number;
 /** Card skeleton for project summary cards */
 function CardSkeleton() {
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-32" />
         <Skeleton className="h-5 w-16 rounded-full" />
@@ -121,7 +121,7 @@ function DashboardSkeleton() {
 
       {/* AI Focus Panel */}
       <div className="flex items-start justify-between">
-        <div className="flex-1 rounded-lg border border-border bg-card p-5">
+        <div className="flex-1 rounded-lg border border-border bg-card p-4">
           <Skeleton className="h-4 w-48" />
           <Skeleton className="mt-2 h-3 w-64" />
         </div>
@@ -141,7 +141,7 @@ function DashboardSkeleton() {
       <KPIStripSkeleton />
 
       {/* Content Calendar */}
-      <div className="rounded-lg border border-border bg-card p-5">
+      <div className="rounded-lg border border-border bg-card p-4">
         <Skeleton className="h-5 w-40" />
         <div className="mt-4 grid grid-cols-7 gap-2">
           {Array.from({ length: 7 }).map((_, i) => (
@@ -188,11 +188,11 @@ function FinanceSkeleton() {
     <PageSkeleton>
       <KPIStripSkeleton count={4} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-4">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="mt-4 h-48 w-full" />
         </div>
-        <div className="rounded-lg border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-4">
           <Skeleton className="h-5 w-32" />
           <Skeleton className="mt-4 h-48 w-full" />
         </div>

@@ -54,13 +54,13 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
         <h2 className="text-lg font-semibold text-foreground">Content Calendar</h2>
         <Link
           href="/content"
-          className="text-xs text-[#3B82F6] hover:underline"
+          className="text-xs text-sidebar-primary hover:underline"
         >
           View all
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-lg border border-border bg-card p-4">
         {/* Header stats */}
         <div className="flex items-center gap-2 mb-3">
           <CalendarDays className="size-4 text-muted-foreground" />
@@ -91,7 +91,7 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
                 <span
                   className={cn(
                     "flex size-7 items-center justify-center rounded-full text-xs font-medium",
-                    today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                    today ? "bg-sidebar-primary text-white" : "text-foreground"
                   )}
                 >
                   {format(day, "d")}
