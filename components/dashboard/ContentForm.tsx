@@ -36,6 +36,7 @@ export interface ContentFormData {
   platform: string;
   status: ContentPostStatus;
   scheduled_at: string | null;
+  image_url: string;
 }
 
 interface ContentFormProps {
@@ -51,6 +52,7 @@ const emptyForm: ContentFormData = {
   platform: "linkedin",
   status: "draft",
   scheduled_at: null,
+  image_url: "",
 };
 
 const PLATFORM_OPTIONS = [
@@ -80,6 +82,7 @@ export function ContentForm({
         platform: post.platform ?? "linkedin",
         status: post.status,
         scheduled_at: post.scheduled_at ?? post.scheduled_for ?? null,
+        image_url: post.image_url ?? "",
       });
     } else {
       setForm(emptyForm);
@@ -130,6 +133,17 @@ export function ContentForm({
               rows={5}
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="post-image-url">Image URL</Label>
+            <Input
+              id="post-image-url"
+              type="url"
+              placeholder="https://example.com/image.png"
+              value={form.image_url}
+              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
             />
           </div>
 

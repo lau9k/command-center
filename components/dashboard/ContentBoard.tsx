@@ -119,6 +119,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               platform: data.platform,
               status: data.status,
               scheduled_at: data.scheduled_at,
+              image_url: data.image_url || null,
             }),
           });
           if (!res.ok) throw new Error("Failed to update post");
@@ -133,6 +134,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               platform: data.platform,
               status: data.status,
               scheduled_at: data.scheduled_at,
+              image_url: data.image_url || null,
               type: "post",
               platforms: data.platform ? [data.platform] : [],
               metrics: {},

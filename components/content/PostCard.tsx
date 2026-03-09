@@ -37,7 +37,7 @@ export function PostCard({
   const metrics = post.metrics as Record<string, number> | null;
   const hasMetrics =
     post.status === "published" && metrics && Object.keys(metrics).length > 0;
-  const thumbnail = post.media_urls?.[0] ?? null;
+  const thumbnail = post.image_url ?? post.media_urls?.[0] ?? null;
 
   return (
     <div
