@@ -37,6 +37,16 @@ export default async function ContentPage() {
       .order("name"),
   ]);
 
+  if (postsResult.error) {
+    console.error("[Content] calendar posts query error:", postsResult.error.message);
+  }
+  if (allPostsResult.error) {
+    console.error("[Content] all posts query error:", allPostsResult.error.message);
+  }
+  if (projectsResult.error) {
+    console.error("[Content] projects query error:", projectsResult.error.message);
+  }
+
   const calendarPosts = (postsResult.data as PostWithProject[]) ?? [];
   const allPosts = (allPostsResult.data as ContentPost[]) ?? [];
   const projects =
