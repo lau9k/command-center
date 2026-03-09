@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createBalanceSnapshotSchema, validateIdParam } from "@/lib/validations";
 
 export async function GET() {
   const supabase = createServiceClient();
@@ -19,9 +20,14 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
+  const parsed = createBalanceSnapshotSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("balance_snapshots")
-    .insert(body)
+    .insert(parsed.data)
     .select()
     .single();
 
@@ -37,8 +43,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!validateIdParam(id)) {
+    return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
   }
 
   const { error } = await supabase.from("balance_snapshots").delete().eq("id", id);

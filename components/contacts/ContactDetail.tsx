@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { sanitizeText } from "@/lib/sanitize";
 import {
   ArrowLeft,
   Brain,
@@ -193,7 +194,7 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
 
                 {/* Compiled context */}
                 <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
-                  {digest.data.compiledContext}
+                  {sanitizeText(digest.data.compiledContext)}
                 </div>
               </div>
             )}
@@ -248,7 +249,7 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
                     key={item.id}
                     className="rounded-md border border-border p-3 text-sm space-y-1.5"
                   >
-                    <p>{item.text}</p>
+                    <p>{sanitizeText(item.text)}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierColors[item.relevance_tier] ?? tierColors.might}`}

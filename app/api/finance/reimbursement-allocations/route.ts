@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createReimbursementAllocationSchema, validateIdParam } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
   const supabase = createServiceClient();
@@ -33,7 +34,23 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
 
   // body can be a single allocation or array of allocations
-  const allocations = Array.isArray(body) ? body : [body];
+  const rawAllocations = Array.isArray(body) ? body : [body];
+
+  const validatedAllocations = [];
+  for (const alloc of rawAllocations) {
+    const parsed = createReimbursementAllocationSchema.safeParse(alloc);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+    }
+    // Map schema field names to DB column names
+    validatedAllocations.push({
+      payment_id: parsed.data.payment_id,
+      reimbursement_request_id: parsed.data.request_id,
+      amount: parsed.data.amount,
+    });
+  }
+
+  const allocations = validatedAllocations;
 
   const { data, error } = await supabase
     .from("reimbursement_payment_allocations")
@@ -83,8 +100,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!validateIdParam(id)) {
+    return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
   }
 
   const { error } = await supabase

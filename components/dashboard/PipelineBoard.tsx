@@ -4,6 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { DollarSign, Building2, User, Calendar, FileText, ChevronRight } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
+import { sanitizeText } from "@/lib/sanitize";
 
 interface PipelineStage {
   id: string;
@@ -143,7 +144,7 @@ function DrawerContent({ item, stage }: { item: PipelineItemData; stage: Pipelin
           </h4>
           <div className="flex items-start gap-1.5 text-sm text-foreground">
             <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <p className="whitespace-pre-wrap">{notes}</p>
+            <p className="whitespace-pre-wrap">{sanitizeText(notes)}</p>
           </div>
         </div>
       )}

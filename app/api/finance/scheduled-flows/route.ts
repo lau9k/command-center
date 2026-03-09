@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createScheduledFlowSchema, updateScheduledFlowSchema, validateIdParam } from "@/lib/validations";
 
 export async function GET() {
   const supabase = createServiceClient();
@@ -20,9 +21,14 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
+  const parsed = createScheduledFlowSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("scheduled_flows")
-    .insert(body)
+    .insert(parsed.data)
     .select()
     .single();
 
@@ -36,11 +42,13 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
-  const { id, ...updates } = body;
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = updateScheduledFlowSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+
+  const { id, ...updates } = parsed.data;
 
   const { data, error } = await supabase
     .from("scheduled_flows")
@@ -61,8 +69,8 @@ export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  if (!validateIdParam(id)) {
+    return NextResponse.json({ error: "Valid id is required" }, { status: 400 });
   }
 
   const { error } = await supabase

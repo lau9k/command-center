@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { forecastComputeSchema } from "@/lib/validations";
 import type {
   ScheduledFlow,
   ForecastRun,
@@ -215,7 +216,11 @@ function computeForecast(
 export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
-  const { runId } = body as { runId?: string };
+  const parsed = forecastComputeSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+  const { runId } = parsed.data;
 
   // Fetch scheduled flows
   const { data: flows, error: flowsErr } = await supabase

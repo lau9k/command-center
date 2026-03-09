@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+const importBodySchema = z.object({
+  module: z.enum(["contacts", "content", "tasks", "pipeline"]),
+  rows: z
+    .array(z.record(z.string(), z.string().nullable()))
+    .min(1, "non-empty rows array is required"),
+  project_id: z.string().uuid(),
+  user_id: z.string().min(1),
+});
 
 type Module = "contacts" | "content" | "tasks" | "pipeline";
 
@@ -186,28 +196,15 @@ function buildRecord(
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ImportBody;
-
-    if (!body.module || !["contacts", "content", "tasks", "pipeline"].includes(body.module)) {
+    const raw = await request.json();
+    const parsed = importBodySchema.safeParse(raw);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "module must be one of: contacts, content, tasks, pipeline" },
+        { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
-
-    if (!Array.isArray(body.rows) || body.rows.length === 0) {
-      return NextResponse.json(
-        { error: "non-empty rows array is required" },
-        { status: 400 }
-      );
-    }
-
-    if (!body.project_id || !body.user_id) {
-      return NextResponse.json(
-        { error: "project_id and user_id are required" },
-        { status: 400 }
-      );
-    }
+    const body = parsed.data as ImportBody;
 
     const supabase = createServiceClient();
     const table = getTable(body.module);

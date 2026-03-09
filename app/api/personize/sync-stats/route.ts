@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncMemoryStats } from "@/lib/personize/sync-stats";
+import { syncStatsSchema } from "@/lib/validations";
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -13,14 +14,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { projectId } = await request.json();
-
-    if (!projectId) {
-      return NextResponse.json(
-        { error: "projectId is required" },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = syncStatsSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { projectId } = parsed.data;
 
     const result = await syncMemoryStats(projectId);
     return NextResponse.json({ success: true, ...result });

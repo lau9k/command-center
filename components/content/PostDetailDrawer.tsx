@@ -7,6 +7,7 @@ import { StatusBadge, PlatformBadge } from "@/components/ui";
 import type { PlatformType, StatusType } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
+import { sanitizeText } from "@/lib/sanitize";
 
 const VALID_PLATFORMS = new Set<string>([
   "linkedin",
@@ -81,7 +82,7 @@ export function PostDetailDrawer({
               Caption
             </h4>
             <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">
-              {post.body}
+              {sanitizeText(post.body)}
             </p>
           </div>
         )}

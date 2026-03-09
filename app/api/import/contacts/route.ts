@@ -1,31 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
-interface ImportContactsBody {
-  filename: string;
-  mapped_data: Record<string, string | null>[];
-  field_mapping: Record<string, string>;
-}
+const importContactsSchema = z.object({
+  filename: z.string().min(1, "filename is required").max(500),
+  mapped_data: z
+    .array(z.record(z.string(), z.string().nullable()))
+    .min(1, "non-empty mapped_data array is required"),
+  field_mapping: z.record(z.string(), z.string()),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ImportContactsBody;
-
-    if (!body.filename || !Array.isArray(body.mapped_data) || body.mapped_data.length === 0) {
+    const raw = await request.json();
+    const parsed = importContactsSchema.safeParse(raw);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "filename and non-empty mapped_data array are required" },
+        { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
-
-    if (!body.field_mapping || typeof body.field_mapping !== "object") {
-      return NextResponse.json(
-        { error: "field_mapping object is required" },
-        { status: 400 }
-      );
-    }
+    const body = parsed.data;
 
     const supabase = createServiceClient();
 
