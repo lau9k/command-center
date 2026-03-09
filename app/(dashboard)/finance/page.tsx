@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { FinanceDashboard } from "@/components/finance/FinanceDashboard";
+import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";
 import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
 import type {
   Transaction,
@@ -8,7 +8,7 @@ import type {
   ReimbursementRequest,
 } from "@/lib/types/database";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function FinancePage() {
   const supabase = createServiceClient();
@@ -47,7 +47,7 @@ export default async function FinancePage() {
         <ConnectedAccounts />
       </div>
 
-      <FinanceDashboard
+      <FinanceDashboardLazy
         transactions={(transactionsRes.data as Transaction[]) ?? []}
         debts={(debtsRes.data as Debt[]) ?? []}
         snapshots={(snapshotsRes.data as BalanceSnapshot[]) ?? []}

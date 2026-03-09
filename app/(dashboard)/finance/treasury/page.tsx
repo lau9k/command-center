@@ -1,8 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { TreasuryDashboard } from "@/components/finance/TreasuryDashboard";
+import { TreasuryDashboardLazy } from "@/components/finance/TreasuryDashboardLazy";
 import type { CryptoBalance } from "@/lib/types/database";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function TreasuryPage() {
   const supabase = createServiceClient();
@@ -23,7 +23,7 @@ export default async function TreasuryPage() {
         </p>
       </div>
 
-      <TreasuryDashboard holdings={holdings} />
+      <TreasuryDashboardLazy holdings={holdings} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
-export function createServiceClient() {
+function buildServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -25,4 +25,13 @@ export function createServiceClient() {
         fetch(input, { ...init, cache: "no-store" }),
     },
   });
+}
+
+let serviceClient: ReturnType<typeof buildServiceClient> | null = null;
+
+export function createServiceClient() {
+  if (!serviceClient) {
+    serviceClient = buildServiceClient();
+  }
+  return serviceClient;
 }

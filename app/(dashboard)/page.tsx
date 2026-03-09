@@ -13,7 +13,7 @@ import { ModuleHealthOverview } from "@/components/dashboard/ModuleHealthOvervie
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import type { ContentPost } from "@/lib/types/database";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function DashboardPage() {
   const serviceClient = createServiceClient();
