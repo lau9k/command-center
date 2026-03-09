@@ -2,11 +2,14 @@
 
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
-import { Clock, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
 import { StatusBadge, PlatformBadge, EmptyState, Drawer } from "@/components/ui";
 import type { PlatformType, StatusType } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { ContentForm } from "@/components/dashboard/ContentForm";
+import type { ContentFormData } from "@/components/dashboard/ContentForm";
+import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
 
 const VALID_PLATFORMS = new Set<string>([
@@ -34,14 +37,36 @@ const STATUS_TRANSITIONS: Record<ContentPostStatus, ContentPostStatus | null> = 
 
 interface ContentBoardProps {
   initialPosts: ContentPost[];
+  onPostsChange?: () => void;
 }
 
-export function ContentBoard({ initialPosts }: ContentBoardProps) {
+export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps) {
   const [posts, setPosts] = useState<ContentPost[]>(initialPosts);
   const [drawerPost, setDrawerPost] = useState<ContentPost | null>(null);
 
+  // Edit form state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<ContentPost | null>(null);
+
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<ContentPost | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const columnPosts = (status: ContentPostStatus) =>
     posts.filter((p) => p.status === status);
+
+  const refreshPosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/content-posts");
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(Array.isArray(data) ? data : []);
+        onPostsChange?.();
+      }
+    } catch {
+      // silent refresh failure
+    }
+  }, [onPostsChange]);
 
   const updatePostStatus = useCallback(
     async (id: string, status: ContentPostStatus) => {
@@ -78,6 +103,77 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
     },
     [initialPosts]
   );
+
+  const handleEditSubmit = useCallback(
+    async (data: ContentFormData, postId?: string) => {
+      try {
+        if (postId) {
+          const res = await fetch("/api/content-posts", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: postId,
+              title: data.title || null,
+              body: data.body || null,
+              platform: data.platform,
+              status: data.status,
+              scheduled_at: data.scheduled_at,
+            }),
+          });
+          if (!res.ok) throw new Error("Failed to update post");
+          toast.success("Post updated");
+        } else {
+          const res = await fetch("/api/content-posts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: data.title || null,
+              body: data.body || null,
+              platform: data.platform,
+              status: data.status,
+              scheduled_at: data.scheduled_at,
+              type: "post",
+              platforms: data.platform ? [data.platform] : [],
+              metrics: {},
+              engagement: {},
+            }),
+          });
+          if (!res.ok) throw new Error("Failed to create post");
+          toast.success("Post created");
+        }
+        await refreshPosts();
+        setDrawerPost(null);
+      } catch {
+        toast.error("Failed to save — try again");
+      }
+    },
+    [refreshPosts]
+  );
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/content-posts?id=${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete post");
+      toast.success("Post deleted");
+      setDeleteTarget(null);
+      setDrawerPost(null);
+      await refreshPosts();
+    } catch {
+      toast.error("Failed to delete — try again");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, refreshPosts]);
+
+  function openEditForm(post: ContentPost) {
+    setEditingPost(post);
+    setFormOpen(true);
+    setDrawerPost(null);
+  }
 
   if (posts.length === 0) {
     return (
@@ -132,38 +228,68 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
                     post.scheduled_at ?? post.scheduled_for;
 
                   return (
-                    <button
+                    <div
                       key={post.id}
-                      type="button"
-                      onClick={() => setDrawerPost(post)}
-                      className="rounded-lg border border-border bg-card p-3 text-left transition-all duration-150 hover:border-ring hover:shadow-sm"
+                      className="group rounded-lg border border-border bg-card p-3 transition-all duration-150 hover:border-ring hover:shadow-sm"
                     >
-                      {/* Title */}
-                      <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
-                        {post.title ?? post.body ?? "Untitled post"}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDrawerPost(post)}
+                        className="w-full text-left"
+                      >
+                        {/* Title */}
+                        <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+                          {post.title ?? post.body ?? "Untitled post"}
+                        </p>
 
-                      {/* Platform + Status badges */}
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {isValidPlatform && (
-                          <PlatformBadge
-                            platform={platform as PlatformType}
-                          />
-                        )}
-                        <StatusBadge status={post.status as StatusType} />
-                      </div>
-
-                      {/* Scheduled date */}
-                      {scheduledDate && (
-                        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="size-3" />
-                          {format(
-                            new Date(scheduledDate),
-                            "MMM d, h:mm a"
+                        {/* Platform + Status badges */}
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {isValidPlatform && (
+                            <PlatformBadge
+                              platform={platform as PlatformType}
+                            />
                           )}
+                          <StatusBadge status={post.status as StatusType} />
                         </div>
-                      )}
-                    </button>
+
+                        {/* Scheduled date */}
+                        {scheduledDate && (
+                          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="size-3" />
+                            {format(
+                              new Date(scheduledDate),
+                              "MMM d, h:mm a"
+                            )}
+                          </div>
+                        )}
+                      </button>
+
+                      {/* Action icons */}
+                      <div className="mt-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditForm(post);
+                          }}
+                          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Edit post"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(post);
+                          }}
+                          className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          title="Delete post"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
 
@@ -186,20 +312,44 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
         onClose={() => setDrawerPost(null)}
         title={drawerPost?.title ?? "Post Details"}
         footer={
-          nextStatus ? (
-            <Button
-              onClick={() => {
-                if (drawerPost) {
-                  updatePostStatus(drawerPost.id, nextStatus);
-                  setDrawerPost(null);
-                }
-              }}
-              className="w-full"
-            >
-              Move to{" "}
-              {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
-            </Button>
-          ) : undefined
+          <div className="flex w-full gap-2">
+            {drawerPost && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => openEditForm(drawerPost)}
+                >
+                  <Pencil className="size-3.5" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteTarget(drawerPost)}
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete
+                </Button>
+              </>
+            )}
+            {nextStatus && (
+              <Button
+                onClick={() => {
+                  if (drawerPost) {
+                    updatePostStatus(drawerPost.id, nextStatus);
+                    setDrawerPost(null);
+                  }
+                }}
+                className="ml-auto"
+              >
+                Move to{" "}
+                {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
+              </Button>
+            )}
+          </div>
         }
       >
         {drawerPost ? (
@@ -334,6 +484,24 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
           <div />
         )}
       </Drawer>
+
+      {/* Content Form Drawer */}
+      <ContentForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        post={editingPost}
+        onSubmit={handleEditSubmit}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={deleteTarget !== null}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Delete Post"
+        description={`Are you sure you want to delete "${deleteTarget?.title ?? "this post"}"? This cannot be undone.`}
+        onConfirm={handleDelete}
+        loading={deleting}
+      />
     </div>
   );
 }

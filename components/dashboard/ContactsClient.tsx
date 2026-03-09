@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { toast } from "sonner";
+import { Plus, Users, Tag, Brain, UserX, Search } from "lucide-react";
 import type { Contact } from "@/lib/types/database";
 import { ContactsTable } from "@/components/dashboard/ContactsTable";
 import { ContactDetailDrawer } from "@/components/dashboard/ContactDetailDrawer";
+import { ContactForm } from "@/components/dashboard/ContactForm";
+import type { ContactFormData } from "@/components/dashboard/ContactForm";
+import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Tag, Brain, UserX, Search } from "lucide-react";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 
 const TAG_OPTIONS = ["Personize", "Hackathon", "MEEK", "Personal"] as const;
@@ -29,12 +34,21 @@ interface ContactsClientProps {
 }
 
 export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
+  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
 
+  // Form drawer state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const filteredContacts = useMemo(() => {
-    let result = initialContacts;
+    let result = contacts;
 
     if (tagFilter && tagFilter !== "all") {
       result = result.filter(
@@ -52,10 +66,112 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
     }
 
     return result;
-  }, [initialContacts, tagFilter, search]);
+  }, [contacts, tagFilter, search]);
 
-  if (initialContacts.length === 0) {
-    return <ModuleEmptyState module="contacts" />;
+  const refreshContacts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      if (res.ok) {
+        const json = await res.json();
+        setContacts(json.data ?? []);
+      }
+    } catch {
+      // silent refresh failure
+    }
+  }, []);
+
+  const handleCreateOrEdit = useCallback(
+    async (data: ContactFormData, contactId?: string) => {
+      try {
+        if (contactId) {
+          const res = await fetch(`/api/contacts/${contactId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: data.name,
+              email: data.email || null,
+              company: data.company || null,
+              source: data.source,
+              status: data.status,
+              tags: data.tags,
+            }),
+          });
+          if (!res.ok) throw new Error("Failed to update contact");
+          toast.success("Contact updated");
+        } else {
+          const res = await fetch("/api/contacts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: data.name,
+              email: data.email || null,
+              company: data.company || null,
+              source: data.source,
+              status: data.status,
+              tags: data.tags,
+              project_id: contacts[0]?.project_id ?? "00000000-0000-0000-0000-000000000000",
+            }),
+          });
+          if (!res.ok) throw new Error("Failed to create contact");
+          toast.success("Contact created");
+        }
+        await refreshContacts();
+        setSelectedContact(null);
+      } catch {
+        toast.error("Failed to save — try again");
+      }
+    },
+    [contacts, refreshContacts]
+  );
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/contacts/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete contact");
+      toast.success("Contact deleted");
+      setDeleteTarget(null);
+      setSelectedContact(null);
+      await refreshContacts();
+    } catch {
+      toast.error("Failed to delete — try again");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget, refreshContacts]);
+
+  function openNewForm() {
+    setEditingContact(null);
+    setFormOpen(true);
+  }
+
+  function openEditForm(contact: Contact) {
+    setEditingContact(contact);
+    setFormOpen(true);
+    setSelectedContact(null);
+  }
+
+  if (contacts.length === 0 && initialContacts.length === 0) {
+    return (
+      <>
+        <div className="flex justify-end">
+          <Button onClick={openNewForm} size="sm" className="gap-1.5">
+            <Plus className="size-4" />
+            New Contact
+          </Button>
+        </div>
+        <ModuleEmptyState module="contacts" />
+        <ContactForm
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          contact={editingContact}
+          onSubmit={handleCreateOrEdit}
+        />
+      </>
+    );
   }
 
   return (
@@ -112,6 +228,10 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
             ))}
           </SelectContent>
         </Select>
+        <Button onClick={openNewForm} size="sm" className="gap-1.5">
+          <Plus className="size-4" />
+          New Contact
+        </Button>
       </div>
 
       {/* Contacts Table */}
@@ -125,6 +245,26 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         contact={selectedContact}
         open={selectedContact !== null}
         onClose={() => setSelectedContact(null)}
+        onEdit={openEditForm}
+        onDelete={setDeleteTarget}
+      />
+
+      {/* Contact Form Drawer */}
+      <ContactForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        contact={editingContact}
+        onSubmit={handleCreateOrEdit}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={deleteTarget !== null}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Delete Contact"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        onConfirm={handleDelete}
+        loading={deleting}
       />
     </>
   );

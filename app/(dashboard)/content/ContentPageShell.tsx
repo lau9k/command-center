@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, LayoutGrid } from "lucide-react";
+import { useState, useCallback } from "react";
+import { toast } from "sonner";
+import { Calendar, LayoutGrid, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BufferCalendar } from "@/components/content/BufferCalendar";
 import { ContentBoard } from "@/components/dashboard/ContentBoard";
+import { ContentForm } from "@/components/dashboard/ContentForm";
+import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 import type { ContentPost, Project } from "@/lib/types/database";
 
@@ -27,6 +30,48 @@ export function ContentPageShell({
   projects,
 }: ContentPageShellProps) {
   const [view, setView] = useState<ViewMode>("calendar");
+  const [posts, setPosts] = useState<ContentPost[]>(allPosts);
+  const [formOpen, setFormOpen] = useState(false);
+
+  const refreshPosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/content-posts");
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const handleNewPost = useCallback(
+    async (data: ContentFormData) => {
+      try {
+        const res = await fetch("/api/content-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: data.title || null,
+            body: data.body || null,
+            platform: data.platform,
+            status: data.status,
+            scheduled_at: data.scheduled_at,
+            type: "post",
+            platforms: data.platform ? [data.platform] : [],
+            metrics: {},
+            engagement: {},
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to create post");
+        toast.success("Post created");
+        await refreshPosts();
+      } catch {
+        toast.error("Failed to save — try again");
+      }
+    },
+    [refreshPosts]
+  );
 
   return (
     <div>
@@ -40,42 +85,64 @@ export function ContentPageShell({
           </p>
         </div>
 
-        {/* View toggle */}
-        <div className="flex items-center rounded-lg border border-border bg-background p-1">
+        <div className="flex items-center gap-3">
           <Button
-            variant="ghost"
+            onClick={() => setFormOpen(true)}
             size="sm"
-            onClick={() => setView("calendar")}
-            className={cn(
-              "gap-1.5 px-3",
-              view === "calendar" && "bg-accent text-foreground"
-            )}
+            className="gap-1.5"
           >
-            <Calendar className="size-4" />
-            Calendar
+            <Plus className="size-4" />
+            New Post
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setView("board")}
-            className={cn(
-              "gap-1.5 px-3",
-              view === "board" && "bg-accent text-foreground"
-            )}
-          >
-            <LayoutGrid className="size-4" />
-            Board
-          </Button>
+
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border border-border bg-background p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView("calendar")}
+              className={cn(
+                "gap-1.5 px-3",
+                view === "calendar" && "bg-accent text-foreground"
+              )}
+            >
+              <Calendar className="size-4" />
+              Calendar
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setView("board")}
+              className={cn(
+                "gap-1.5 px-3",
+                view === "board" && "bg-accent text-foreground"
+              )}
+            >
+              <LayoutGrid className="size-4" />
+              Board
+            </Button>
+          </div>
         </div>
       </div>
 
-      {allPosts.length === 0 ? (
+      {posts.length === 0 && allPosts.length === 0 ? (
         <ModuleEmptyState module="content" />
       ) : view === "calendar" ? (
         <BufferCalendar initialPosts={calendarPosts} projects={projects} />
       ) : (
-        <ContentBoard initialPosts={allPosts} />
+        <ContentBoard
+          initialPosts={posts}
+          onPostsChange={refreshPosts}
+        />
       )}
+
+      {/* New Post Form */}
+      <ContentForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        post={null}
+        onSubmit={handleNewPost}
+      />
     </div>
   );
 }

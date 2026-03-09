@@ -9,6 +9,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -16,6 +17,8 @@ import {
   Building2,
   Calendar,
   Star,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { PersonizeMemories } from "@/components/dashboard/PersonizeMemories";
 
@@ -23,6 +26,8 @@ interface ContactDetailDrawerProps {
   contact: Contact | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (contact: Contact) => void;
+  onDelete?: (contact: Contact) => void;
 }
 
 const tagColors: Record<string, string> = {
@@ -36,6 +41,8 @@ export function ContactDetailDrawer({
   contact,
   open,
   onClose,
+  onEdit,
+  onDelete,
 }: ContactDetailDrawerProps) {
   if (!contact) return null;
 
@@ -51,6 +58,34 @@ export function ContactDetailDrawer({
         </SheetHeader>
 
         <div className="space-y-6 px-4 pb-6">
+          {/* Action buttons */}
+          {(onEdit || onDelete) && (
+            <div className="flex gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => onEdit(contact)}
+                >
+                  <Pencil className="size-3.5" />
+                  Edit
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive hover:bg-destructive/10"
+                  onClick={() => onDelete(contact)}
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Contact Properties */}
           <Card>
             <CardHeader>
