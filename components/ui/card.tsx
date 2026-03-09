@@ -17,9 +17,9 @@ function Card({ className, variant = "default", onClick, ...props }: CardProps) 
       data-variant={variant}
       onClick={variant === "interactive" ? onClick : undefined}
       className={cn(
-        "flex flex-col gap-6 rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm",
+        "flex flex-col gap-6 rounded-lg border border-border bg-card p-5 text-card-foreground shadow-sm transition-all duration-150",
         variant === "interactive" &&
-          "cursor-pointer transition-colors hover:bg-card-hover",
+          "cursor-pointer hover:bg-card-hover hover:border-ring/50 hover:shadow-md",
         className
       )}
       {...props}

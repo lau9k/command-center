@@ -48,7 +48,7 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
         : "#22C55E";
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+    <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 transition-all duration-150 hover:border-ring/50 hover:shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

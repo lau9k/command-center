@@ -40,6 +40,12 @@ import type {
 } from "@/lib/types/database";
 import { TransactionDetailDrawer } from "@/components/finance/TransactionDetailDrawer";
 
+/** Read a CSS variable from :root at render time so charts adapt to theme. */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 // --- Category colors ---
 const CATEGORY_COLORS: Record<string, string> = {
   housing: "#3B82F6",
@@ -62,7 +68,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   tax_refund: "#14B8A6",
 };
 
-const DEFAULT_COLOR = "#666666";
+const DEFAULT_COLOR = "#737373";
 
 // --- Essential expense categories (used for Monthly Nut & Weekly Budget) ---
 const ESSENTIAL_CATEGORIES = new Set([
@@ -816,7 +822,7 @@ export function FinanceDashboard({
                 </div>
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-text-muted">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 No expense data
               </p>
             )}
@@ -832,7 +838,7 @@ export function FinanceDashboard({
                 <BarChart data={barData} layout="vertical">
                   <XAxis
                     type="number"
-                    tick={{ fill: "#666666", fontSize: 11 }}
+                    tick={{ fill: cssVar("--chart-tick", "#737373"), fontSize: 11 }}
                     tickFormatter={(v) => formatCurrency(v)}
                     axisLine={false}
                     tickLine={false}
@@ -840,7 +846,7 @@ export function FinanceDashboard({
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fill: "#A0A0A0", fontSize: 11 }}
+                    tick={{ fill: cssVar("--chart-legend", "#A0A0A0"), fontSize: 11 }}
                     width={90}
                     axisLine={false}
                     tickLine={false}
@@ -854,7 +860,7 @@ export function FinanceDashboard({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="py-8 text-center text-sm text-text-muted">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 No expense data
               </p>
             )}
@@ -876,12 +882,12 @@ export function FinanceDashboard({
               <ComposedChart data={rollingBurnData}>
                 <XAxis
                   dataKey="month"
-                  tick={{ fill: "#666666", fontSize: 11 }}
+                  tick={{ fill: cssVar("--chart-tick", "#737373"), fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#666666", fontSize: 11 }}
+                  tick={{ fill: cssVar("--chart-tick", "#737373"), fontSize: 11 }}
                   tickFormatter={(v) => formatCurrency(v)}
                   axisLine={false}
                   tickLine={false}
