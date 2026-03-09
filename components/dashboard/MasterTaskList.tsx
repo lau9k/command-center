@@ -1,9 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, ListFilter } from "lucide-react";
+import {
+  Plus,
+  ListFilter,
+  CheckSquare,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  Search,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { KpiCard } from "@/components/ui/kpi-card";
 import {
   Select,
   SelectContent,
@@ -12,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TaskCard } from "./TaskCard";
+import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskFormDialog } from "./TaskFormDialog";
 import type {
   TaskWithProject,
@@ -24,9 +35,17 @@ interface ProjectOption {
   name: string;
 }
 
+interface TaskKpis {
+  totalOpen: number;
+  dueThisWeek: number;
+  overdue: number;
+  completedThisWeek: number;
+}
+
 interface MasterTaskListProps {
   initialTasks: TaskWithProject[];
   projects: ProjectOption[];
+  kpis: TaskKpis;
 }
 
 const STATUS_ORDER: Record<TaskStatus, number> = {
@@ -44,15 +63,18 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
 
 function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
   return [...tasks].sort((a, b) => {
-    const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    if (statusDiff !== 0) return statusDiff;
-
+    // Primary: priority desc (critical/high first)
     const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
     if (priorityDiff !== 0) return priorityDiff;
 
+    // Secondary: due date asc (soonest first)
     if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
     if (a.due_date) return -1;
     if (b.due_date) return 1;
+
+    // Tertiary: status (in_progress, todo, done)
+    const statusDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    if (statusDiff !== 0) return statusDiff;
 
     return 0;
   });
@@ -63,10 +85,13 @@ const ALL_VALUE = "__all__";
 export function MasterTaskList({
   initialTasks,
   projects,
+  kpis,
 }: MasterTaskListProps) {
   const [tasks, setTasks] = useState<TaskWithProject[]>(initialTasks);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
+  const [quickAdding, setQuickAdding] = useState(false);
+  const [search, setSearch] = useState("");
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
@@ -200,6 +225,30 @@ export function MasterTaskList({
     [supabase]
   );
 
+  const handleQuickAdd = useCallback(
+    async (title: string) => {
+      setQuickAdding(true);
+      try {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            status: "todo",
+            priority: "medium",
+          }),
+        });
+        if (res.ok) {
+          const { data } = await res.json();
+          setTasks((prev) => [data, ...prev]);
+        }
+      } finally {
+        setQuickAdding(false);
+      }
+    },
+    []
+  );
+
   function handleOpenCreate() {
     setEditingTask(null);
     setDialogOpen(true);
@@ -211,6 +260,10 @@ export function MasterTaskList({
     if (filterPriority !== ALL_VALUE && t.priority !== filterPriority)
       return false;
     if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!t.title.toLowerCase().includes(q)) return false;
+    }
     return true;
   });
 
@@ -237,9 +290,49 @@ export function MasterTaskList({
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2">
-        <ListFilter className="size-4 text-muted-foreground" />
+      {/* KPI Strip */}
+      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <KpiCard
+          label="Total Open"
+          value={kpis.totalOpen}
+          subtitle="tasks to do"
+          icon={<CheckSquare className="size-5" />}
+        />
+        <KpiCard
+          label="Due This Week"
+          value={kpis.dueThisWeek}
+          subtitle="upcoming deadlines"
+          icon={<Clock className="size-5" />}
+        />
+        <KpiCard
+          label="Overdue"
+          value={kpis.overdue}
+          subtitle="past due date"
+          icon={<AlertTriangle className="size-5" />}
+        />
+        <KpiCard
+          label="Completed This Week"
+          value={kpis.completedThisWeek}
+          subtitle="recently finished"
+          icon={<CheckCircle2 className="size-5" />}
+        />
+      </section>
+
+      {/* Quick-add bar */}
+      <TaskQuickAdd onAdd={handleQuickAdd} disabled={quickAdding} />
+
+      {/* Search & Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <ListFilter className="hidden size-4 text-muted-foreground sm:block" />
         <Select value={filterProject} onValueChange={setFilterProject}>
           <SelectTrigger size="sm">
             <SelectValue placeholder="All Projects" />
