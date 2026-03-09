@@ -238,6 +238,26 @@ export const forecastComputeSchema = z.object({
   runId: z.string().uuid().optional(),
 });
 
+// ── Pipeline Items ───────────────────────────────────────
+
+export const createPipelineItemSchema = z.object({
+  title: z.string().min(1).max(500),
+  pipeline_id: z.string().uuid(),
+  stage_id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  entity_type: z.string().max(100).optional().nullable(),
+  sort_order: z.number().int().min(0).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
+export const updatePipelineItemSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(500).optional(),
+  stage_id: z.string().uuid().optional(),
+  sort_order: z.number().int().min(0).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
