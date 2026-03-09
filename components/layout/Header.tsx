@@ -1,9 +1,8 @@
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MobileSidebar } from "./MobileSidebar";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { UserNav } from "@/components/dashboard/user-nav";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
 import type { Notification } from "@/lib/types/database";
@@ -55,23 +54,10 @@ export async function Header({ projects }: HeaderProps) {
           initialNotifications={notifications}
           initialUnreadCount={unreadCount}
         />
-        {userEmail && (
-          <>
-            <Separator orientation="vertical" className="h-5" />
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {userEmail}
-            </span>
-          </>
-        )}
         <Separator orientation="vertical" className="h-5" />
         <ThemeToggle />
         <Separator orientation="vertical" className="h-5" />
-        <form action="/auth/sign-out" method="post">
-          <Button variant="ghost" size="sm" type="submit">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </Button>
-        </form>
+        <UserNav email={userEmail} />
       </div>
     </header>
   );
