@@ -57,6 +57,7 @@ export function ContentPageShell({
             platform: data.platform,
             status: data.status,
             scheduled_at: data.scheduled_at,
+            image_url: data.image_url || null,
             type: "post",
             platforms: data.platform ? [data.platform] : [],
             metrics: {},

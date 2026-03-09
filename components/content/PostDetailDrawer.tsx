@@ -87,6 +87,23 @@ export function PostDetailDrawer({
           </div>
         )}
 
+        {/* Hero image */}
+        {post.image_url && (
+          <div>
+            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-text-muted">
+              Image
+            </h4>
+            <div className="overflow-hidden rounded-lg bg-accent">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={post.image_url}
+                alt={post.title ?? ""}
+                className="w-full object-cover"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Media */}
         {post.media_urls && post.media_urls.length > 0 && (
           <div>
@@ -111,7 +128,7 @@ export function PostDetailDrawer({
           </div>
         )}
 
-        {post.media_urls?.length === 0 && (
+        {!post.image_url && (!post.media_urls || post.media_urls.length === 0) && (
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <Image className="size-4" />
             No media attached
