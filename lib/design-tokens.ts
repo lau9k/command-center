@@ -54,6 +54,9 @@ export const colors = {
     instagram: '#E1306C',
     tiktok: '#00F2EA',
     telegram: '#0088CC',
+    reddit: '#FF4500',
+    bluesky: '#0085FF',
+    facebook: '#1877F2',
   },
 
   // Project / entity status

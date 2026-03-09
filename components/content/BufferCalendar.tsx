@@ -16,7 +16,18 @@ import {
   parseISO,
   getHours,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from "@hello-pangea/dnd";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  CalendarPlus,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,9 +59,8 @@ export function BufferCalendar({
   const [selectedProjectId, setSelectedProjectId] = React.useState<
     string | null
   >(null);
-  const [selectedPost, setSelectedPost] = React.useState<PostWithProject | null>(
-    null
-  );
+  const [selectedPost, setSelectedPost] =
+    React.useState<PostWithProject | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
@@ -148,6 +158,56 @@ export function BufferCalendar({
       prev.map((p) => (p.id === updated.id ? updated : p))
     );
     setSelectedPost(updated);
+  }
+
+  // Drag-and-drop: reorder posts between calendar slots
+  function handleDragEnd(result: DropResult) {
+    if (!result.destination) return;
+
+    const postId = result.draggableId;
+    const destSlot = result.destination.droppableId; // format: "date-hour" or "date"
+
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    // Parse target slot to build new scheduled_at
+    const parts = destSlot.split("-");
+    let newDate: string;
+    if (parts.length === 4) {
+      // week view: "yyyy-MM-dd-HH"
+      const [y, m, d, h] = parts;
+      newDate = `${y}-${m}-${d}T${h.padStart(2, "0")}:00:00.000Z`;
+    } else {
+      // month view: "yyyy-MM-dd" — keep original time
+      const existing = post.scheduled_at ?? post.scheduled_for;
+      if (existing) {
+        const dt = parseISO(existing);
+        newDate = `${destSlot}T${format(dt, "HH:mm:ss")}.000Z`;
+      } else {
+        newDate = `${destSlot}T09:00:00.000Z`;
+      }
+    }
+
+    // Optimistic update
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, scheduled_at: newDate, updated_at: new Date().toISOString() }
+          : p
+      )
+    );
+
+    // Persist
+    fetch("/api/content-posts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: postId, scheduled_at: newDate }),
+    }).catch(() => {
+      // Revert on failure
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId && post ? post : p))
+      );
+    });
   }
 
   const headerLabel =
@@ -257,32 +317,49 @@ export function BufferCalendar({
         </div>
       )}
 
-      {/* Calendar views */}
-      {!loading && viewMode === "week" && (
-        <WeekView
-          days={weekDays}
-          posts={posts}
-          onPostClick={openDetail}
-        />
-      )}
+      {/* Calendar views with drag-and-drop */}
+      {!loading && (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          {viewMode === "week" && posts.length > 0 && (
+            <WeekView
+              days={weekDays}
+              posts={posts}
+              onPostClick={openDetail}
+            />
+          )}
 
-      {!loading && viewMode === "month" && (
-        <MonthView
-          days={monthDays}
-          postsByDate={postsByDate}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          onPostClick={openDetail}
-        />
+          {viewMode === "month" && posts.length > 0 && (
+            <MonthView
+              days={monthDays}
+              postsByDate={postsByDate}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              onPostClick={openDetail}
+            />
+          )}
+        </DragDropContext>
       )}
 
       {/* Empty state */}
       {!loading && posts.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
-          <Calendar className="mb-3 size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            No posts this {viewMode === "week" ? "week" : "month"}
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
+          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[#3B82F6]/10">
+            <CalendarPlus className="size-8 text-[#3B82F6]" />
+          </div>
+          <h3 className="mb-1 text-base font-semibold text-foreground">
+            No posts scheduled
+          </h3>
+          <p className="mb-4 max-w-xs text-center text-sm text-muted-foreground">
+            Start by creating a post and scheduling it for this{" "}
+            {viewMode === "week" ? "week" : "month"}.
           </p>
+          <Button
+            size="sm"
+            className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+          >
+            <Plus className="mr-1 size-4" />
+            Schedule your first post
+          </Button>
         </div>
       )}
 
@@ -384,22 +461,47 @@ function WeekView({
               const cellPosts = postsByDateHour.get(cellKey) ?? [];
 
               return (
-                <div
+                <Droppable
                   key={cellKey}
-                  className={cn(
-                    "min-h-[48px] border-r border-border p-0.5 last:border-r-0",
-                    today && "border-l-2 border-l-[#3B82F6] bg-[#3B82F6]/5"
-                  )}
+                  droppableId={cellKey}
                 >
-                  {cellPosts.map((post) => (
-                    <BufferPostCard
-                      key={post.id}
-                      post={post}
-                      compact
-                      onClick={() => onPostClick(post)}
-                    />
-                  ))}
-                </div>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={cn(
+                        "min-h-[48px] border-r border-border p-0.5 last:border-r-0 transition-colors",
+                        today && "border-l-2 border-l-[#3B82F6] bg-[#3B82F6]/5",
+                        snapshot.isDraggingOver &&
+                          "bg-[#3B82F6]/10"
+                      )}
+                    >
+                      {cellPosts.map((post, index) => (
+                        <Draggable
+                          key={post.id}
+                          draggableId={post.id}
+                          index={index}
+                        >
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              {...dragProvided.dragHandleProps}
+                            >
+                              <BufferPostCard
+                                post={post}
+                                compact
+                                onClick={() => onPostClick(post)}
+                                isDragging={dragSnapshot.isDragging}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               );
             })}
           </div>
@@ -446,39 +548,60 @@ function MonthView({
           const inRange = day >= rangeStart && day <= rangeEnd;
 
           return (
-            <div
-              key={dateKey}
-              className={cn(
-                "flex min-h-[110px] flex-col bg-card p-2",
-                today && "bg-[#3B82F6]/5",
-                !inRange && "opacity-40"
-              )}
-            >
-              <span
-                className={cn(
-                  "mb-1.5 flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                  today ? "bg-[#3B82F6] text-white" : "text-foreground"
-                )}
-              >
-                {format(day, "d")}
-              </span>
-
-              <div className="flex flex-col gap-1">
-                {dayPosts.slice(0, 3).map((post) => (
-                  <BufferPostCard
-                    key={post.id}
-                    post={post}
-                    compact
-                    onClick={() => onPostClick(post)}
-                  />
-                ))}
-                {dayPosts.length > 3 && (
-                  <span className="text-[10px] text-muted-foreground pl-1">
-                    +{dayPosts.length - 3} more
+            <Droppable key={dateKey} droppableId={dateKey}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={cn(
+                    "flex min-h-[110px] flex-col bg-card p-2 transition-colors",
+                    today && "bg-[#3B82F6]/5",
+                    !inRange && "opacity-40",
+                    snapshot.isDraggingOver && "bg-[#3B82F6]/10"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mb-1.5 flex size-6 items-center justify-center rounded-full text-xs font-medium",
+                      today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                    )}
+                  >
+                    {format(day, "d")}
                   </span>
-                )}
-              </div>
-            </div>
+
+                  <div className="flex flex-col gap-1">
+                    {dayPosts.slice(0, 3).map((post, index) => (
+                      <Draggable
+                        key={post.id}
+                        draggableId={post.id}
+                        index={index}
+                      >
+                        {(dragProvided, dragSnapshot) => (
+                          <div
+                            ref={dragProvided.innerRef}
+                            {...dragProvided.draggableProps}
+                            {...dragProvided.dragHandleProps}
+                          >
+                            <BufferPostCard
+                              post={post}
+                              compact
+                              onClick={() => onPostClick(post)}
+                              isDragging={dragSnapshot.isDragging}
+                            />
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {dayPosts.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground pl-1">
+                        +{dayPosts.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
           );
         })}
       </div>
