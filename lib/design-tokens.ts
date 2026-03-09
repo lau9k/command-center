@@ -153,3 +153,21 @@ export const activityTypeColor: Record<string, string> = {
   content: "text-[#A855F7]",
   contact: "text-[#22C55E]",
 };
+
+/** Pipeline stage slug → Tailwind column classes (border-left accent + bg tint) */
+export const pipelineStageClass: Record<string, { border: string; bg: string; bgDragOver: string }> = {
+  lead: { border: "border-l-[#3B82F6]", bg: "", bgDragOver: "border-[#3B82F6]/30 bg-[#3B82F6]/5" },
+  qualified: { border: "border-l-[#A855F7]", bg: "", bgDragOver: "border-[#A855F7]/30 bg-[#A855F7]/5" },
+  demo: { border: "border-l-[#F97316]", bg: "", bgDragOver: "border-[#F97316]/30 bg-[#F97316]/5" },
+  proposal: { border: "border-l-[#EAB308]", bg: "", bgDragOver: "border-[#EAB308]/30 bg-[#EAB308]/5" },
+  "closed-won": { border: "border-l-[#22C55E]", bg: "bg-[#22C55E]/5", bgDragOver: "border-[#22C55E]/30 bg-[#22C55E]/10" },
+  "closed-lost": { border: "border-l-[#6B7280]", bg: "bg-[#6B7280]/5", bgDragOver: "border-[#6B7280]/30 bg-[#6B7280]/10" },
+};
+
+/** Pipeline qualified_status → badge classes */
+export const pipelineQualifiedBadgeClass: Record<string, string> = {
+  new: "bg-[#3B82F6]/20 text-[#3B82F6]",
+  contacted: "bg-[#A855F7]/20 text-[#A855F7]",
+  qualified: "bg-[#22C55E]/20 text-[#22C55E]",
+  unqualified: "bg-[#6B7280]/20 text-[#6B7280]",
+};
