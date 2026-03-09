@@ -127,6 +127,9 @@ export const PLATFORM_COLORS: Record<string, string> = {
   telegram: "#0088CC",
   linkedin: "#0A66C2",
   youtube: "#FF0000",
+  reddit: "#FF4500",
+  bluesky: "#0085FF",
+  facebook: "#1877F2",
 };
 
 export const PLATFORM_LABELS: Record<string, string> = {
@@ -136,6 +139,9 @@ export const PLATFORM_LABELS: Record<string, string> = {
   telegram: "Telegram",
   linkedin: "LinkedIn",
   youtube: "YouTube",
+  reddit: "Reddit",
+  bluesky: "Bluesky",
+  facebook: "Facebook",
 };
 
 export interface Invoice {

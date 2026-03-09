@@ -111,7 +111,7 @@ function PriorityBadge({
 
 // --- Platform Badge ---
 
-type PlatformType = "linkedin" | "twitter" | "youtube" | "instagram" | "tiktok" | "telegram"
+type PlatformType = "linkedin" | "twitter" | "youtube" | "instagram" | "tiktok" | "telegram" | "reddit" | "bluesky" | "facebook"
 
 const platformColors: Record<PlatformType, { bg: string; text: string }> = {
   linkedin: { bg: "bg-[#0A66C2]/20", text: "text-[#0A66C2]" },
@@ -120,6 +120,9 @@ const platformColors: Record<PlatformType, { bg: string; text: string }> = {
   instagram: { bg: "bg-[#E1306C]/20", text: "text-[#E1306C]" },
   tiktok: { bg: "bg-[#00F2EA]/20", text: "text-[#00F2EA]" },
   telegram: { bg: "bg-[#0088CC]/20", text: "text-[#0088CC]" },
+  reddit: { bg: "bg-[#FF4500]/20", text: "text-[#FF4500]" },
+  bluesky: { bg: "bg-[#0085FF]/20", text: "text-[#0085FF]" },
+  facebook: { bg: "bg-[#1877F2]/20", text: "text-[#1877F2]" },
 }
 
 const platformLabels: Record<PlatformType, string> = {
@@ -129,6 +132,9 @@ const platformLabels: Record<PlatformType, string> = {
   instagram: "Instagram",
   tiktok: "TikTok",
   telegram: "Telegram",
+  reddit: "Reddit",
+  bluesky: "Bluesky",
+  facebook: "Facebook",
 }
 
 function PlatformBadge({
