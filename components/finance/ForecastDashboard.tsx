@@ -29,6 +29,12 @@ import type {
   FlowCadence,
 } from "@/lib/types/database";
 
+/** Read a CSS variable from :root at render time so charts adapt to theme. */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 // Dynamic import for Recharts
 const RechartsArea = dynamic(
   () =>
@@ -54,6 +60,10 @@ const RechartsArea = dynamic(
           overlayData?: ForecastDayPoint[];
           overlayName?: string;
         }) {
+          const gridColor = cssVar("--chart-grid", "#2A2A2A");
+          const tickColor = cssVar("--chart-tick", "#737373");
+          const legendColor = cssVar("--chart-legend", "#A0A0A0");
+
           return (
             <ResponsiveContainer width="100%" height={400}>
               <AreaChart
@@ -62,12 +72,12 @@ const RechartsArea = dynamic(
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#2A2A2A"
+                  stroke={gridColor}
                   vertical={false}
                 />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: "#666666", fontSize: 11 }}
+                  tick={{ fill: tickColor, fontSize: 11 }}
                   tickFormatter={(v: string) => {
                     const d = new Date(v + "T00:00:00");
                     return d.toLocaleDateString("en-CA", {
@@ -80,7 +90,7 @@ const RechartsArea = dynamic(
                   interval={13}
                 />
                 <YAxis
-                  tick={{ fill: "#666666", fontSize: 11 }}
+                  tick={{ fill: tickColor, fontSize: 11 }}
                   tickFormatter={(v: number) =>
                     `$${(v / 1000).toFixed(1)}k`
                   }
@@ -124,7 +134,7 @@ const RechartsArea = dynamic(
                   }}
                 />
                 <Legend
-                  wrapperStyle={{ fontSize: 11, color: "#A0A0A0" }}
+                  wrapperStyle={{ fontSize: 11, color: legendColor }}
                 />
                 {/* Uncertainty band */}
                 <Area
@@ -843,7 +853,7 @@ export function ForecastDashboard({
                       setWhatIf({ ...whatIf, name: e.target.value })
                     }
                     placeholder="e.g., Side project payment"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                   />
                 </div>
                 <div>
@@ -952,7 +962,7 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, name: e.target.value })
                   }
                   placeholder="Flow name"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
               <div>
@@ -966,7 +976,7 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, amount: e.target.value })
                   }
                   placeholder="0.00"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
               <div>
@@ -1020,7 +1030,7 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, due_day: e.target.value })
                   }
                   placeholder="1-28"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
               <div>
@@ -1034,7 +1044,7 @@ export function ForecastDashboard({
                     setNewFlow({ ...newFlow, category: e.target.value })
                   }
                   placeholder="e.g., housing"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-text-muted"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
               <div>

@@ -60,7 +60,7 @@ export function ModuleHealthOverview({
           return (
             <div
               key={mod.name}
-              className="flex flex-col gap-2 rounded-lg border border-border p-3"
+              className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-all duration-150 hover:border-ring/50 hover:shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">

@@ -102,7 +102,7 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
   return (
     <div className="flex flex-col gap-4">
       {/* Kanban board */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {COLUMNS.map((column) => {
           const items = columnPosts(column.id);
 
@@ -136,7 +136,7 @@ export function ContentBoard({ initialPosts }: ContentBoardProps) {
                       key={post.id}
                       type="button"
                       onClick={() => setDrawerPost(post)}
-                      className="rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-ring"
+                      className="rounded-lg border border-border bg-card p-3 text-left transition-all duration-150 hover:border-ring hover:shadow-sm"
                     >
                       {/* Title */}
                       <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
