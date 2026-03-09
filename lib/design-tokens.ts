@@ -164,6 +164,13 @@ export const pipelineStageClass: Record<string, { border: string; bg: string; bg
   "closed-lost": { border: "border-l-[#6B7280]", bg: "bg-[#6B7280]/5", bgDragOver: "border-[#6B7280]/30 bg-[#6B7280]/10" },
 };
 
+/** Community activity event type → icon colour class */
+export const communityEventTypeColor: Record<string, string> = {
+  new_member: "text-[#22C55E]",
+  token_transfer: "text-[#3B82F6]",
+  social_mention: "text-[#A855F7]",
+};
+
 /** Pipeline qualified_status → badge classes */
 export const pipelineQualifiedBadgeClass: Record<string, string> = {
   new: "bg-[#3B82F6]/20 text-[#3B82F6]",
