@@ -1,21 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { PriorityBadge } from "./PriorityBadge";
 import { ProjectBadge } from "./ProjectBadge";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
@@ -25,7 +13,7 @@ interface TaskCardProps {
   task: TaskWithProject;
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onEdit: (task: TaskWithProject) => void;
-  onDelete: (taskId: string) => void;
+  onDelete: (task: TaskWithProject) => void;
 }
 
 const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = {
@@ -53,7 +41,6 @@ export function TaskCard({
   onEdit,
   onDelete,
 }: TaskCardProps) {
-  const [deleting, setDeleting] = useState(false);
   const isDone = task.status === "done";
 
   function handleCheckedChange(checked: boolean | "indeterminate") {
@@ -63,11 +50,6 @@ export function TaskCard({
 
   function handleStatusCycle() {
     onStatusChange(task.id, STATUS_CYCLE[task.status]);
-  }
-
-  async function handleDelete() {
-    setDeleting(true);
-    onDelete(task.id);
   }
 
   return (
@@ -143,36 +125,14 @@ export function TaskCard({
           <Pencil />
         </Button>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Delete task"
-            >
-              <Trash2 className="text-destructive" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete task</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &ldquo;{task.title}&rdquo;? This
-                action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={() => onDelete(task)}
+          aria-label="Delete task"
+        >
+          <Trash2 className="text-destructive" />
+        </Button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import {
   Plus,
   ListFilter,
@@ -22,7 +23,9 @@ import {
 } from "@/components/ui/select";
 import { TaskCard } from "./TaskCard";
 import { TaskQuickAdd } from "./TaskQuickAdd";
-import { TaskFormDialog } from "./TaskFormDialog";
+import { TaskForm } from "./TaskForm";
+import type { TaskFormData } from "./TaskForm";
+import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import type {
   TaskWithProject,
   TaskStatus,
@@ -88,10 +91,14 @@ export function MasterTaskList({
   kpis,
 }: MasterTaskListProps) {
   const [tasks, setTasks] = useState<TaskWithProject[]>(initialTasks);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
   const [quickAdding, setQuickAdding] = useState(false);
   const [search, setSearch] = useState("");
+
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<TaskWithProject | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
@@ -123,6 +130,9 @@ export function MasterTaskList({
           body: JSON.stringify({ status }),
         });
         if (!res.ok) throw new Error("Failed to update");
+        toast.success(
+          status === "done" ? "Task completed" : "Task status updated"
+        );
       } catch {
         // Revert on error
         setTasks((prev) =>
@@ -132,50 +142,42 @@ export function MasterTaskList({
               : t
           )
         );
+        toast.error("Failed to update status — try again");
       }
     },
     []
   );
 
-  const handleDelete = useCallback(
-    async (taskId: string) => {
-      const taskToDelete = tasks.find((t) => t.id === taskId);
-      // Optimistic delete
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  const handleDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
 
-      try {
-        const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-        if (!res.ok && taskToDelete) {
-          // Revert on error
-          setTasks((prev) => [...prev, taskToDelete]);
-        }
-      } catch {
-        if (taskToDelete) {
-          setTasks((prev) => [...prev, taskToDelete]);
-        }
-      }
-    },
-    [tasks]
-  );
+    // Optimistic delete
+    setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+
+    try {
+      const res = await fetch(`/api/tasks/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Task deleted");
+      setDeleteTarget(null);
+    } catch {
+      // Revert on error
+      setTasks((prev) => [...prev, deleteTarget]);
+      toast.error("Failed to delete — try again");
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleteTarget]);
 
   const handleEdit = useCallback((task: TaskWithProject) => {
     setEditingTask(task);
-    setDialogOpen(true);
+    setFormOpen(true);
   }, []);
 
   const handleFormSubmit = useCallback(
-    async (
-      data: {
-        title: string;
-        description: string;
-        project_id: string;
-        priority: TaskPriority;
-        status: TaskStatus;
-        due_date: string | null;
-        assignee: string;
-      },
-      taskId?: string
-    ) => {
+    async (data: TaskFormData, taskId?: string) => {
       const payload = {
         title: data.title,
         description: data.description || null,
@@ -186,22 +188,31 @@ export function MasterTaskList({
         assignee: data.assignee || null,
       };
 
-      if (taskId) {
-        await fetch(`/api/tasks/${taskId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+      try {
+        if (taskId) {
+          const res = await fetch(`/api/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error("Failed to update task");
+          toast.success("Task updated");
+        } else {
+          const res = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error("Failed to create task");
+          toast.success("Task created");
+        }
 
-      await refreshTasks();
-      setEditingTask(null);
+        await refreshTasks();
+        setEditingTask(null);
+      } catch {
+        toast.error("Failed to save — try again");
+        throw new Error("save failed");
+      }
     },
     [refreshTasks]
   );
@@ -219,10 +230,12 @@ export function MasterTaskList({
             priority: "medium",
           }),
         });
-        if (res.ok) {
-          const { data } = await res.json();
-          setTasks((prev) => [data, ...prev]);
-        }
+        if (!res.ok) throw new Error("Failed to create task");
+        const { data } = await res.json();
+        setTasks((prev) => [data, ...prev]);
+        toast.success("Task created");
+      } catch {
+        toast.error("Failed to create task — try again");
       } finally {
         setQuickAdding(false);
       }
@@ -232,7 +245,7 @@ export function MasterTaskList({
 
   function handleOpenCreate() {
     setEditingTask(null);
-    setDialogOpen(true);
+    setFormOpen(true);
   }
 
   const filtered = tasks.filter((t) => {
@@ -393,21 +406,36 @@ export function MasterTaskList({
               task={task}
               onStatusChange={handleStatusChange}
               onEdit={handleEdit}
-              onDelete={handleDelete}
+              onDelete={setDeleteTarget}
             />
           ))}
         </div>
       )}
 
-      <TaskFormDialog
-        open={dialogOpen}
+      <TaskForm
+        open={formOpen}
         onOpenChange={(open) => {
-          setDialogOpen(open);
+          setFormOpen(open);
           if (!open) setEditingTask(null);
         }}
         task={editingTask}
         projects={projects}
         onSubmit={handleFormSubmit}
+      />
+
+      <ConfirmDeleteModal
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete task"
+        description={
+          deleteTarget
+            ? `Are you sure you want to delete "${deleteTarget.title}"? This action cannot be undone.`
+            : undefined
+        }
+        onConfirm={handleDelete}
+        loading={deleting}
       />
     </div>
   );
