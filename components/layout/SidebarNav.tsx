@@ -12,6 +12,7 @@ import {
   Settings,
   Upload,
   Users,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +26,7 @@ const modules = [
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Content", href: "/content", icon: FileText },
+  { label: "Community", href: "/community", icon: UsersRound },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
