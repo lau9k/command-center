@@ -1,0 +1,41 @@
+"use client";
+
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
+
+export default function DashboardError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
+  return (
+    <div className="flex flex-1 items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-lg border border-[#2A2A2A] bg-[#141414] p-8 text-center dark:border-[#2A2A2A] dark:bg-[#141414] light:border-[#E5E5E5] light:bg-white">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-[#EF4444]/20">
+          <AlertTriangle className="h-6 w-6 text-[#EF4444]" />
+        </div>
+        <h2 className="mb-2 text-lg font-semibold text-[#F5F5F5] dark:text-[#F5F5F5] [html[data-theme=light]_&]:text-[#171717]">
+          Something went wrong
+        </h2>
+        <p className="mb-6 text-sm leading-relaxed text-[#A0A0A0] dark:text-[#A0A0A0] [html[data-theme=light]_&]:text-[#636363]">
+          This module encountered an error. Your other dashboard pages are
+          unaffected.
+        </p>
+        <button
+          onClick={reset}
+          className="inline-flex items-center gap-2 rounded-md border border-[#2A2A2A] bg-[#1E1E1E] px-4 py-2 text-sm font-medium text-[#F5F5F5] transition-colors hover:bg-[#2A2A2A] dark:border-[#2A2A2A] dark:bg-[#1E1E1E] dark:hover:bg-[#2A2A2A] [html[data-theme=light]_&]:border-[#E5E5E5] [html[data-theme=light]_&]:bg-[#F5F5F5] [html[data-theme=light]_&]:text-[#171717] [html[data-theme=light]_&]:hover:bg-[#E5E5E5]"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createContentPostSchema, updateContentPostSchema, validateIdParam } from "@/lib/validations";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
-export async function GET() {
+export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("content_posts")
@@ -14,9 +15,9 @@ export async function GET() {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -36,9 +37,9 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(data, { status: 201 });
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -61,9 +62,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandler(async function DELETE(request: NextRequest) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -79,4 +80,4 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});
