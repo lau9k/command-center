@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createTaskSchema } from "@/lib/validations";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -36,14 +37,13 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
 
   if (error) {
-    console.error("[API] GET /api/tasks error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ data });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -59,9 +59,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error("[API] POST /api/tasks error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json({ data }, { status: 201 });
-}
+});

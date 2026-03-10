@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/validations";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
-export async function GET() {
+export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
 
   const [stagesResult, itemsResult] = await Promise.all([
@@ -36,9 +37,9 @@ export async function GET() {
     stages: stagesResult.data ?? [],
     items: itemsResult.data ?? [],
   });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -61,9 +62,9 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(data, { status: 201 });
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -89,4 +90,4 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});
