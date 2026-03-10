@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
+import { EmptyState } from "@/components/ui/empty-state";
 import { sanitizeText } from "@/lib/sanitize";
 import { StageColumn } from "./StageColumn";
 import { parseDealValue, formatCurrency } from "./DealCard";
@@ -297,6 +298,16 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
   }, []);
 
   const selectedStage = selectedItem ? stageMap.get(selectedItem.stage_id) : null;
+
+  if (sortedStages.length === 0 && items.length === 0) {
+    return (
+      <EmptyState
+        icon={<DollarSign />}
+        title="No deals yet"
+        description="Set up pipeline stages and create your first deal to start tracking opportunities."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
