@@ -11,9 +11,14 @@ interface EmptyStateProps extends React.ComponentProps<"div"> {
     label: string
     onClick: () => void
   }
+  /** Shorthand: button label (alternative to `action` object) */
+  actionLabel?: string
+  /** Shorthand: button click handler (alternative to `action` object) */
+  onAction?: () => void
 }
 
-function EmptyState({ icon, title, description, action, className, ...props }: EmptyStateProps) {
+function EmptyState({ icon, title, description, action, actionLabel, onAction, className, ...props }: EmptyStateProps) {
+  const resolvedAction = action ?? (actionLabel && onAction ? { label: actionLabel, onClick: onAction } : undefined)
   return (
     <div
       data-slot="empty-state"
@@ -30,9 +35,9 @@ function EmptyState({ icon, title, description, action, className, ...props }: E
           <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {action && (
-        <Button onClick={action.onClick} className="mt-2">
-          {action.label}
+      {resolvedAction && (
+        <Button onClick={resolvedAction.onClick} className="mt-2">
+          {resolvedAction.label}
         </Button>
       )}
     </div>
