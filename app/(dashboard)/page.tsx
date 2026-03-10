@@ -15,7 +15,7 @@ import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import type { ContentPost } from "@/lib/types/database";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const serviceClient = createServiceClient();
@@ -80,14 +80,6 @@ export default async function DashboardPage() {
       console.error(`[Dashboard KPI] ${q.name} query error:`, q.error.message);
     }
   }
-
-  console.log("[Dashboard KPI] counts:", {
-    tasks: tasksRes.data?.length ?? 0,
-    contacts: contactsCountRes.count,
-    pipeline: pipelineCountRes.count,
-    content: allContentRes.data?.length ?? 0,
-    community: communityMemberCount,
-  });
 
   const tasks = tasksRes.data ?? [];
   const projects = projectsRes.data ?? [];

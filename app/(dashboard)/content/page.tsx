@@ -3,7 +3,7 @@ import { ContentPageShell } from "./ContentPageShell";
 import type { ContentPost, Project } from "@/lib/types/database";
 import { startOfWeek, endOfWeek } from "date-fns";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 type PostWithProject = ContentPost & {
   projects?: { id: string; name: string; color: string | null } | null;
