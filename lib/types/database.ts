@@ -49,6 +49,13 @@ export interface Contact {
   last_contact_date: string | null;
   created_at: string;
   updated_at: string;
+  // Personize-specific fields (present when sourced from Personize SDK)
+  record_id?: string;
+  job_title?: string | null;
+  has_conversation?: boolean;
+  message_count?: number;
+  priority_score?: number;
+  last_interaction_date?: string | null;
 }
 
 export interface PipelineItem {

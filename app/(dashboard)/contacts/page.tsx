@@ -1,41 +1,60 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
+import { searchContacts } from "@/lib/personize/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactsPage() {
+  let contacts: Contact[] = [];
+  let totalFromPersonize = 0;
+  let personizeAvailable = false;
+
+  // Try Personize first for live data
+  if (process.env.PERSONIZE_SECRET_KEY) {
+    try {
+      const result = await searchContacts(undefined, 1, 50, "priority_score");
+      contacts = result.contacts;
+      totalFromPersonize = result.total;
+      personizeAvailable = true;
+    } catch (error) {
+      console.error("[Contacts] Personize search failed:", error);
+      // Fall through to Supabase
+    }
+  }
+
+  // Supabase fallback + stats
   const supabase = createServiceClient();
 
-  const [contactsRes, taggedThisWeekRes] = await Promise.all([
-    supabase
+  if (!personizeAvailable) {
+    const contactsRes = await supabase
       .from("contacts")
       .select("*")
-      .order("updated_at", { ascending: false }),
-    (() => {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      return supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true })
-        .gte("updated_at", oneWeekAgo.toISOString())
-        .not("tags", "eq", "{}");
-    })(),
-  ]);
+      .order("updated_at", { ascending: false });
 
-  if (contactsRes.error) {
-    console.error("[Contacts] query error:", contactsRes.error.message);
+    if (contactsRes.error) {
+      console.error("[Contacts] Supabase query error:", contactsRes.error.message);
+    }
+    contacts = (contactsRes.data as Contact[]) ?? [];
   }
+
+  // Fetch tagged-this-week stat from Supabase (always useful)
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const taggedThisWeekRes = await supabase
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .gte("updated_at", oneWeekAgo.toISOString())
+    .not("tags", "eq", "{}");
+
   if (taggedThisWeekRes.error) {
     console.error("[Contacts] tagged-this-week query error:", taggedThisWeekRes.error.message);
   }
 
-  const contacts = (contactsRes.data as Contact[]) ?? [];
   const taggedThisWeek = taggedThisWeekRes.count ?? 0;
-
-  const totalContacts = contacts.length;
+  const totalContacts = personizeAvailable ? totalFromPersonize : contacts.length;
   const withMemories = contacts.filter(
-    (c) => c.email !== null && c.email !== ""
+    (c) => c.has_conversation === true || (c.email !== null && c.email !== "")
   ).length;
   const untagged = contacts.filter(
     (c) => !c.tags || c.tags.length === 0
@@ -46,7 +65,9 @@ export default async function ContactsPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Contacts</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage contacts with Personize memory integration
+          {personizeAvailable
+            ? "Live contacts from your LinkedIn network via Personize"
+            : "Manage contacts with Personize memory integration"}
         </p>
       </div>
 
