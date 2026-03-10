@@ -10,6 +10,7 @@ import { ContentBoard } from "@/components/dashboard/ContentBoard";
 import { ContentForm } from "@/components/dashboard/ContentForm";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
+import { SeedContentButton } from "@/components/content/SeedButton";
 import type { ContentPost, Project } from "@/lib/types/database";
 
 type PostWithProject = ContentPost & {
@@ -127,7 +128,12 @@ export function ContentPageShell({
       </div>
 
       {posts.length === 0 && allPosts.length === 0 ? (
-        <ModuleEmptyState module="content" />
+        <div className="space-y-4">
+          <ModuleEmptyState module="content" />
+          <div className="flex justify-center">
+            <SeedContentButton />
+          </div>
+        </div>
       ) : view === "calendar" ? (
         <BufferCalendar initialPosts={calendarPosts} projects={projects} />
       ) : (
