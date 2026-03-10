@@ -23,6 +23,7 @@ interface KPIStripProps {
   contentPublishedCount: number;
   pipelineItemCount: number;
   communityMemberCount: number;
+  communityDelta?: number | null;
 }
 
 /** Display "No data" for zero/NaN values, otherwise return the value. */
@@ -49,6 +50,7 @@ export function KPIStrip({
   contentPublishedCount,
   pipelineItemCount,
   communityMemberCount,
+  communityDelta,
 }: KPIStripProps) {
   const formattedInvoices =
     isNaN(openInvoiceTotal) || !isFinite(openInvoiceTotal)
@@ -100,6 +102,8 @@ export function KPIStrip({
         value={safeValue(communityMemberCount)}
         subtitle="Telegram members"
         icon={<MessageCircle className="size-5" />}
+        delta={communityDelta != null && communityDelta !== 0 ? Math.abs(communityDelta) : undefined}
+        deltaDirection={communityDelta != null && communityDelta !== 0 ? (communityDelta > 0 ? "up" : "down") : undefined}
       />
       <KpiCard
         label="Open Invoices"

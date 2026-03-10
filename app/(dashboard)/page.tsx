@@ -17,7 +17,12 @@ import type { ContentPost } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
+function getYesterdayISO(): string {
+  return new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+}
+
 export default async function DashboardPage() {
+  const yesterday = getYesterdayISO();
   const serviceClient = createServiceClient();
 
   // Parallel data fetching for all KPI + section data
@@ -32,6 +37,7 @@ export default async function DashboardPage() {
     memoryRes,
     pipelineCountRes,
     communityMemberCount,
+    yesterdayStatsRes,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -60,6 +66,13 @@ export default async function DashboardPage() {
     serviceClient.from("memory_stats").select("count"),
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
     fetchCommunityMemberCount(),
+    serviceClient
+      .from("community_stats")
+      .select("member_count")
+      .lt("fetched_at", yesterday)
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   // Log query errors server-side for debugging KPI issues
@@ -90,6 +103,15 @@ export default async function DashboardPage() {
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
   const pipelineItemCount = pipelineCountRes.count ?? 0;
+
+  // Community growth delta: compare live count to yesterday's cached value
+  const yesterdayMemberCount = yesterdayStatsRes.data?.member_count ?? null;
+  const communityDelta =
+    yesterdayMemberCount !== null && yesterdayMemberCount > 0 && communityMemberCount > 0
+      ? Math.round(
+          ((communityMemberCount - yesterdayMemberCount) / yesterdayMemberCount) * 100
+        )
+      : null;
 
   // --- KPI computations ---
   const activeTasks = tasks.filter((t) => t.status !== "done").length;
@@ -243,6 +265,7 @@ export default async function DashboardPage() {
         contentPublishedCount={contentPublishedCount}
         pipelineItemCount={pipelineItemCount}
         communityMemberCount={communityMemberCount}
+        communityDelta={communityDelta}
       />
 
       {/* 4. Content Calendar Preview */}
