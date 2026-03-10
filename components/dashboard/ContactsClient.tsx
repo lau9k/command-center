@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Plus, Users, Tag, Brain, UserX, Search } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Tag,
+  Brain,
+  UserX,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 import type { Contact } from "@/lib/types/database";
 import { ContactsTable } from "@/components/dashboard/ContactsTable";
 import { ContactDetailPanel } from "@/components/contacts/ContactDetailPanel";
@@ -22,6 +32,13 @@ import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 
 const TAG_OPTIONS = ["Personize", "Hackathon", "MEEK", "Personal"] as const;
 
+interface Pagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  hasMore: boolean;
+}
+
 interface ContactsClientProps {
   initialContacts: Contact[];
   kpis: {
@@ -37,15 +54,20 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSemanticSearch, setIsSemanticSearch] = useState(false);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form drawer state
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
-
-
-
   const filteredContacts = useMemo(() => {
+    // If we're using server-side search, return all contacts as-is
+    if (isSemanticSearch || pagination) return contacts;
+
     let result = contacts;
 
     if (tagFilter && tagFilter !== "all") {
@@ -59,24 +81,87 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          (c.email && c.email.toLowerCase().includes(q))
+          (c.email && c.email.toLowerCase().includes(q)) ||
+          (c.company && c.company.toLowerCase().includes(q)) ||
+          (c.job_title && c.job_title.toLowerCase().includes(q))
       );
     }
 
     return result;
-  }, [contacts, tagFilter, search]);
+  }, [contacts, tagFilter, search, isSemanticSearch, pagination]);
 
-  const refreshContacts = useCallback(async () => {
+  const fetchContacts = useCallback(async (page = 1, tag?: string) => {
     try {
-      const res = await fetch("/api/contacts");
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("pageSize", "50");
+      if (tag && tag !== "all") params.set("tag", tag);
+
+      const res = await fetch(`/api/contacts?${params}`);
       if (res.ok) {
         const json = await res.json();
         setContacts(json.data ?? []);
+        if (json.pagination) {
+          setPagination(json.pagination);
+        }
+        setCurrentPage(page);
       }
     } catch {
       // silent refresh failure
     }
   }, []);
+
+  const handleSemanticSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setIsSemanticSearch(false);
+      fetchContacts(1, tagFilter);
+      return;
+    }
+
+    setIsSearching(true);
+    setIsSemanticSearch(true);
+
+    try {
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(query.trim())}`);
+      if (res.ok) {
+        const json = await res.json();
+        setContacts(json.data ?? []);
+        setPagination(null);
+      } else if (res.status === 503) {
+        // Personize not configured, fall back to local filter
+        setIsSemanticSearch(false);
+      }
+    } catch {
+      setIsSemanticSearch(false);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [fetchContacts, tagFilter]);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearch(value);
+
+      // Debounce semantic search
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      if (value.trim().length >= 3) {
+        searchTimeoutRef.current = setTimeout(() => {
+          handleSemanticSearch(value);
+        }, 500);
+      } else if (!value.trim()) {
+        setIsSemanticSearch(false);
+        fetchContacts(1, tagFilter);
+      }
+    },
+    [handleSemanticSearch, fetchContacts, tagFilter]
+  );
+
+  const refreshContacts = useCallback(async () => {
+    await fetchContacts(currentPage, tagFilter);
+  }, [fetchContacts, currentPage, tagFilter]);
 
   const handleCreateOrEdit = useCallback(
     async (data: ContactFormData, contactId?: string) => {
@@ -116,7 +201,7 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         await refreshContacts();
         setSelectedContact(null);
       } catch {
-        toast.error("Failed to save — try again");
+        toast.error("Failed to save \u2014 try again");
       }
     },
     [contacts, refreshContacts]
@@ -138,6 +223,23 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       setSelectedContact(null);
     },
     []
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      fetchContacts(newPage, tagFilter);
+    },
+    [fetchContacts, tagFilter]
+  );
+
+  const handleTagFilterChange = useCallback(
+    (value: string) => {
+      setTagFilter(value);
+      if (!isSemanticSearch) {
+        fetchContacts(1, value);
+      }
+    },
+    [fetchContacts, isSemanticSearch]
   );
 
   function openNewForm() {
@@ -177,8 +279,8 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
           label="Total Contacts"
-          value={kpis.totalContacts}
-          subtitle="in database"
+          value={pagination?.total ?? kpis.totalContacts}
+          subtitle="in network"
           icon={<Users className="size-5" />}
         />
         <KpiCard
@@ -190,7 +292,7 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         <KpiCard
           label="With Memories"
           value={kpis.withMemories}
-          subtitle="have email for recall"
+          subtitle="have conversation history"
           icon={<Brain className="size-5" />}
         />
         <KpiCard
@@ -204,15 +306,24 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       {/* Search & Filter Bar */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          {isSearching ? (
+            <Sparkles className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-purple-500 animate-pulse" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          )}
           <Input
-            placeholder="Search by name or email..."
+            placeholder="Search contacts (AI-powered with 3+ characters)..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-9"
           />
+          {isSemanticSearch && !isSearching && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-purple-500 font-medium">
+              AI Search
+            </span>
+          )}
         </div>
-        <Select value={tagFilter} onValueChange={setTagFilter}>
+        <Select value={tagFilter} onValueChange={handleTagFilterChange}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter by tag" />
           </SelectTrigger>
@@ -236,6 +347,40 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         contacts={filteredContacts}
         onSelectContact={setSelectedContact}
       />
+
+      {/* Pagination Controls */}
+      {pagination && !isSemanticSearch && (
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * (pagination.pageSize)) + 1}\u2013
+            {Math.min(currentPage * pagination.pageSize, pagination.total)} of{" "}
+            {pagination.total} contacts
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+            >
+              <ChevronLeft className="size-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground tabular-nums">
+              Page {currentPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasMore}
+              onClick={() => handlePageChange(currentPage + 1)}
+            >
+              Next
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Contact Detail Panel */}
       <ContactDetailPanel

@@ -75,3 +75,40 @@ export interface SyncStatsResult {
     count: number;
   }>;
 }
+
+/** A contact record from the Personize Contact collection. */
+export interface PersonizeContactRecord {
+  recordId: string;
+  type: string;
+  properties: Record<string, string>;
+}
+
+/** Mapped contact from Personize, compatible with the app's Contact interface. */
+export interface PersonizeContact {
+  id: string;
+  record_id: string;
+  name: string;
+  email: string | null;
+  company: string | null;
+  job_title: string | null;
+  has_conversation: boolean;
+  message_count: number;
+  priority_score: number;
+  last_interaction_date: string | null;
+  source: "linkedin";
+  status: "active";
+  tags: string[];
+  score: number;
+  project_id: string;
+  last_contact_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactSearchResult {
+  contacts: PersonizeContact[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}

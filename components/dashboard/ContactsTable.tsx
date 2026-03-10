@@ -1,6 +1,7 @@
 "use client";
 
 import type { Contact } from "@/lib/types/database";
+import { MessageCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -16,7 +17,7 @@ interface ContactsTableProps {
 }
 
 function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
+  if (!dateStr) return "\u2014";
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -29,6 +30,7 @@ const tagColors: Record<string, string> = {
   Hackathon: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/20",
   MEEK: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20",
   Personal: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+  linkedin: "bg-blue-600/15 text-blue-700 dark:text-blue-400 border-blue-600/20",
 };
 
 export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps) {
@@ -42,15 +44,25 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
     );
   }
 
+  // Detect if contacts have Personize-specific fields
+  const hasPersonizeData = contacts.some((c) => c.job_title !== undefined);
+
   return (
     <div className="rounded-md border border-border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            {hasPersonizeData && <TableHead>Title</TableHead>}
             <TableHead>Company</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Tags</TableHead>
+            {!hasPersonizeData && <TableHead>Email</TableHead>}
+            {hasPersonizeData && (
+              <TableHead className="text-center">Conv.</TableHead>
+            )}
+            {hasPersonizeData && (
+              <TableHead className="text-right">Messages</TableHead>
+            )}
+            {!hasPersonizeData && <TableHead>Tags</TableHead>}
             <TableHead>Last Activity</TableHead>
             <TableHead className="text-right">Score</TableHead>
           </TableRow>
@@ -63,31 +75,59 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
               onClick={() => onSelectContact(contact)}
             >
               <TableCell className="font-medium">{contact.name}</TableCell>
-              <TableCell>{contact.company ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {contact.email ?? "—"}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {contact.tags && contact.tags.length > 0 ? (
-                    contact.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[tag] ?? "bg-muted text-muted-foreground border-border"}`}
-                      >
-                        {tag}
-                      </span>
-                    ))
+              {hasPersonizeData && (
+                <TableCell className="text-muted-foreground text-sm">
+                  {contact.job_title ?? "\u2014"}
+                </TableCell>
+              )}
+              <TableCell>{contact.company ?? "\u2014"}</TableCell>
+              {!hasPersonizeData && (
+                <TableCell className="text-muted-foreground">
+                  {contact.email ?? "\u2014"}
+                </TableCell>
+              )}
+              {hasPersonizeData && (
+                <TableCell className="text-center">
+                  {contact.has_conversation ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400 border border-green-500/20">
+                      <MessageCircle className="size-3" />
+                      Yes
+                    </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
+                    <span className="text-xs text-muted-foreground">\u2014</span>
                   )}
-                </div>
-              </TableCell>
+                </TableCell>
+              )}
+              {hasPersonizeData && (
+                <TableCell className="text-right tabular-nums text-sm">
+                  {contact.message_count ?? 0}
+                </TableCell>
+              )}
+              {!hasPersonizeData && (
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {contact.tags && contact.tags.length > 0 ? (
+                      contact.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[tag] ?? "bg-muted text-muted-foreground border-border"}`}
+                        >
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">\u2014</span>
+                    )}
+                  </div>
+                </TableCell>
+              )}
               <TableCell>
-                {formatDate(contact.last_contact_date ?? contact.updated_at)}
+                {formatDate(
+                  contact.last_interaction_date ?? contact.last_contact_date ?? contact.updated_at
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {contact.score ?? 0}
+                {contact.priority_score ?? contact.score ?? 0}
               </TableCell>
             </TableRow>
           ))}

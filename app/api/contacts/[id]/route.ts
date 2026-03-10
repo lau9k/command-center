@@ -1,12 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateContactSchema } from "@/lib/validations";
+import { getContactById } from "@/lib/personize/actions";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const source = request.nextUrl.searchParams.get("source");
+
+  // If the ID looks like a Personize record ID (starts with "REC#" or is a long string),
+  // try Personize first
+  const isPersonizeRecord = id.startsWith("REC#") || id.length > 36;
+
+  if (isPersonizeRecord && process.env.PERSONIZE_SECRET_KEY && source !== "supabase") {
+    try {
+      const result = await getContactById(id);
+      if (result) {
+        return NextResponse.json({
+          data: result.contact,
+          summary: result.summary,
+          source: "personize",
+        });
+      }
+    } catch (error) {
+      console.error("[API] GET /api/contacts/[id] Personize error:", error);
+      // Fall through to Supabase
+    }
+  }
+
+  // Supabase fallback
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -20,7 +44,7 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: error.code === "PGRST116" ? 404 : 500 });
   }
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, source: "supabase" });
 }
 
 export async function PUT(
