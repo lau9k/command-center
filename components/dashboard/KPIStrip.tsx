@@ -22,6 +22,7 @@ interface KPIStripProps {
   contentScheduledCount: number;
   contentPublishedCount: number;
   pipelineItemCount: number;
+  pipelineTotalValue: number;
   communityMemberCount: number;
   communityDelta?: number | null;
 }
@@ -49,6 +50,7 @@ export function KPIStrip({
   contentScheduledCount,
   contentPublishedCount,
   pipelineItemCount,
+  pipelineTotalValue,
   communityMemberCount,
   communityDelta,
 }: KPIStripProps) {
@@ -94,7 +96,11 @@ export function KPIStrip({
       <KpiCard
         label="Pipeline Items"
         value={safeValue(pipelineItemCount)}
-        subtitle={pipelineItemCount > 0 ? "deals tracked" : "no deals yet"}
+        subtitle={
+          pipelineItemCount > 0
+            ? `$${pipelineTotalValue.toLocaleString()} total value`
+            : "no deals yet"
+        }
         icon={<Layers className="size-5" />}
       />
       <KpiCard
