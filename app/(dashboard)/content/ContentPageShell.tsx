@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Calendar, LayoutGrid, Plus } from "lucide-react";
+import { Calendar, ClipboardCheck, LayoutGrid, Plus } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BufferCalendar } from "@/components/content/BufferCalendar";
@@ -88,6 +89,13 @@ export function ContentPageShell({
         </div>
 
         <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/content/review">
+              <ClipboardCheck className="size-4" />
+              Review Drafts
+            </Link>
+          </Button>
+
           <Button
             onClick={() => setFormOpen(true)}
             size="sm"

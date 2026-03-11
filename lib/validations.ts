@@ -55,6 +55,26 @@ export const updateContentPostSchema = createContentPostSchema.partial().extend(
   id: z.string().uuid(),
 });
 
+// ── Content Items ────────────────────────────────────────
+
+export const createContentItemSchema = z.object({
+  title: z.string().max(500).optional().nullable(),
+  body: z.string().min(1).max(10000),
+  platform: z.enum(["twitter", "linkedin", "telegram", "bluesky", "instagram", "facebook", "reddit"]),
+  brand: z.enum(["meek", "personize", "buildervault", "telco", "personal"]),
+  status: z.enum(["draft", "scheduled", "published", "failed"]).default("draft").optional(),
+  scheduled_for: z.string().datetime().optional().nullable(),
+  tone: z.string().max(100).optional().nullable(),
+  narrative_arc_chapter: z.string().max(200).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
+export const updateContentItemSchema = createContentItemSchema.partial();
+
+export const publishContentItemSchema = z.object({
+  contentItemId: z.string().uuid(),
+});
+
 // ── Transactions ──────────────────────────────────────────
 
 export const createTransactionSchema = z.object({
