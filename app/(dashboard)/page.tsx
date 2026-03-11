@@ -38,6 +38,7 @@ export default async function DashboardPage() {
     invoicesRes,
     memoryRes,
     pipelineCountRes,
+    pipelineValueRes,
     communityMemberCount,
     pendingMeetingsRes,
     yesterdayStatsRes,
@@ -68,6 +69,10 @@ export default async function DashboardPage() {
       .in("status", ["sent", "overdue"]),
     serviceClient.from("memory_stats").select("count"),
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
+    serviceClient
+      .from("pipeline_items")
+      .select("value")
+      .neq("stage", "closed-lost"),
     fetchCommunityMemberCount(),
     serviceClient
       .from("meetings")
@@ -94,6 +99,7 @@ export default async function DashboardPage() {
     { name: "invoices", error: invoicesRes.error },
     { name: "memory_stats", error: memoryRes.error },
     { name: "pipeline_count", error: pipelineCountRes.error, count: pipelineCountRes.count },
+    { name: "pipeline_value", error: pipelineValueRes.error },
     { name: "pending_meetings", error: pendingMeetingsRes.error },
   ];
 
@@ -112,6 +118,11 @@ export default async function DashboardPage() {
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
   const pipelineItemCount = pipelineCountRes.count ?? 0;
+  const pipelineValues = pipelineValueRes.data ?? [];
+  const pipelineTotalValue = pipelineValues.reduce(
+    (sum: number, item: { value: number | null }) => sum + Number(item.value ?? 0),
+    0
+  );
   const pendingMeetings = (pendingMeetingsRes.data ?? []) as Meeting[];
 
   // Community growth delta: compare live count to yesterday's cached value
@@ -277,6 +288,7 @@ export default async function DashboardPage() {
         contentScheduledCount={contentScheduledCount}
         contentPublishedCount={contentPublishedCount}
         pipelineItemCount={pipelineItemCount}
+        pipelineTotalValue={pipelineTotalValue}
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
       />
