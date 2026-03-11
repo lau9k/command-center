@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Calendar,
   CheckSquare,
   Coins,
   DollarSign,
@@ -24,6 +25,7 @@ const modules = [
   { label: "Master Tasks", href: "/tasks", icon: CheckSquare },
   { label: "Import", href: "/admin/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
+  { label: "Meetings", href: "/meetings", icon: Calendar },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Community", href: "/community", icon: UsersRound },

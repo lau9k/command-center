@@ -471,6 +471,59 @@ export interface ForecastResult {
 
 // --- Debts with projections ---
 
+// --- Meeting types ---
+
+export type MeetingStatus = "pending_review" | "reviewed" | "dismissed";
+export type MeetingActionType = "follow_up_email" | "create_document" | "make_intro" | "add_contact" | "create_task" | "custom";
+export type MeetingActionStatus = "pending" | "completed" | "skipped";
+
+export interface MeetingAttendee {
+  name: string;
+  email?: string;
+  company?: string;
+}
+
+export interface MeetingActionItem {
+  title: string;
+  assignee?: string;
+  due_date?: string;
+}
+
+export interface MeetingContact {
+  name: string;
+  email?: string;
+  company?: string;
+  role?: string;
+}
+
+export interface Meeting {
+  id: string;
+  user_id: string | null;
+  granola_id: string | null;
+  title: string;
+  attendees: MeetingAttendee[];
+  summary: string | null;
+  decisions: string[];
+  action_items: MeetingActionItem[];
+  new_contacts: MeetingContact[];
+  status: MeetingStatus;
+  meeting_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingAction {
+  id: string;
+  meeting_id: string;
+  action_type: MeetingActionType;
+  description: string;
+  status: MeetingActionStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// --- Debts with projections ---
+
 export interface DebtPayoffProjection {
   monthsToPayoff: number | null;
   projectedPayoffDate: string | null;
