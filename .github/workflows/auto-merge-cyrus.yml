@@ -2,7 +2,7 @@ name: Auto-merge Cyrus PRs
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: write
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.actor == 'cyrusagent[bot]'
+    if: github.actor == 'cyrusagent[bot]' && !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge
