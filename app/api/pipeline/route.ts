@@ -10,7 +10,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
   let stagesQuery = supabase
     .from("pipeline_stages")
-    .select("id, name, slug, sort_order, color, pipeline_id")
+    .select("id, name, slug, sort_order, color, pipeline_id, project_id")
     .order("sort_order", { ascending: true });
 
   let itemsQuery = supabase
