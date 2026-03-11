@@ -14,7 +14,8 @@ import { MemoryFlushCard } from "@/components/dashboard/MemoryFlushCard";
 import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
 import { GitHubActivityCard } from "@/components/dashboard/GitHubActivityCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
-import type { ContentPost } from "@/lib/types/database";
+import { MeetingNotificationList } from "@/components/meetings/meeting-notification";
+import type { ContentPost, Meeting } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function DashboardPage() {
     memoryRes,
     pipelineCountRes,
     communityMemberCount,
+    pendingMeetingsRes,
     yesterdayStatsRes,
   ] = await Promise.all([
     serviceClient
@@ -68,6 +70,11 @@ export default async function DashboardPage() {
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
     fetchCommunityMemberCount(),
     serviceClient
+      .from("meetings")
+      .select("*")
+      .eq("status", "pending_review")
+      .order("meeting_date", { ascending: false }),
+    serviceClient
       .from("community_stats")
       .select("member_count")
       .lt("fetched_at", yesterday)
@@ -87,6 +94,7 @@ export default async function DashboardPage() {
     { name: "invoices", error: invoicesRes.error },
     { name: "memory_stats", error: memoryRes.error },
     { name: "pipeline_count", error: pipelineCountRes.error, count: pipelineCountRes.count },
+    { name: "pending_meetings", error: pendingMeetingsRes.error },
   ];
 
   for (const q of queryResults) {
@@ -104,6 +112,7 @@ export default async function DashboardPage() {
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
   const pipelineItemCount = pipelineCountRes.count ?? 0;
+  const pendingMeetings = (pendingMeetingsRes.data ?? []) as Meeting[];
 
   // Community growth delta: compare live count to yesterday's cached value
   const yesterdayMemberCount = yesterdayStatsRes.data?.member_count ?? null;
@@ -244,7 +253,10 @@ export default async function DashboardPage() {
         <SessionPromptButton />
       </div>
 
-      {/* 2. Module Health Overview */}
+      {/* 2. Post-Meeting Notifications */}
+      <MeetingNotificationList meetings={pendingMeetings} />
+
+      {/* 3. Module Health Overview */}
       <ModuleHealthOverview
         contactsCount={totalContactsCount}
         tasksCount={tasks.length}
