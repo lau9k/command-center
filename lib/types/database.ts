@@ -7,6 +7,9 @@ export type NotificationType = "task" | "alert" | "info" | "signal";
 export type TaskFeedbackAction = "approved" | "rejected" | "edited";
 export type MemoryType = "contact" | "meeting" | "email" | "content" | "task";
 export type ContentPostStatus = "draft" | "ready" | "scheduled" | "published" | "failed";
+export type ContentItemStatus = "draft" | "scheduled" | "published" | "failed";
+export type ContentItemPlatform = "twitter" | "telegram" | "linkedin" | "bluesky" | "instagram" | "facebook" | "reddit";
+export type ContentItemBrand = "meek" | "personize" | "buildervault" | "telco" | "personal";
 export type InvoiceStatus = "draft" | "sent" | "overdue" | "paid" | "cancelled";
 
 export interface Project {
@@ -150,6 +153,24 @@ export const PLATFORM_LABELS: Record<string, string> = {
   bluesky: "Bluesky",
   facebook: "Facebook",
 };
+
+export interface ContentItem {
+  id: string;
+  user_id: string;
+  title: string | null;
+  body: string;
+  platform: ContentItemPlatform;
+  status: ContentItemStatus;
+  brand: ContentItemBrand;
+  narrative_arc_chapter: string | null;
+  tone: string | null;
+  scheduled_for: string | null;
+  published_at: string | null;
+  late_so_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Invoice {
   id: string;
