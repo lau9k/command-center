@@ -14,6 +14,7 @@ interface PipelineStage {
   sort_order: number;
   color: string | null;
   pipeline_id: string;
+  project_id?: string;
 }
 
 interface StageColumnProps {

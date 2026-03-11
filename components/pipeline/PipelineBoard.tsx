@@ -26,7 +26,7 @@ import type { PipelineStage } from "./StageColumn";
 interface PipelineBoardProps {
   stages: PipelineStage[];
   items: PipelineItemData[];
-  projectId: string;
+  projectId?: string;
 }
 
 function DrawerContent({
@@ -287,6 +287,9 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
         ? Math.max(...stageItems.map((i) => i.sort_order))
         : -1;
 
+      const resolvedProjectId = projectId ?? stage.project_id;
+      if (!resolvedProjectId) return;
+
       const res = await fetch("/api/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -294,7 +297,7 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
           title: quickAddTitle.trim(),
           pipeline_id: stage.pipeline_id,
           stage_id: quickAddStageId,
-          project_id: projectId,
+          project_id: resolvedProjectId,
           sort_order: maxSort + 1,
           metadata: {},
         }),
