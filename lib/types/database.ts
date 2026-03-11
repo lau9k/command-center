@@ -569,3 +569,26 @@ export interface WalletPnlMonthly {
   reimbursable_expenses: number;
   transaction_count: number;
 }
+
+// --- Activity Feed types ---
+
+export type ActivityEventType =
+  | "task_completed"
+  | "deal_moved"
+  | "content_published"
+  | "pr_merged"
+  | "memory_flushed"
+  | "system";
+
+export interface ActivityFeedItem {
+  id: string;
+  type: ActivityEventType;
+  title: string;
+  description: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  project_color: string | null;
+  source_table: string;
+  source_id: string;
+  created_at: string;
+}

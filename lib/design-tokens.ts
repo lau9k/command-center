@@ -154,6 +154,16 @@ export const activityTypeColor: Record<string, string> = {
   contact: "text-[#22C55E]",
 };
 
+/** Activity feed event type → icon colour class + bg tint */
+export const activityEventTypeStyle: Record<string, { icon: string; bg: string }> = {
+  task_completed: { icon: "text-[#22C55E]", bg: "bg-[#22C55E]/10" },
+  deal_moved: { icon: "text-[#F97316]", bg: "bg-[#F97316]/10" },
+  content_published: { icon: "text-[#A855F7]", bg: "bg-[#A855F7]/10" },
+  pr_merged: { icon: "text-[#3B82F6]", bg: "bg-[#3B82F6]/10" },
+  memory_flushed: { icon: "text-[#EAB308]", bg: "bg-[#EAB308]/10" },
+  system: { icon: "text-[#6B7280]", bg: "bg-[#6B7280]/10" },
+};
+
 /** Pipeline stage slug → Tailwind column classes (border-left accent + bg tint) */
 export const pipelineStageClass: Record<string, { border: string; bg: string; bgDragOver: string }> = {
   lead: { border: "border-l-[#3B82F6]", bg: "", bgDragOver: "border-[#3B82F6]/30 bg-[#3B82F6]/5" },
