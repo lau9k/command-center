@@ -31,20 +31,30 @@ export default async function ProjectPipelinePage({
   const items = itemsResult.data ?? [];
 
   // Compute KPIs from actual DB data
-  type ItemMeta = { value?: number; probability?: number };
+  type ItemMeta = { deal_value?: number | string };
   const totalDeals = items.length;
   const totalValue = items.reduce((sum, item) => {
     const meta = (item.metadata ?? {}) as ItemMeta;
-    return sum + (meta.value ?? 0);
+    const raw = meta.deal_value;
+    if (typeof raw === "number") return sum + raw;
+    if (typeof raw === "string") {
+      const num = parseFloat(raw.replace(/[$,\s]/g, ""));
+      return sum + (isNaN(num) ? 0 : num);
+    }
+    return sum;
   }, 0);
   const avgDealSize = totalDeals > 0 ? Math.round(totalValue / totalDeals) : 0;
 
-  // Win rate: items in "closed" stage / total items
-  const closedStageIds = new Set(
-    stages.filter((s) => s.slug === "closed").map((s) => s.id)
+  // Win rate: items in won/closed-won stages vs total completed deals
+  const wonStageIds = new Set(
+    stages.filter((s) => s.slug === "won" || s.slug === "closed-won").map((s) => s.id)
   );
-  const closedDeals = items.filter((item) => closedStageIds.has(item.stage_id)).length;
-  const winRate = totalDeals > 0 ? Math.round((closedDeals / totalDeals) * 100) : 0;
+  const lostStageIds = new Set(
+    stages.filter((s) => s.slug === "lost" || s.slug === "closed-lost").map((s) => s.id)
+  );
+  const wonDeals = items.filter((item) => wonStageIds.has(item.stage_id)).length;
+  const completedDeals = wonDeals + items.filter((item) => lostStageIds.has(item.stage_id)).length;
+  const winRate = completedDeals > 0 ? Math.round((wonDeals / completedDeals) * 100) : 0;
 
   return (
     <div className="space-y-6">

@@ -157,10 +157,16 @@ export const activityTypeColor: Record<string, string> = {
 /** Pipeline stage slug → Tailwind column classes (border-left accent + bg tint) */
 export const pipelineStageClass: Record<string, { border: string; bg: string; bgDragOver: string }> = {
   lead: { border: "border-l-[#3B82F6]", bg: "", bgDragOver: "border-[#3B82F6]/30 bg-[#3B82F6]/5" },
+  contacted: { border: "border-l-[#A855F7]", bg: "", bgDragOver: "border-[#A855F7]/30 bg-[#A855F7]/5" },
   qualified: { border: "border-l-[#A855F7]", bg: "", bgDragOver: "border-[#A855F7]/30 bg-[#A855F7]/5" },
+  "demo-scheduled": { border: "border-l-[#F97316]", bg: "", bgDragOver: "border-[#F97316]/30 bg-[#F97316]/5" },
   demo: { border: "border-l-[#F97316]", bg: "", bgDragOver: "border-[#F97316]/30 bg-[#F97316]/5" },
+  "proposal-sent": { border: "border-l-[#EAB308]", bg: "", bgDragOver: "border-[#EAB308]/30 bg-[#EAB308]/5" },
   proposal: { border: "border-l-[#EAB308]", bg: "", bgDragOver: "border-[#EAB308]/30 bg-[#EAB308]/5" },
+  negotiation: { border: "border-l-[#F97316]", bg: "", bgDragOver: "border-[#F97316]/30 bg-[#F97316]/5" },
+  won: { border: "border-l-[#22C55E]", bg: "bg-[#22C55E]/5", bgDragOver: "border-[#22C55E]/30 bg-[#22C55E]/10" },
   "closed-won": { border: "border-l-[#22C55E]", bg: "bg-[#22C55E]/5", bgDragOver: "border-[#22C55E]/30 bg-[#22C55E]/10" },
+  lost: { border: "border-l-[#6B7280]", bg: "bg-[#6B7280]/5", bgDragOver: "border-[#6B7280]/30 bg-[#6B7280]/10" },
   "closed-lost": { border: "border-l-[#6B7280]", bg: "bg-[#6B7280]/5", bgDragOver: "border-[#6B7280]/30 bg-[#6B7280]/10" },
 };
 

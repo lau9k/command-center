@@ -3,20 +3,31 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
+  const { searchParams } = new URL(request.url);
+  const pipelineId = searchParams.get("pipeline_id");
+
+  let stagesQuery = supabase
+    .from("pipeline_stages")
+    .select("id, name, slug, sort_order, color, pipeline_id")
+    .order("sort_order", { ascending: true });
+
+  let itemsQuery = supabase
+    .from("pipeline_items")
+    .select(
+      "id, pipeline_id, stage_id, project_id, title, entity_type, metadata, sort_order, created_at, updated_at"
+    )
+    .order("sort_order", { ascending: true });
+
+  if (pipelineId) {
+    stagesQuery = stagesQuery.eq("pipeline_id", pipelineId);
+    itemsQuery = itemsQuery.eq("pipeline_id", pipelineId);
+  }
 
   const [stagesResult, itemsResult] = await Promise.all([
-    supabase
-      .from("pipeline_stages")
-      .select("id, name, slug, sort_order, color, pipeline_id")
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("pipeline_items")
-      .select(
-        "id, pipeline_id, stage_id, project_id, title, entity_type, metadata, sort_order, created_at, updated_at"
-      )
-      .order("sort_order", { ascending: true }),
+    stagesQuery,
+    itemsQuery,
   ]);
 
   if (stagesResult.error) {
