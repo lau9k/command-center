@@ -13,6 +13,7 @@ import {
   User,
   Calendar,
   FileText,
+  Trash2,
 } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,7 +29,15 @@ interface PipelineBoardProps {
   projectId: string;
 }
 
-function DrawerContent({ item, stage }: { item: PipelineItemData; stage: PipelineStage | null }) {
+function DrawerContent({
+  item,
+  stage,
+  onDelete,
+}: {
+  item: PipelineItemData;
+  stage: PipelineStage | null;
+  onDelete: (id: string) => void;
+}) {
   const meta = item.metadata ?? {};
   const dealValue = parseDealValue(meta.deal_value);
   const company = String(meta.company ?? "");
@@ -137,6 +146,16 @@ function DrawerContent({ item, stage }: { item: PipelineItemData; stage: Pipelin
             Updated {format(new Date(item.updated_at), "MMM d, yyyy 'at' h:mm a")}
           </span>
         </div>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <button
+          onClick={() => onDelete(item.id)}
+          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+        >
+          <Trash2 className="size-3.5" />
+          Delete Deal
+        </button>
       </div>
     </div>
   );
@@ -297,6 +316,21 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
     setQuickAddTitle("");
   }, []);
 
+  const handleDelete = useCallback(async (id: string) => {
+    const prev = items;
+    setItems((current) => current.filter((i) => i.id !== id));
+    setSelectedItem(null);
+
+    try {
+      const res = await fetch(`/api/pipeline/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setItems(prev);
+      }
+    } catch {
+      setItems(prev);
+    }
+  }, [items]);
+
   const selectedStage = selectedItem ? stageMap.get(selectedItem.stage_id) : null;
 
   if (sortedStages.length === 0 && items.length === 0) {
@@ -378,7 +412,7 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
         title={selectedItem?.title ?? "Deal Details"}
       >
         {selectedItem ? (
-          <DrawerContent item={selectedItem} stage={selectedStage ?? null} />
+          <DrawerContent item={selectedItem} stage={selectedStage ?? null} onDelete={handleDelete} />
         ) : (
           <div />
         )}
