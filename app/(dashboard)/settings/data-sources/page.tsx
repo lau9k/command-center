@@ -1,5 +1,6 @@
 import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
+import { PlaidConnect } from "@/components/settings/plaid-connect";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -34,6 +35,16 @@ export default function DataSourcesPage() {
           </p>
         </div>
         <DataSourcesPanel />
+
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-medium text-foreground mb-2">
+            Bank Accounts (Plaid)
+          </h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Connect bank accounts to automatically sync transactions
+          </p>
+          <PlaidConnect />
+        </div>
 
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium text-foreground mb-2">
