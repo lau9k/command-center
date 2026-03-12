@@ -11,7 +11,7 @@ interface DataSourceHealth {
 }
 
 const DATA_SOURCES = [
-  { id: "gmail", name: "Gmail", table: "conversations", dateCol: "last_message_at" },
+  { id: "gmail", name: "Gmail", table: "gmail_messages", dateCol: "date" },
   { id: "granola", name: "Granola", table: "meetings", dateCol: "date" },
   { id: "linkedin", name: "LinkedIn", table: "contacts", dateCol: "created_at", filter: { column: "source", value: "linkedin" } },
   { id: "plaid", name: "Plaid", table: "invoices", dateCol: "created_at" },
