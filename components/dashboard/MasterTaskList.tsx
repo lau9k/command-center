@@ -88,7 +88,7 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 
 const ALL_VALUE = "__all__";
 
-const STATUS_CHIPS: { label: string; value: string }[] = [
+const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = [
   { label: "All", value: ALL_VALUE },
   { label: "Todo", value: "todo" },
   { label: "In Progress", value: "in_progress" },
@@ -113,7 +113,7 @@ export function MasterTaskList({
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
-  const [filterStatus, setFilterStatus] = useState<string>(ALL_VALUE);
+  const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
 
   const refreshTasks = useCallback(async () => {
     try {

@@ -12,8 +12,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
+import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 
 interface AnalyticsData {
   sponsorsByTier: { tier: string; count: number }[];
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                 }}
-                formatter={(value) => [value, "Count"]}
+                formatter={(value: ValueType | undefined) => [value ?? 0, "Count"]}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                 }}
-                formatter={(value) => [value, "Count"]}
+                formatter={(value: ValueType | undefined) => [value ?? 0, "Count"]}
               />
             </PieChart>
           </ResponsiveContainer>
