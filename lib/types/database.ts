@@ -75,6 +75,7 @@ export interface Project {
 export interface Task {
   id: string;
   project_id: string | null;
+  external_id?: string;
   title: string;
   description: string | null;
   status: TaskStatus;

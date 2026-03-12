@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ingestConversationSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { validateWebhookSecret } from "@/lib/webhook-auth";
+import { validateWebhookSignature } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -10,9 +10,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const authError = validateWebhookSecret(request);
   if (authError) return authError;
 
-  const body = await request.json();
-
-  const parsed = ingestConversationSchema.safeParse(body);
+  const parsed = ingestConversationSchema.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -28,25 +26,19 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const { contact_email, ...conversationData } = parsed.data;
 
   // Look up contact by email to link the conversation
-  const { data: contact, error: contactError } = await supabase
+  const { data: contact } = await supabase
     .from("contacts")
     .select("id")
     .eq("email", contact_email)
     .single();
 
-  if (contactError || !contact) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Contact not found for email: ${contact_email}`,
-      },
-      { status: 404 }
-    );
-  }
-
+  // Upsert by external_id — dedup on Gmail thread ID or Slack channel ID
   const { data, error } = await supabase
     .from("conversations")
-    .insert({ ...conversationData, contact_id: contact.id })
+    .upsert(
+      { ...conversationData, contact_id: contact?.id ?? null },
+      { onConflict: "external_id" }
+    )
     .select()
     .single();
 
@@ -57,13 +49,12 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
-  // Fire-and-forget: don't block response on logging
   void logActivity({
     action: "ingested",
     entity_type: "conversation",
     entity_id: data.id,
-    entity_name: data.subject,
-    source: "webhook",
+    entity_name: data.summary,
+    source: "n8n",
   });
 
   return NextResponse.json({ success: true, data }, { status: 201 });

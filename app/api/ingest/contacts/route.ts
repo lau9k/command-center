@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ingestContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { validateWebhookSecret } from "@/lib/webhook-auth";
+import { validateWebhookSignature } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
@@ -10,9 +10,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const authError = validateWebhookSecret(request);
   if (authError) return authError;
 
-  const body = await request.json();
-
-  const parsed = ingestContactSchema.safeParse(body);
+  const parsed = ingestContactSchema.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -40,13 +38,12 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
-  // Fire-and-forget: don't block response on logging
   void logActivity({
     action: "ingested",
     entity_type: "contact",
     entity_id: data.id,
     entity_name: data.name,
-    source: "webhook",
+    source: "n8n",
   });
 
   return NextResponse.json({ success: true, data }, { status: 201 });
