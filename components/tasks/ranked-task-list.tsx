@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CalendarIcon, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { ScoreBadge } from "./priority-badge";
+import { TaskRecurrenceBadge } from "./TaskRecurrenceBadge";
 import { PriorityBadge } from "@/components/dashboard/PriorityBadge";
 import { ProjectBadge } from "@/components/dashboard/ProjectBadge";
 import type { TaskWithProject } from "@/lib/types/database";
@@ -56,6 +57,9 @@ export function RankedTaskList({ initial }: { initial: RankedTask[] }) {
                   name={task.projects.name}
                   color={task.projects.color}
                 />
+              )}
+              {task.recurrence_rule && (
+                <TaskRecurrenceBadge recurrenceRule={task.recurrence_rule} />
               )}
               <PriorityBadge priority={task.priority} />
               {task.due_date && (

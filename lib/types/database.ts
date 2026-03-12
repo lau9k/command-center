@@ -82,6 +82,9 @@ export interface Task {
   due_date: string | null;
   assignee: string | null;
   tags: string[] | null;
+  recurrence_rule: string | null;
+  recurrence_parent_id: string | null;
+  is_recurring_template: boolean;
   created_at: string;
   updated_at: string;
 }

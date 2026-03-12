@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateTaskSchema } from "@/lib/validations";
+import { generateNextOccurrence } from "@/lib/recurring-tasks";
 
 export async function GET(
   _request: NextRequest,
@@ -48,7 +49,23 @@ export async function PUT(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  // Auto-generate next occurrence when a recurring task is completed
+  let nextOccurrence = null;
+  if (parsed.data.status === "done" && data.recurrence_rule) {
+    try {
+      const nextTask = generateNextOccurrence(data);
+      const { data: created } = await supabase
+        .from("tasks")
+        .insert(nextTask)
+        .select("*, projects(id, name, color)")
+        .single();
+      nextOccurrence = created;
+    } catch {
+      // Non-blocking: if next occurrence fails, the completion still succeeds
+    }
+  }
+
+  return NextResponse.json({ data, nextOccurrence });
 }
 
 export async function DELETE(
