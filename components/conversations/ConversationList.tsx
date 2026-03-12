@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import type { Conversation } from "@/lib/types/database";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -152,17 +153,11 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
 
   if (conversations.length === 0 && initialConversations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card px-8 py-16 text-center">
-        <MessageSquare className="size-12 text-muted-foreground/50" />
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-lg font-semibold text-foreground">
-            No conversations yet
-          </h3>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            Conversations will appear here as they are ingested from emails, meetings, and messages linked to your contacts.
-          </p>
-        </div>
-      </div>
+      <SharedEmptyState
+        icon={<MessageSquare className="size-12" />}
+        title="No conversations yet"
+        description="Conversations will appear here as they are ingested from emails, meetings, and messages linked to your contacts."
+      />
     );
   }
 
