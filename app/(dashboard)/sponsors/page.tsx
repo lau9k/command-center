@@ -4,7 +4,7 @@ import { SponsorSubNav } from "@/components/sponsors/SponsorSubNav";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/shared/ExportButton";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function SponsorsPage() {
   const supabase = createServiceClient();

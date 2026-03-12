@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { SettingsClient } from "./SettingsClient";
 
+export const revalidate = 3600;
+
 export default async function SettingsPage() {
   let userEmail: string | null = null;
   let userId: string | null = null;

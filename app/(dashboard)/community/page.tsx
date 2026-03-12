@@ -5,7 +5,7 @@ import type { Member } from "@/components/community/MemberCard";
 import type { ActivityEvent } from "@/components/community/ActivityFeed";
 import type { GrowthDataPoint } from "@/components/community/GrowthChart";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function CommunityPage() {
   const supabase = createServiceClient();
