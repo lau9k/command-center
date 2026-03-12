@@ -4,10 +4,10 @@ import { ingestConversationSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSignature } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
+import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  const { error: authError, body: rawBody } =
-    await validateWebhookSignature(request);
+export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
+  const authError = validateWebhookSecret(request);
   if (authError) return authError;
 
   const parsed = ingestConversationSchema.safeParse(JSON.parse(rawBody));
@@ -58,4 +58,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ success: true, data }, { status: 201 });
-});
+}), RATE_LIMITS.ingest);
