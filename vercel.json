@@ -3,6 +3,14 @@
     {
       "path": "/api/plaid/sync",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/gmail/sync",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/sync/granola",
+      "schedule": "0 9 * * *"
     }
   ]
 }
