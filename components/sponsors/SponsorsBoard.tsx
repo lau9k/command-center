@@ -39,9 +39,10 @@ function TierBadge({ tier }: { tier: SponsorTier }) {
 
 interface SponsorsBoardProps {
   sponsors: Sponsor[];
+  eventId?: string;
 }
 
-export function SponsorsBoard({ sponsors: initial }: SponsorsBoardProps) {
+export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps) {
   const [sponsors, setSponsors] = useState<Sponsor[]>(initial);
   const [addingTo, setAddingTo] = useState<SponsorStatus | null>(null);
   const [addName, setAddName] = useState("");
@@ -103,7 +104,7 @@ export function SponsorsBoard({ sponsors: initial }: SponsorsBoardProps) {
         const res = await fetch("/api/sponsors", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: addName.trim(), status }),
+          body: JSON.stringify({ name: addName.trim(), status, ...(eventId && { event_id: eventId }) }),
         });
         if (res.ok) {
           const { data } = await res.json();

@@ -1,33 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { createSponsorSchema, updateSponsorSchema, validateIdParam } from "@/lib/validations";
+import { createEventSchema, updateEventSchema, validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
+  const projectId = searchParams.get("project_id");
   const status = searchParams.get("status");
-  const tier = searchParams.get("tier");
-  const search = searchParams.get("q") ?? searchParams.get("search");
-  const eventId = searchParams.get("event_id");
 
   let query = supabase
-    .from("sponsors")
+    .from("events")
     .select("*")
-    .order("updated_at", { ascending: false });
+    .order("date", { ascending: true, nullsFirst: false });
 
-  if (eventId) {
-    query = query.eq("event_id", eventId);
+  if (projectId) {
+    query = query.eq("project_id", projectId);
   }
   if (status) {
     query = query.eq("status", status);
-  }
-  if (tier) {
-    query = query.eq("tier", tier);
-  }
-  if (search) {
-    query = query.or(`name.ilike.%${search}%,contact_name.ilike.%${search}%,contact_email.ilike.%${search}%`);
   }
 
   const { data, error } = await query;
@@ -43,7 +35,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const supabase = createServiceClient();
   const body = await request.json();
 
-  const parsed = createSponsorSchema.safeParse(body);
+  const parsed = createEventSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
@@ -52,7 +44,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from("sponsors")
+    .from("events")
     .insert(parsed.data)
     .select()
     .single();
@@ -68,7 +60,7 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   const supabase = createServiceClient();
   const body = await request.json();
 
-  const parsed = updateSponsorSchema.safeParse(body);
+  const parsed = updateEventSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
@@ -79,7 +71,7 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   const { id, ...updates } = parsed.data;
 
   const { data, error } = await supabase
-    .from("sponsors")
+    .from("events")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
     .select()
@@ -102,7 +94,7 @@ export const DELETE = withErrorHandler(async function DELETE(request: NextReques
 
   const supabase = createServiceClient();
 
-  const { error } = await supabase.from("sponsors").delete().eq("id", id);
+  const { error } = await supabase.from("events").delete().eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

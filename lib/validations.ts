@@ -278,6 +278,22 @@ export const updatePipelineItemSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
+// ── Events ──────────────────────────────────────────────
+
+export const createEventSchema = z.object({
+  name: z.string().min(1).max(500),
+  project_id: z.string().uuid().optional().nullable(),
+  date: z.string().max(50).optional().nullable(),
+  location: z.string().max(1000).optional().nullable(),
+  status: z.enum(["planning", "confirmed", "in_progress", "completed", "cancelled"]).optional(),
+  budget_target: z.number().min(0).optional(),
+  participant_target: z.number().int().min(0).optional(),
+});
+
+export const updateEventSchema = createEventSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
 // ── Sponsors ─────────────────────────────────────────────
 
 export const createSponsorSchema = z.object({
@@ -290,6 +306,7 @@ export const createSponsorSchema = z.object({
   amount: z.number().min(0).optional(),
   currency: z.string().max(10).optional(),
   notes: z.string().max(10000).optional().nullable(),
+  event_id: z.string().uuid().optional().nullable(),
 });
 
 export const updateSponsorSchema = createSponsorSchema.partial().extend({

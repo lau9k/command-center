@@ -44,6 +44,7 @@ export default async function ProjectLayout({
     { label: "Pipeline", href: `/projects/${projectId}/pipeline` },
     { label: "Tasks", href: `/projects/${projectId}/tasks` },
     { label: "Contacts", href: `/projects/${projectId}/contacts` },
+    { label: "Events", href: `/projects/${projectId}/events` },
   ];
 
   return (
