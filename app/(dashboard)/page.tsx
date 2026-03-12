@@ -15,7 +15,9 @@ import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
 import { GitHubActivityCard } from "@/components/dashboard/GitHubActivityCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import { MeetingNotificationList } from "@/components/meetings/meeting-notification";
-import type { ContentPost, Meeting } from "@/lib/types/database";
+import { RankedTaskList } from "@/components/tasks/ranked-task-list";
+import { scoreTask } from "@/lib/task-scoring";
+import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -186,6 +188,16 @@ export default async function DashboardPage() {
     0
   );
 
+  // --- Ranked tasks (priority engine) ---
+  const openTasks = (tasks as unknown as TaskWithProject[]).filter((t) => t.status !== "done");
+  const rankedTasks = openTasks
+    .map((task) => {
+      const { score, factors } = scoreTask(task, task.projects);
+      return { ...task, score, factors };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
   // --- Project summary cards ---
   type ProjectRow = (typeof projects)[number];
   type TaskRow = (typeof tasks)[number];
@@ -318,7 +330,10 @@ export default async function DashboardPage() {
         sponsorsConfirmedRevenue={sponsorsConfirmedRevenue}
       />
 
-      {/* 4. Content Calendar Preview */}
+      {/* 4. Ranked Tasks */}
+      <RankedTaskList initial={rankedTasks} />
+
+      {/* 5. Content Calendar Preview */}
       <ContentCalendarPreview posts={allContent} />
 
       {/* 5. Project Summary Cards */}
