@@ -5,8 +5,8 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSecret } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
-import { scoreTask } from "@/lib/task-scoring";
 import type { Task } from "@/lib/types/database";
+import { scoreTask } from "@/lib/task-scoring";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
