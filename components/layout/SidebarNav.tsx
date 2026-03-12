@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Mail,
   MessageSquare,
+  RefreshCw,
   Settings,
   Upload,
   Users,
@@ -38,6 +39,7 @@ const modules = [
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Community", href: "/community", icon: UsersRound },
   { label: "Templates", href: "/templates", icon: Mail },
+  { label: "Sync Log", href: "/sync", icon: RefreshCw },
   { label: "Activity", href: "/activity", icon: Activity },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Plus, GripVertical, Trash2 } from "lucide-react";
 import { KpiCard } from "@/components/ui";
@@ -227,7 +228,7 @@ export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps
                                 >
                                   <GripVertical className="size-4" />
                                 </div>
-                                <div className="min-w-0 flex-1">
+                                <Link href={`/sponsors/${sponsor.id}`} className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     <p className="truncate text-sm font-medium text-foreground">{sponsor.name}</p>
                                     <TierBadge tier={sponsor.tier} />
@@ -240,7 +241,7 @@ export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps
                                       {formatCurrency(Number(sponsor.amount))}
                                     </p>
                                   )}
-                                </div>
+                                </Link>
                                 <button
                                   onClick={() => handleDelete(sponsor.id)}
                                   className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"

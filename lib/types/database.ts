@@ -34,6 +34,20 @@ export interface Sponsor {
   updated_at: string;
 }
 
+export type OutreachType = "email" | "call" | "meeting" | "linkedin" | "other";
+export type OutreachStatus = "sent" | "replied" | "no_response" | "follow_up_needed";
+
+export interface SponsorOutreach {
+  id: string;
+  sponsor_id: string;
+  type: OutreachType;
+  subject: string | null;
+  notes: string | null;
+  status: OutreachStatus;
+  contacted_at: string;
+  created_at: string;
+}
+
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
@@ -397,6 +411,39 @@ export interface ReimbursementSummary {
 
 export interface ReimbursementRequestWithItems extends ReimbursementRequest {
   items: ReimbursementItem[];
+}
+
+// --- Gmail types ---
+
+export type GmailAccountStatus = "active" | "inactive";
+
+export interface GmailAccount {
+  id: string;
+  user_id: string | null;
+  email_address: string;
+  refresh_token_encrypted: string;
+  history_id: string | null;
+  status: GmailAccountStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GmailMessage {
+  id: string;
+  gmail_account_id: string;
+  gmail_message_id: string;
+  gmail_thread_id: string;
+  subject: string | null;
+  snippet: string | null;
+  from_address: string | null;
+  from_name: string | null;
+  to_addresses: { name: string | null; email: string }[];
+  date: string | null;
+  label_ids: string[];
+  is_unread: boolean;
+  conversation_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // --- Plaid types ---
