@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { PipelineKPIStrip } from "@/components/pipeline/PipelineKPIStrip";
+import { PipelineSubNav } from "@/components/pipeline/PipelineSubNav";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +52,14 @@ export default async function PipelinePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Pipeline</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage deals and track progress through stages
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Pipeline</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage deals and track progress through stages
+          </p>
+        </div>
+        <PipelineSubNav />
       </div>
       <PipelineKPIStrip
         totalDeals={totalDeals}
