@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Plus,
@@ -10,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Search,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +53,6 @@ interface TaskKpis {
 }
 
 interface MasterTaskListProps {
-  initialTasks: TaskWithProject[];
-  projects: ProjectOption[];
   kpis: TaskKpis;
 }
 
@@ -100,11 +100,28 @@ const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = 
 ];
 
 export function MasterTaskList({
-  initialTasks,
-  projects,
   kpis,
 }: MasterTaskListProps) {
-  const [tasks, setTasks] = useState<TaskWithProject[]>(initialTasks);
+  const queryClient = useQueryClient();
+
+  const { data: tasks = [], isFetching: isFetchingTasks } = useQuery<TaskWithProject[]>({
+    queryKey: ["tasks", "list"],
+    queryFn: async () => {
+      const res = await fetch("/api/tasks");
+      if (!res.ok) throw new Error("Failed to fetch tasks");
+      const json = await res.json();
+      return (json.data as TaskWithProject[]) ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: projects = [] } = useQuery<ProjectOption[]>({
+    queryKey: ["projects", "list"],
+    // Projects are prefetched on the server; no client-side API route needed yet.
+    // staleTime: Infinity prevents refetch until we add a /api/projects route.
+    staleTime: Infinity,
+  });
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
   const [quickAdding, setQuickAdding] = useState(false);
@@ -119,22 +136,17 @@ export function MasterTaskList({
   const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
 
   const refreshTasks = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tasks");
-      if (res.ok) {
-        const json = await res.json();
-        setTasks((json.data as TaskWithProject[]) ?? []);
-      }
-    } catch {
-      // silent refresh failure
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
+  }, [queryClient]);
 
   const handleStatusChange = useCallback(
     async (taskId: string, status: TaskStatus) => {
+      // Snapshot for rollback
+      const previous = queryClient.getQueryData<TaskWithProject[]>(["tasks", "list"]);
+
       // Optimistic update
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
+      queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+        old?.map((t) => (t.id === taskId ? { ...t, status } : t))
       );
 
       try {
@@ -149,25 +161,24 @@ export function MasterTaskList({
         );
       } catch {
         // Revert on error
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, status: t.status === status ? "todo" : t.status }
-              : t
-          )
-        );
+        queryClient.setQueryData(["tasks", "list"], previous);
         toast.error("Failed to update status — try again");
       }
     },
-    []
+    [queryClient]
   );
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
 
+    // Snapshot for rollback
+    const previous = queryClient.getQueryData<TaskWithProject[]>(["tasks", "list"]);
+
     // Optimistic delete
-    setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+    queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+      old?.filter((t) => t.id !== deleteTarget.id)
+    );
 
     try {
       const res = await fetch(`/api/tasks/${deleteTarget.id}`, {
@@ -178,12 +189,12 @@ export function MasterTaskList({
       setDeleteTarget(null);
     } catch {
       // Revert on error
-      setTasks((prev) => [...prev, deleteTarget]);
+      queryClient.setQueryData(["tasks", "list"], previous);
       toast.error("Failed to delete — try again");
     } finally {
       setDeleting(false);
     }
-  }, [deleteTarget]);
+  }, [deleteTarget, queryClient]);
 
   const handleEdit = useCallback((task: TaskWithProject) => {
     setEditingTask(task);
@@ -246,7 +257,9 @@ export function MasterTaskList({
         });
         if (!res.ok) throw new Error("Failed to create task");
         const { data } = await res.json();
-        setTasks((prev) => [data, ...prev]);
+        queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+          [data, ...(old ?? [])]
+        );
         toast.success("Task created");
       } catch {
         toast.error("Failed to create task — try again");
@@ -254,7 +267,7 @@ export function MasterTaskList({
         setQuickAdding(false);
       }
     },
-    []
+    [queryClient]
   );
 
   function handleOpenCreate() {
@@ -301,7 +314,12 @@ export function MasterTaskList({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Tasks</h1>
+          <h1 className="text-2xl font-semibold">
+            Tasks
+            {isFetchingTasks && (
+              <RefreshCw className="ml-2 inline size-4 animate-spin text-muted-foreground" />
+            )}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {tasks.length} task{tasks.length !== 1 ? "s" : ""} across all
             projects
