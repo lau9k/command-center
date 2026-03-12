@@ -1,5 +1,4 @@
 import { Separator } from "@/components/ui/separator";
-import { MobileSidebar } from "./MobileSidebar";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { UserNav } from "@/components/dashboard/user-nav";
@@ -45,8 +44,6 @@ export async function Header({ projects }: HeaderProps) {
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
-      <MobileSidebar projects={projects} />
-
       <h1 className="text-lg font-semibold">Command Center</h1>
 
       <div className="ml-auto flex items-center gap-3">

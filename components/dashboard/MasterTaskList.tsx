@@ -36,7 +36,7 @@ import type {
 } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 
 interface ProjectOption {
@@ -449,7 +449,12 @@ export function MasterTaskList({
 
       {/* Task list */}
       {sorted.length === 0 && tasks.length === 0 && !hasFilters ? (
-        <ModuleEmptyState module="tasks" />
+        <SharedEmptyState
+          icon={<CheckSquare className="size-12" />}
+          title="No tasks yet"
+          description="Create or import tasks to organize your work across projects."
+          action={{ label: "Create Task", onClick: handleOpenCreate }}
+        />
       ) : sorted.length === 0 ? (
         <EmptyState
           icon={hasFilters ? <ListFilter /> : <CheckSquare />}
