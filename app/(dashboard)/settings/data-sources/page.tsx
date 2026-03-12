@@ -1,7 +1,9 @@
 import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
+import { GmailConnect } from "@/components/settings/gmail-connect";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Suspense } from "react";
 
 export const revalidate = 3600;
 
@@ -34,6 +36,15 @@ export default function DataSourcesPage() {
           </p>
         </div>
         <DataSourcesPanel />
+
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-medium text-foreground mb-2">
+            Gmail
+          </h3>
+          <Suspense>
+            <GmailConnect />
+          </Suspense>
+        </div>
 
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium text-foreground mb-2">
