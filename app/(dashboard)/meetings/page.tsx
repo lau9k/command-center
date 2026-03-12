@@ -1,52 +1,44 @@
-import { createServiceClient } from "@/lib/supabase/service";
+import { headers } from "next/headers";
 import { MeetingsClient } from "@/components/meetings/meetings-client";
 import type { Meeting, MeetingAction } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
+type MeetingWithActions = Meeting & { actions: MeetingAction[] };
+
+interface MeetingsApiResponse {
+  data: MeetingWithActions[];
+  pagination: { page: number; pageSize: number; total: number; hasMore: boolean };
+  error?: string;
+}
+
+async function fetchMeetingsFromApi(): Promise<MeetingsApiResponse> {
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const protocol = headersList.get("x-forwarded-proto") ?? "http";
+
+  const res = await fetch(`${protocol}://${host}/api/meetings?pageSize=200`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    console.error("[Meetings] API error:", res.status);
+    return { data: [], pagination: { page: 1, pageSize: 200, total: 0, hasMore: false } };
+  }
+
+  return res.json();
+}
+
 export default async function MeetingsPage() {
-  const supabase = createServiceClient();
-
-  const [meetingsRes, actionsRes] = await Promise.all([
-    supabase
-      .from("meetings")
-      .select("*")
-      .order("meeting_date", { ascending: false }),
-    supabase
-      .from("meeting_actions")
-      .select("*")
-      .order("created_at", { ascending: true }),
-  ]);
-
-  if (meetingsRes.error) {
-    console.error("[Meetings] Query error:", meetingsRes.error.message);
-  }
-  if (actionsRes.error) {
-    console.error("[MeetingActions] Query error:", actionsRes.error.message);
-  }
-
-  const meetings = (meetingsRes.data ?? []) as Meeting[];
-  const actions = (actionsRes.data ?? []) as MeetingAction[];
-
-  // Group actions by meeting_id
-  const actionsByMeeting = new Map<string, MeetingAction[]>();
-  for (const action of actions) {
-    const existing = actionsByMeeting.get(action.meeting_id) ?? [];
-    existing.push(action);
-    actionsByMeeting.set(action.meeting_id, existing);
-  }
-
-  const meetingsWithActions = meetings.map((m) => ({
-    ...m,
-    actions: actionsByMeeting.get(m.id) ?? [],
-  }));
+  const { data: meetings } = await fetchMeetingsFromApi();
 
   // KPI computations
   const totalMeetings = meetings.length;
   const pendingReview = meetings.filter((m) => m.status === "pending_review").length;
   const reviewed = meetings.filter((m) => m.status === "reviewed").length;
-  const totalActions = actions.length;
-  const completedActions = actions.filter((a) => a.status === "completed").length;
+  const allActions = meetings.flatMap((m) => m.actions);
+  const totalActions = allActions.length;
+  const completedActions = allActions.filter((a) => a.status === "completed").length;
 
   return (
     <div className="space-y-6">
@@ -79,7 +71,7 @@ export default async function MeetingsPage() {
         </div>
       </div>
 
-      <MeetingsClient meetings={meetingsWithActions} />
+      <MeetingsClient meetings={meetings} />
     </div>
   );
 }
