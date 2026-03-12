@@ -9,5 +9,5 @@ export default function FinanceError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <DashboardError error={error} reset={reset} />;
+  return <DashboardError error={error} reset={reset} module="finance" />;
 }
