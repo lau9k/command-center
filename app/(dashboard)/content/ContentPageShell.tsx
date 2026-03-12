@@ -161,13 +161,11 @@ export function ContentPageShell() {
             </Link>
           </Button>
 
-          <Button
-            onClick={() => setFormOpen(true)}
-            size="sm"
-            className="gap-1.5"
-          >
-            <Plus className="size-4" />
-            New Post
+          <Button asChild size="sm" className="gap-1.5">
+            <Link href="/content/editor">
+              <Plus className="size-4" />
+              Create Post
+            </Link>
           </Button>
 
           {/* View toggle */}
