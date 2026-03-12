@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Plus,
@@ -49,20 +50,46 @@ interface ContactsClientProps {
   };
 }
 
+interface ContactsResponse {
+  data: Contact[];
+  pagination?: Pagination;
+}
+
+async function fetchContacts(page: number, tag?: string): Promise<ContactsResponse> {
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("pageSize", "50");
+  if (tag && tag !== "all") params.set("tag", tag);
+
+  const res = await fetch(`/api/contacts?${params}`);
+  if (!res.ok) throw new Error("Failed to fetch contacts");
+  return res.json();
+}
+
 export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+  const queryClient = useQueryClient();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [isSearching, setIsSearching] = useState(false);
   const [isSemanticSearch, setIsSemanticSearch] = useState(false);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [semanticResults, setSemanticResults] = useState<Contact[] | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Form drawer state
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+
+  const { data: contactsResponse } = useQuery({
+    queryKey: ["contacts", currentPage, tagFilter],
+    queryFn: () => fetchContacts(currentPage, tagFilter),
+    initialData: { data: initialContacts },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const contacts = isSemanticSearch && semanticResults ? semanticResults : (contactsResponse?.data ?? initialContacts);
+  const pagination = isSemanticSearch ? null : (contactsResponse?.pagination ?? null);
 
   const filteredContacts = useMemo(() => {
     // If we're using server-side search, return all contacts as-is
@@ -90,31 +117,10 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
     return result;
   }, [contacts, tagFilter, search, isSemanticSearch, pagination]);
 
-  const fetchContacts = useCallback(async (page = 1, tag?: string) => {
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("pageSize", "50");
-      if (tag && tag !== "all") params.set("tag", tag);
-
-      const res = await fetch(`/api/contacts?${params}`);
-      if (res.ok) {
-        const json = await res.json();
-        setContacts(json.data ?? []);
-        if (json.pagination) {
-          setPagination(json.pagination);
-        }
-        setCurrentPage(page);
-      }
-    } catch {
-      // silent refresh failure
-    }
-  }, []);
-
   const handleSemanticSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setIsSemanticSearch(false);
-      fetchContacts(1, tagFilter);
+      setSemanticResults(null);
       return;
     }
 
@@ -125,18 +131,19 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(query.trim())}`);
       if (res.ok) {
         const json = await res.json();
-        setContacts(json.data ?? []);
-        setPagination(null);
+        setSemanticResults(json.data ?? []);
       } else if (res.status === 503) {
         // Personize not configured, fall back to local filter
         setIsSemanticSearch(false);
+        setSemanticResults(null);
       }
     } catch {
       setIsSemanticSearch(false);
+      setSemanticResults(null);
     } finally {
       setIsSearching(false);
     }
-  }, [fetchContacts, tagFilter]);
+  }, []);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -153,15 +160,11 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         }, 500);
       } else if (!value.trim()) {
         setIsSemanticSearch(false);
-        fetchContacts(1, tagFilter);
+        setSemanticResults(null);
       }
     },
-    [handleSemanticSearch, fetchContacts, tagFilter]
+    [handleSemanticSearch]
   );
-
-  const refreshContacts = useCallback(async () => {
-    await fetchContacts(currentPage, tagFilter);
-  }, [fetchContacts, currentPage, tagFilter]);
 
   const handleCreateOrEdit = useCallback(
     async (data: ContactFormData, contactId?: string) => {
@@ -198,48 +201,62 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
           if (!res.ok) throw new Error("Failed to create contact");
           toast.success("Contact created");
         }
-        await refreshContacts();
+        await queryClient.invalidateQueries({ queryKey: ["contacts"] });
         setSelectedContact(null);
       } catch {
         toast.error("Failed to save \u2014 try again");
       }
     },
-    [contacts, refreshContacts]
+    [contacts, queryClient]
   );
 
   const handleContactUpdated = useCallback(
     (updated: Contact) => {
-      setContacts((prev) =>
-        prev.map((c) => (c.id === updated.id ? updated : c))
+      queryClient.setQueryData<ContactsResponse>(
+        ["contacts", currentPage, tagFilter],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.map((c) => (c.id === updated.id ? updated : c)),
+          };
+        }
       );
       setSelectedContact(updated);
     },
-    []
+    [queryClient, currentPage, tagFilter]
   );
 
   const handleContactDeleted = useCallback(
     (id: string) => {
-      setContacts((prev) => prev.filter((c) => c.id !== id));
+      queryClient.setQueryData<ContactsResponse>(
+        ["contacts", currentPage, tagFilter],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((c) => c.id !== id),
+          };
+        }
+      );
       setSelectedContact(null);
     },
-    []
+    [queryClient, currentPage, tagFilter]
   );
 
   const handlePageChange = useCallback(
     (newPage: number) => {
-      fetchContacts(newPage, tagFilter);
+      setCurrentPage(newPage);
     },
-    [fetchContacts, tagFilter]
+    []
   );
 
   const handleTagFilterChange = useCallback(
     (value: string) => {
       setTagFilter(value);
-      if (!isSemanticSearch) {
-        fetchContacts(1, value);
-      }
+      setCurrentPage(1);
     },
-    [fetchContacts, isSemanticSearch]
+    []
   );
 
   function openNewForm() {

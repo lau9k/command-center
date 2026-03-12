@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { format } from "date-fns";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { DollarSign, Building2, User, Calendar, FileText, ChevronRight } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
 import { sanitizeText } from "@/lib/sanitize";
@@ -33,6 +35,11 @@ interface PipelineBoardProps {
   items: PipelineItemData[];
 }
 
+interface PipelineData {
+  stages: PipelineStage[];
+  items: PipelineItemData[];
+}
+
 function parseDealValue(raw: unknown): number {
   if (typeof raw === "number") return raw;
   if (typeof raw === "string") {
@@ -47,6 +54,12 @@ function formatCurrency(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value.toLocaleString()}`;
+}
+
+async function fetchPipeline(): Promise<PipelineData> {
+  const res = await fetch("/api/pipeline");
+  if (!res.ok) throw new Error("Failed to fetch pipeline");
+  return res.json();
 }
 
 function DrawerContent({ item, stage }: { item: PipelineItemData; stage: PipelineStage | null }) {
@@ -163,8 +176,58 @@ function DrawerContent({ item, stage }: { item: PipelineItemData; stage: Pipelin
   );
 }
 
-export function PipelineBoard({ stages, items }: PipelineBoardProps) {
+export function PipelineBoard({ stages: initialStages, items: initialItems }: PipelineBoardProps) {
+  const queryClient = useQueryClient();
   const [selectedItem, setSelectedItem] = React.useState<PipelineItemData | null>(null);
+
+  const { data } = useQuery({
+    queryKey: ["pipeline"],
+    queryFn: fetchPipeline,
+    initialData: { stages: initialStages, items: initialItems },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const stages = data.stages;
+  const items = data.items;
+
+  const stageMutation = useMutation({
+    mutationFn: async ({ itemId, stageId }: { itemId: string; stageId: string }) => {
+      const res = await fetch("/api/pipeline", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: itemId, stage_id: stageId }),
+      });
+      if (!res.ok) throw new Error("Failed to update stage");
+    },
+    onMutate: async ({ itemId, stageId }) => {
+      await queryClient.cancelQueries({ queryKey: ["pipeline"] });
+      const previous = queryClient.getQueryData<PipelineData>(["pipeline"]);
+      queryClient.setQueryData<PipelineData>(["pipeline"], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((item) =>
+            item.id === itemId
+              ? { ...item, stage_id: stageId, updated_at: new Date().toISOString() }
+              : item
+          ),
+        };
+      });
+      return { previous };
+    },
+    onSuccess: () => {
+      toast.success("Deal moved");
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["pipeline"], context.previous);
+      }
+      toast.error("Failed to move deal — try again");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+    },
+  });
 
   const stageMap = React.useMemo(() => {
     const map = new Map<string, PipelineStage>();
@@ -204,6 +267,14 @@ export function PipelineBoard({ stages, items }: PipelineBoardProps) {
   );
 
   const selectedStage = selectedItem ? stageMap.get(selectedItem.stage_id) : null;
+
+  // Find next stage for the selected item (for "Move to next stage" action)
+  const nextStageForSelected = React.useMemo(() => {
+    if (!selectedItem) return null;
+    const currentStage = stageMap.get(selectedItem.stage_id);
+    if (!currentStage) return null;
+    return sortedStages.find((s) => s.sort_order > currentStage.sort_order) ?? null;
+  }, [selectedItem, stageMap, sortedStages]);
 
   return (
     <div className="space-y-6">
@@ -319,6 +390,23 @@ export function PipelineBoard({ stages, items }: PipelineBoardProps) {
         open={!!selectedItem}
         onClose={() => setSelectedItem(null)}
         title={selectedItem?.title ?? "Deal Details"}
+        footer={
+          selectedItem && nextStageForSelected ? (
+            <button
+              type="button"
+              onClick={() => {
+                stageMutation.mutate({
+                  itemId: selectedItem.id,
+                  stageId: nextStageForSelected.id,
+                });
+                setSelectedItem(null);
+              }}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Move to {nextStageForSelected.name}
+            </button>
+          ) : undefined
+        }
       >
         {selectedItem ? (
           <DrawerContent item={selectedItem} stage={selectedStage ?? null} />

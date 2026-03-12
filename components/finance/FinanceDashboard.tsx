@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   DollarSign,
   TrendingDown,
@@ -319,6 +320,29 @@ const DEBT_COLUMNS: ColumnDef<Debt>[] = [
 ];
 
 // --- Props ---
+interface FinanceData {
+  transactions: Transaction[];
+  debts: Debt[];
+  snapshots: BalanceSnapshot[];
+  reimbursementRequests: ReimbursementRequest[];
+}
+
+async function fetchFinanceData(): Promise<FinanceData> {
+  const [transactionsRes, debtsRes, snapshotsRes, reimbursementsRes] =
+    await Promise.all([
+      fetch("/api/finance/transactions").then((r) => r.json()),
+      fetch("/api/finance/debts").then((r) => r.json()),
+      fetch("/api/finance/balance-snapshots").then((r) => r.json()),
+      fetch("/api/finance/reimbursements").then((r) => r.json()),
+    ]);
+  return {
+    transactions: (transactionsRes.data ?? transactionsRes) as Transaction[],
+    debts: (debtsRes.data ?? debtsRes) as Debt[],
+    snapshots: (snapshotsRes.data ?? snapshotsRes) as BalanceSnapshot[],
+    reimbursementRequests: (reimbursementsRes.data ?? reimbursementsRes) as ReimbursementRequest[],
+  };
+}
+
 interface FinanceDashboardProps {
   transactions: Transaction[];
   debts: Debt[];
@@ -327,11 +351,28 @@ interface FinanceDashboardProps {
 }
 
 export function FinanceDashboard({
-  transactions,
-  debts,
-  snapshots,
-  reimbursementRequests = [],
+  transactions: initialTransactions,
+  debts: initialDebts,
+  snapshots: initialSnapshots,
+  reimbursementRequests: initialReimbursementRequests = [],
 }: FinanceDashboardProps) {
+  const { data: financeData } = useQuery({
+    queryKey: ["finance"],
+    queryFn: fetchFinanceData,
+    initialData: {
+      transactions: initialTransactions,
+      debts: initialDebts,
+      snapshots: initialSnapshots,
+      reimbursementRequests: initialReimbursementRequests,
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const transactions = financeData.transactions;
+  const debts = financeData.debts;
+  const snapshots = financeData.snapshots;
+  const reimbursementRequests = financeData.reimbursementRequests;
+
   const [walletView, setWalletView] = useState<WalletView>("overview");
   const [filterValues, setFilterValues] = useState<FilterValues>({
     category: [],

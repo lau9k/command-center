@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
-import { KPIStrip } from "@/components/dashboard/KPIStrip";
+import { HomeKPIClient } from "@/components/dashboard/HomeKPIClient";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
 import { ContentCalendarPreview } from "@/components/dashboard/ContentCalendarPreview";
 import {
@@ -309,25 +309,27 @@ export default async function DashboardPage() {
         pipelineCount={pipelineItemCount}
       />
 
-      {/* 3. KPI Strip */}
-      <KPIStrip
-        activeTasks={activeTasks}
-        activeProjectCount={activeProjectIds.size}
-        contentThisWeek={contentThisWeek}
-        contactsCount={totalContactsCount}
-        openInvoiceTotal={openInvoiceTotal}
-        memoryRecords={memoryRecords}
-        totalContentPosts={totalContentPosts}
-        contentDraftCount={contentDraftCount}
-        contentScheduledCount={contentScheduledCount}
-        contentPublishedCount={contentPublishedCount}
-        pipelineItemCount={pipelineItemCount}
-        pipelineTotalValue={pipelineTotalValue}
+      {/* 3. KPI Strip — auto-refreshes every 60s via React Query */}
+      <HomeKPIClient
+        initialData={{
+          activeTasks,
+          activeProjectCount: activeProjectIds.size,
+          contentThisWeek,
+          contactsCount: totalContactsCount,
+          openInvoiceTotal,
+          memoryRecords,
+          totalContentPosts,
+          contentDraftCount,
+          contentScheduledCount,
+          contentPublishedCount,
+          pipelineItemCount,
+          pipelineTotalValue,
+          sponsorsTotal,
+          sponsorsConfirmed,
+          sponsorsConfirmedRevenue,
+        }}
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
-        sponsorsTotal={sponsorsTotal}
-        sponsorsConfirmed={sponsorsConfirmed}
-        sponsorsConfirmedRevenue={sponsorsConfirmedRevenue}
       />
 
       {/* 4. Ranked Tasks */}

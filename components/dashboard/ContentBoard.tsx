@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
 import { StatusBadge, PlatformBadge, EmptyState, Drawer } from "@/components/ui";
@@ -42,8 +43,15 @@ interface ContentBoardProps {
   onPostsChange?: () => void;
 }
 
+async function fetchContentPosts(): Promise<ContentPost[]> {
+  const res = await fetch("/api/content-posts");
+  if (!res.ok) throw new Error("Failed to fetch content posts");
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps) {
-  const [posts, setPosts] = useState<ContentPost[]>(initialPosts);
+  const queryClient = useQueryClient();
   const [drawerPost, setDrawerPost] = useState<ContentPost | null>(null);
 
   // Edit form state
@@ -52,59 +60,81 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<ContentPost | null>(null);
-  const [deleting, setDeleting] = useState(false);
+
+  const { data: posts = initialPosts } = useQuery({
+    queryKey: ["content-posts"],
+    queryFn: fetchContentPosts,
+    initialData: initialPosts,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const columnPosts = (status: ContentPostStatus) =>
     posts.filter((p) => p.status === status);
 
-  const refreshPosts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/content-posts");
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(Array.isArray(data) ? data : []);
-        onPostsChange?.();
-      }
-    } catch {
-      // silent refresh failure
-    }
-  }, [onPostsChange]);
-
-  const updatePostStatus = useCallback(
-    async (id: string, status: ContentPostStatus) => {
-      setPosts((prev) =>
-        prev.map((p) =>
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: ContentPostStatus }) => {
+      const res = await fetch("/api/content-posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+    },
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["content-posts"] });
+      const previous = queryClient.getQueryData<ContentPost[]>(["content-posts"]);
+      queryClient.setQueryData<ContentPost[]>(["content-posts"], (old) =>
+        old?.map((p) =>
           p.id === id
             ? { ...p, status, updated_at: new Date().toISOString() }
             : p
         )
       );
-
-      try {
-        const res = await fetch("/api/content-posts", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, status }),
-        });
-        if (!res.ok) {
-          setPosts((prev) =>
-            prev.map((p) => {
-              const original = initialPosts.find((ip) => ip.id === p.id);
-              return p.id === id && original ? original : p;
-            })
-          );
-        }
-      } catch {
-        setPosts((prev) =>
-          prev.map((p) => {
-            const original = initialPosts.find((ip) => ip.id === p.id);
-            return p.id === id && original ? original : p;
-          })
-        );
-      }
+      return { previous };
     },
-    [initialPosts]
-  );
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["content-posts"], context.previous);
+      }
+      toast.error("Failed to update status — try again");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content-posts"] });
+      onPostsChange?.();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/content-posts?id=${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete post");
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["content-posts"] });
+      const previous = queryClient.getQueryData<ContentPost[]>(["content-posts"]);
+      queryClient.setQueryData<ContentPost[]>(["content-posts"], (old) =>
+        old?.filter((p) => p.id !== id)
+      );
+      return { previous };
+    },
+    onSuccess: () => {
+      toast.success("Post deleted");
+      setDeleteTarget(null);
+      setDrawerPost(null);
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["content-posts"], context.previous);
+      }
+      toast.error("Failed to delete — try again");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["content-posts"] });
+      onPostsChange?.();
+    },
+  });
 
   const handleEditSubmit = useCallback(
     async (data: ContentFormData, postId?: string) => {
@@ -145,33 +175,20 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
           if (!res.ok) throw new Error("Failed to create post");
           toast.success("Post created");
         }
-        await refreshPosts();
+        await queryClient.invalidateQueries({ queryKey: ["content-posts"] });
         setDrawerPost(null);
+        onPostsChange?.();
       } catch {
         toast.error("Failed to save — try again");
       }
     },
-    [refreshPosts]
+    [queryClient, onPostsChange]
   );
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/content-posts?id=${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete post");
-      toast.success("Post deleted");
-      setDeleteTarget(null);
-      setDrawerPost(null);
-      await refreshPosts();
-    } catch {
-      toast.error("Failed to delete — try again");
-    } finally {
-      setDeleting(false);
-    }
-  }, [deleteTarget, refreshPosts]);
+    deleteMutation.mutate(deleteTarget.id);
+  }, [deleteTarget, deleteMutation]);
 
   function openEditForm(post: ContentPost) {
     setEditingPost(post);
@@ -343,7 +360,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               <Button
                 onClick={() => {
                   if (drawerPost) {
-                    updatePostStatus(drawerPost.id, nextStatus);
+                    statusMutation.mutate({ id: drawerPost.id, status: nextStatus });
                     setDrawerPost(null);
                   }
                 }}
@@ -504,7 +521,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
         title="Delete Post"
         description={`Are you sure you want to delete "${deleteTarget?.title ?? "this post"}"? This cannot be undone.`}
         onConfirm={handleDelete}
-        loading={deleting}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Plus,
@@ -99,12 +100,27 @@ const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = 
   { label: "Done", value: "done" },
 ];
 
+async function fetchTasks(): Promise<TaskWithProject[]> {
+  const res = await fetch("/api/tasks");
+  if (!res.ok) throw new Error("Failed to fetch tasks");
+  const json = await res.json();
+  return (json.data as TaskWithProject[]) ?? [];
+}
+
 export function MasterTaskList({
   initialTasks,
   projects,
   kpis,
 }: MasterTaskListProps) {
-  const [tasks, setTasks] = useState<TaskWithProject[]>(initialTasks);
+  const queryClient = useQueryClient();
+
+  const { data: tasks = initialTasks } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: fetchTasks,
+    initialData: initialTasks,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
   const [quickAdding, setQuickAdding] = useState(false);
@@ -112,78 +128,81 @@ export function MasterTaskList({
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<TaskWithProject | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
 
-  const refreshTasks = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tasks");
-      if (res.ok) {
-        const json = await res.json();
-        setTasks((json.data as TaskWithProject[]) ?? []);
-      }
-    } catch {
-      // silent refresh failure
-    }
-  }, []);
-
-  const handleStatusChange = useCallback(
-    async (taskId: string, status: TaskStatus) => {
-      // Optimistic update
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status } : t))
-      );
-
-      try {
-        const res = await fetch(`/api/tasks/${taskId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        });
-        if (!res.ok) throw new Error("Failed to update");
-        toast.success(
-          status === "done" ? "Task completed" : "Task status updated"
-        );
-      } catch {
-        // Revert on error
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, status: t.status === status ? "todo" : t.status }
-              : t
-          )
-        );
-        toast.error("Failed to update status — try again");
-      }
-    },
-    []
-  );
-
-  const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-
-    // Optimistic delete
-    setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-
-    try {
-      const res = await fetch(`/api/tasks/${deleteTarget.id}`, {
-        method: "DELETE",
+  const statusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: TaskStatus }) => {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
       });
+      if (!res.ok) throw new Error("Failed to update");
+    },
+    onMutate: async ({ taskId, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks"] });
+      const previous = queryClient.getQueryData<TaskWithProject[]>(["tasks"]);
+      queryClient.setQueryData<TaskWithProject[]>(["tasks"], (old) =>
+        old?.map((t) => (t.id === taskId ? { ...t, status } : t))
+      );
+      return { previous };
+    },
+    onSuccess: (_data, { status }) => {
+      toast.success(status === "done" ? "Task completed" : "Task status updated");
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tasks"], context.previous);
+      }
+      toast.error("Failed to update status — try again");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
+    },
+    onMutate: async (taskId) => {
+      await queryClient.cancelQueries({ queryKey: ["tasks"] });
+      const previous = queryClient.getQueryData<TaskWithProject[]>(["tasks"]);
+      queryClient.setQueryData<TaskWithProject[]>(["tasks"], (old) =>
+        old?.filter((t) => t.id !== taskId)
+      );
+      return { previous };
+    },
+    onSuccess: () => {
       toast.success("Task deleted");
       setDeleteTarget(null);
-    } catch {
-      // Revert on error
-      setTasks((prev) => [...prev, deleteTarget]);
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tasks"], context.previous);
+      }
       toast.error("Failed to delete — try again");
-    } finally {
-      setDeleting(false);
-    }
-  }, [deleteTarget]);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
+  const handleStatusChange = useCallback(
+    (taskId: string, status: TaskStatus) => {
+      statusMutation.mutate({ taskId, status });
+    },
+    [statusMutation]
+  );
+
+  const handleDelete = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(deleteTarget.id);
+  }, [deleteTarget, deleteMutation]);
 
   const handleEdit = useCallback((task: TaskWithProject) => {
     setEditingTask(task);
@@ -221,14 +240,14 @@ export function MasterTaskList({
           toast.success("Task created");
         }
 
-        await refreshTasks();
+        await queryClient.invalidateQueries({ queryKey: ["tasks"] });
         setEditingTask(null);
       } catch {
         toast.error("Failed to save — try again");
         throw new Error("save failed");
       }
     },
-    [refreshTasks]
+    [queryClient]
   );
 
   const handleQuickAdd = useCallback(
@@ -246,7 +265,9 @@ export function MasterTaskList({
         });
         if (!res.ok) throw new Error("Failed to create task");
         const { data } = await res.json();
-        setTasks((prev) => [data, ...prev]);
+        queryClient.setQueryData<TaskWithProject[]>(["tasks"], (old) =>
+          old ? [data, ...old] : [data]
+        );
         toast.success("Task created");
       } catch {
         toast.error("Failed to create task — try again");
@@ -254,7 +275,7 @@ export function MasterTaskList({
         setQuickAdding(false);
       }
     },
-    []
+    [queryClient]
   );
 
   function handleOpenCreate() {
@@ -296,6 +317,10 @@ export function MasterTaskList({
     filterProject !== ALL_VALUE ||
     filterPriority !== ALL_VALUE ||
     filterStatus !== ALL_VALUE;
+
+  const refreshTasks = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }, [queryClient]);
 
   return (
     <div className="space-y-4">
@@ -492,7 +517,7 @@ export function MasterTaskList({
             : undefined
         }
         onConfirm={handleDelete}
-        loading={deleting}
+        loading={deleteMutation.isPending}
       />
 
       <BulkActionBar
