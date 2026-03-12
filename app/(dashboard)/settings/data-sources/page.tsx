@@ -1,8 +1,10 @@
 import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
 import { PlaidConnect } from "@/components/settings/plaid-connect";
+import { GmailConnect } from "@/components/settings/gmail-connect";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Suspense } from "react";
 
 export const revalidate = 3600;
 
@@ -44,6 +46,11 @@ export default function DataSourcesPage() {
             Connect bank accounts to automatically sync transactions
           </p>
           <PlaidConnect />
+            Gmail
+          </h3>
+          <Suspense>
+            <GmailConnect />
+          </Suspense>
         </div>
 
         <div className="border-t border-border pt-4">

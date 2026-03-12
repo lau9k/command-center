@@ -2,49 +2,77 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 
-const ENTITY_TYPES = ["contact", "task", "conversation", "transaction"] as const;
+const TABLE_MAP = {
+  contacts: "contacts",
+  tasks: "tasks",
+  conversations: "conversations",
+  transactions: "transactions",
+} as const;
+
+type TableKey = keyof typeof TABLE_MAP;
 
 export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
   const now = new Date();
-  const twentyFourHoursAgo = new Date(
-    now.getTime() - 24 * 60 * 60 * 1000
-  ).toISOString();
 
-  // Fetch last successful ingestion per entity type
-  const lastIngestions = await Promise.all(
-    ENTITY_TYPES.map(async (entityType) => {
-      const { data } = await supabase
-        .from("activity_log")
-        .select("created_at")
-        .eq("action", "ingested")
-        .eq("entity_type", entityType)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+  // Query actual entity tables for last-ingested timestamps and row counts
+  const tableStats = await Promise.all(
+    (Object.keys(TABLE_MAP) as TableKey[]).map(async (key) => {
+      const table = TABLE_MAP[key];
+
+      const [lastRow, countResult] = await Promise.all([
+        supabase
+          .from(table)
+          .select("created_at")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from(table)
+          .select("*", { count: "exact", head: true }),
+      ]);
 
       return {
-        entity_type: entityType,
-        last_ingested_at: data?.created_at ?? null,
+        table: key,
+        last_ingested_at: lastRow.data?.created_at ?? null,
+        row_count: countResult.count ?? 0,
       };
     })
   );
 
-  // Count errors in last 24h (activity_log entries with action containing error context)
-  const { count: errorCount } = await supabase
-    .from("activity_log")
-    .select("*", { count: "exact", head: true })
-    .eq("action", "ingested")
-    .gte("created_at", twentyFourHoursAgo)
-    .not("metadata->>error", "is", null);
+  // Fetch last sync_log entry per source
+  const { data: syncLogs } = await supabase
+    .from("sync_log")
+    .select("source, status, started_at, completed_at")
+    .order("started_at", { ascending: false });
+
+  // Deduplicate to latest per source
+  const latestSyncBySource: Record<
+    string,
+    { status: string; started_at: string; completed_at: string | null }
+  > = {};
+  if (syncLogs) {
+    for (const log of syncLogs) {
+      if (!latestSyncBySource[log.source]) {
+        latestSyncBySource[log.source] = {
+          status: log.status,
+          started_at: log.started_at,
+          completed_at: log.completed_at,
+        };
+      }
+    }
+  }
 
   return NextResponse.json({
     success: true,
     data: {
-      endpoints: Object.fromEntries(
-        lastIngestions.map((e) => [e.entity_type, e.last_ingested_at])
+      tables: Object.fromEntries(
+        tableStats.map((s) => [
+          s.table,
+          { last_ingested_at: s.last_ingested_at, row_count: s.row_count },
+        ])
       ),
-      errors_24h: errorCount ?? 0,
+      sync_log: latestSyncBySource,
       checked_at: now.toISOString(),
     },
   });
