@@ -26,12 +26,15 @@ import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskForm } from "./TaskForm";
 import type { TaskFormData } from "./TaskForm";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
+import { BulkActionBar } from "@/components/tasks/BulkActionBar";
+import { useTaskSelection } from "@/hooks/useTaskSelection";
 import type {
   TaskWithProject,
   TaskStatus,
   TaskPriority,
 } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -259,6 +262,21 @@ export function MasterTaskList({
     setFormOpen(true);
   }
 
+  const visibleIds = tasks
+    .filter((t) => {
+      if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
+      if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
+      if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!t.title.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .map((t) => t.id);
+
+  const selection = useTaskSelection(visibleIds);
+
   const filtered = tasks.filter((t) => {
     if (filterProject !== ALL_VALUE && t.project_id !== filterProject)
       return false;
@@ -416,14 +434,37 @@ export function MasterTaskList({
         />
       ) : (
         <div className="space-y-2">
-          {sorted.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onStatusChange={handleStatusChange}
-              onEdit={handleEdit}
-              onDelete={setDeleteTarget}
+          {/* Select all header */}
+          <div className="flex items-center gap-3 px-4 py-1.5">
+            <Checkbox
+              checked={selection.allSelected ? true : selection.someSelected ? "indeterminate" : false}
+              onCheckedChange={() => selection.toggleAll()}
+              aria-label="Select all visible tasks"
             />
+            <span className="text-xs text-muted-foreground">
+              {selection.count > 0
+                ? `${selection.count} selected`
+                : "Select all"}
+            </span>
+          </div>
+          {sorted.map((task) => (
+            <div key={task.id} className="flex items-center gap-0">
+              <div className="flex shrink-0 items-center pl-4">
+                <Checkbox
+                  checked={selection.selectedIds.has(task.id)}
+                  onCheckedChange={() => selection.toggle(task.id)}
+                  aria-label={`Select "${task.title}"`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TaskCard
+                  task={task}
+                  onStatusChange={handleStatusChange}
+                  onEdit={handleEdit}
+                  onDelete={setDeleteTarget}
+                />
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -452,6 +493,12 @@ export function MasterTaskList({
         }
         onConfirm={handleDelete}
         loading={deleting}
+      />
+
+      <BulkActionBar
+        selectedIds={selection.selectedIds}
+        onClear={selection.clear}
+        onBulkUpdate={refreshTasks}
       />
     </div>
   );
