@@ -30,13 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle, ListTodo } from "lucide-react";
+import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle, ListTodo, Ban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const statusConfig: Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" }> = {
   todo: { label: "To Do", icon: Circle, variant: "outline" },
   in_progress: { label: "In Progress", icon: Clock, variant: "secondary" },
   done: { label: "Done", icon: CheckCircle2, variant: "default" },
+  blocked: { label: "Blocked", icon: Ban, variant: "secondary" },
 };
 
 type TaskFormData = {

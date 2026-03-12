@@ -42,8 +42,8 @@ const TIER_COLORS: Record<string, string> = {
   title: "#6366f1",
 };
 
-function formatLabel(s: string): string {
-  return s
+function formatLabel(s: unknown): string {
+  return String(s)
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -150,8 +150,8 @@ export default function AnalyticsPage() {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                label={({ status, count }) =>
-                  `${formatLabel(status)}: ${count}`
+                label={({ name, value }) =>
+                  `${formatLabel(name)}: ${value}`
                 }
               >
                 {data.sponsorsByStatus.map((_, i) => (
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                 }}
-                formatter={(value: number) => [value, "Count"]}
+                formatter={(value) => [value, "Count"]}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -215,8 +215,8 @@ export default function AnalyticsPage() {
                 cx="50%"
                 cy="50%"
                 outerRadius={90}
-                label={({ status, count }) =>
-                  `${formatLabel(status)}: ${count}`
+                label={({ name, value }) =>
+                  `${formatLabel(name)}: ${value}`
                 }
               >
                 {data.tasksByStatus.map((_, i) => (
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: 8,
                 }}
-                formatter={(value: number) => [value, "Count"]}
+                formatter={(value) => [value, "Count"]}
               />
             </PieChart>
           </ResponsiveContainer>
