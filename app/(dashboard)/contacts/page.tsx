@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
 import { searchContacts } from "@/lib/personize/actions";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -62,14 +64,15 @@ export default async function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Contacts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {personizeAvailable
+      <PageHeader
+        title="Contacts"
+        description={
+          personizeAvailable
             ? "Live contacts from your LinkedIn network via Personize"
-            : "Manage contacts with Personize memory integration"}
-        </p>
-      </div>
+            : "Manage contacts with Personize memory integration"
+        }
+        actions={<ExportButton table="contacts" />}
+      />
 
       <ContactsClient
         initialContacts={contacts}

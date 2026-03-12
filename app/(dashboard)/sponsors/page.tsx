@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { SponsorsBoard } from "@/components/sponsors/SponsorsBoard";
 import { SponsorSubNav } from "@/components/sponsors/SponsorSubNav";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +16,16 @@ export default async function SponsorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Sponsors</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Track sponsor outreach and manage sponsorship pipeline
-          </p>
-        </div>
-        <SponsorSubNav />
-      </div>
+      <PageHeader
+        title="Sponsors"
+        description="Track sponsor outreach and manage sponsorship pipeline"
+        actions={
+          <>
+            <ExportButton table="sponsors" />
+            <SponsorSubNav />
+          </>
+        }
+      />
       <SponsorsBoard sponsors={sponsors ?? []} />
     </div>
   );
