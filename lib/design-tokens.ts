@@ -139,6 +139,11 @@ export const statusBadgeClass: Record<string, string> = {
   completed: "bg-[#3B82F6]/20 text-[#3B82F6]",
   archived: "bg-[#6B7280]/20 text-[#6B7280]",
   backburner: "bg-[#6B7280]/20 text-[#6B7280]",
+  // Event statuses
+  planning: "bg-[#EAB308]/20 text-[#EAB308]",
+  confirmed: "bg-[#22C55E]/20 text-[#22C55E]",
+  in_progress: "bg-[#3B82F6]/20 text-[#3B82F6]",
+  cancelled: "bg-[#EF4444]/20 text-[#EF4444]",
   // Content post statuses
   draft: "bg-[#666666]/20 text-muted-foreground",
   ready: "bg-[#EAB308]/20 text-[#EAB308]",

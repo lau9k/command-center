@@ -1,3 +1,19 @@
+export type EventStatus = "planning" | "confirmed" | "in_progress" | "completed" | "cancelled";
+
+export interface Event {
+  id: string;
+  user_id: string | null;
+  project_id: string | null;
+  name: string;
+  date: string | null;
+  location: string | null;
+  status: EventStatus;
+  budget_target: number;
+  participant_target: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type SponsorTier = "bronze" | "silver" | "gold" | "platinum" | "title";
 export type SponsorStatus = "not_contacted" | "contacted" | "negotiating" | "confirmed" | "declined";
 
@@ -13,6 +29,7 @@ export interface Sponsor {
   amount: number;
   currency: string;
   notes: string | null;
+  event_id: string | null;
   created_at: string;
   updated_at: string;
 }
