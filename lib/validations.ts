@@ -366,6 +366,18 @@ export const ingestTransactionSchema = z.object({
   project_id: z.string().uuid().optional().nullable(),
 });
 
+// ── Notifications ────────────────────────────────────────
+
+export const createNotificationSchema = z.object({
+  user_id: z.string().uuid(),
+  title: z.string().min(1).max(500),
+  body: z.string().max(5000).optional().nullable(),
+  type: z.enum(["task", "alert", "info", "signal"]),
+  project_id: z.string().uuid().optional().nullable(),
+  source: z.string().max(200).optional().nullable(),
+  action_url: z.string().max(2000).optional().nullable(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
