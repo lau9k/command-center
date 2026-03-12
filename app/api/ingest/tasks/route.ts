@@ -3,10 +3,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSecret } from "@/lib/webhook-auth";
-import { scoreTask } from "@/lib/task-scoring";
-import type { Task } from "@/lib/types/database";
 import { logActivity } from "@/lib/activity-logger";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import type { Task } from "@/lib/types/database";
+import { scoreTask } from "@/lib/task-scoring";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
