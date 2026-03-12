@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -21,10 +21,8 @@ import {
   Trash2,
   Archive,
   Tag,
-  Sparkles,
-  Loader2,
 } from "lucide-react";
-import { PersonizeMemories } from "@/components/dashboard/PersonizeMemories";
+import { ContactEnrichmentPanel } from "@/components/contacts/ContactEnrichmentPanel";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { InlineEditField } from "@/components/contacts/InlineEditField";
 import {
@@ -64,45 +62,6 @@ export function ContactDetailPanel({
   const [notes, setNotes] = useState<
     { id: string; text: string; timestamp: string }[]
   >([]);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-
-  // Fetch AI summary from smartDigest for Personize contacts
-  useEffect(() => {
-    if (!contact || !open) {
-      setAiSummary(null);
-      return;
-    }
-
-    const isPersonizeContact =
-      contact.record_id || contact.id.startsWith("REC#") || contact.id.length > 36;
-    if (!isPersonizeContact) return;
-
-    let cancelled = false;
-    setSummaryLoading(true);
-    setAiSummary(null);
-
-    fetch(`/api/contacts/${encodeURIComponent(contact.id)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch");
-        return res.json();
-      })
-      .then((json: { summary?: string }) => {
-        if (!cancelled && json.summary) {
-          setAiSummary(json.summary);
-        }
-      })
-      .catch(() => {
-        // Silent failure — summary is supplementary
-      })
-      .finally(() => {
-        if (!cancelled) setSummaryLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [contact?.id, open, contact]);
 
   // Build activity events from contact data + local notes
   const activityEvents: ActivityEvent[] = useMemo(() => {
@@ -323,30 +282,6 @@ export function ContactDetailPanel({
               </CardContent>
             </Card>
 
-            {/* AI Summary (Personize smartDigest) */}
-            {(summaryLoading || aiSummary) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-1.5 text-sm">
-                    <Sparkles className="size-3.5 text-purple-500" />
-                    AI Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {summaryLoading ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="size-3.5 animate-spin" />
-                      Generating summary...
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground leading-relaxed">
-                      {aiSummary}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
             {/* Tags */}
             <Card>
               <CardHeader>
@@ -384,10 +319,11 @@ export function ContactDetailPanel({
 
             <Separator />
 
-            {/* Personize Memories */}
-            <PersonizeMemories
+            {/* Contact Enrichment — Personize recall + digest */}
+            <ContactEnrichmentPanel
               contactId={contact.id}
-              contactEmail={contact.email}
+              contactName={contact.name}
+              contactEmail={contact.email ?? null}
               open={open}
             />
 
