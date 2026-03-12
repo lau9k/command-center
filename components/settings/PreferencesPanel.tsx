@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SettingsThemeToggle } from "@/app/(dashboard)/settings/SettingsThemeToggle";
+import { Switch } from "@/components/ui/switch";
+import { ThemeToggle } from "@/components/settings/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Save, Loader2 } from "lucide-react";
@@ -24,13 +25,27 @@ interface PreferencesPanelProps {
   userId: string | null;
 }
 
+const VIEW_OPTIONS = [
+  { value: "dashboard", label: "Dashboard" },
+  { value: "pipeline", label: "Pipeline" },
+  { value: "tasks", label: "Tasks" },
+  { value: "contacts", label: "Contacts" },
+  { value: "content", label: "Content" },
+  { value: "community", label: "Community" },
+  { value: "finance", label: "Finance" },
+];
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
 export function PreferencesPanel({ userId }: PreferencesPanelProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [defaultProjectFilter, setDefaultProjectFilter] = useState<string>("all");
+  const [defaultView, setDefaultView] = useState<string>("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(25);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  // Load projects and current preferences
   useEffect(() => {
     async function load() {
       try {
@@ -42,7 +57,7 @@ export function PreferencesPanel({ userId }: PreferencesPanelProps) {
             .select("id, name")
             .order("name", { ascending: true }),
           userId
-            ? fetch(`/api/settings?user_id=${userId}`)
+            ? fetch(`/api/settings/preferences?user_id=${userId}`)
             : null,
         ]);
 
@@ -52,12 +67,23 @@ export function PreferencesPanel({ userId }: PreferencesPanelProps) {
 
         if (prefsRes?.ok) {
           const { data } = await prefsRes.json();
-          if (data?.default_project_filter) {
-            setDefaultProjectFilter(data.default_project_filter);
+          if (data) {
+            if (data.default_project_filter) {
+              setDefaultProjectFilter(data.default_project_filter);
+            }
+            if (data.default_view) {
+              setDefaultView(data.default_view);
+            }
+            if (typeof data.sidebar_collapsed === "boolean") {
+              setSidebarCollapsed(data.sidebar_collapsed);
+            }
+            if (data.items_per_page) {
+              setItemsPerPage(data.items_per_page);
+            }
           }
         }
       } catch {
-        // Silently fail — defaults are fine
+        // Defaults are fine
       } finally {
         setLoaded(true);
       }
@@ -73,13 +99,14 @@ export function PreferencesPanel({ userId }: PreferencesPanelProps) {
 
     setSaving(true);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await fetch("/api/settings/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          default_project_filter:
-            defaultProjectFilter === "all" ? null : defaultProjectFilter,
+          default_view: defaultView,
+          sidebar_collapsed: sidebarCollapsed,
+          items_per_page: itemsPerPage,
         }),
       });
 
@@ -96,44 +123,128 @@ export function PreferencesPanel({ userId }: PreferencesPanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [userId, defaultProjectFilter]);
+  }, [userId, defaultView, sidebarCollapsed, itemsPerPage]);
 
   return (
-    <div className="space-y-6">
-      {/* Theme */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-8">
+      {/* Appearance Section */}
+      <div className="space-y-4">
         <div>
-          <p className="text-sm font-medium text-foreground">Theme</p>
-          <p className="text-sm text-muted-foreground">
-            Switch between dark and light mode
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            Appearance
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Customize the look and feel of your dashboard
           </p>
         </div>
-        <SettingsThemeToggle />
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Theme</p>
+            <p className="text-sm text-muted-foreground">
+              Choose light, dark, or follow your system preference
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Collapsed Sidebar
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Start with the sidebar collapsed by default
+            </p>
+          </div>
+          <Switch
+            checked={sidebarCollapsed}
+            onCheckedChange={setSidebarCollapsed}
+            disabled={!loaded}
+          />
+        </div>
       </div>
 
-      {/* Default Project Filter */}
-      <div className="space-y-2">
-        <Label htmlFor="default-project">Default Project Filter</Label>
-        <Select
-          value={defaultProjectFilter}
-          onValueChange={setDefaultProjectFilter}
-          disabled={!loaded}
-        >
-          <SelectTrigger className="w-full sm:max-w-xs" id="default-project">
-            <SelectValue placeholder="Select a project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((project) => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="text-xs text-muted-foreground">
-          Choose which project to show by default across dashboard views
-        </p>
+      <div className="border-t border-border" />
+
+      {/* Defaults Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+            Defaults
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Set default behaviors across the dashboard
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="default-view">Default View</Label>
+          <Select
+            value={defaultView}
+            onValueChange={setDefaultView}
+            disabled={!loaded}
+          >
+            <SelectTrigger className="w-full sm:max-w-xs" id="default-view">
+              <SelectValue placeholder="Select a view" />
+            </SelectTrigger>
+            <SelectContent>
+              {VIEW_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            The page shown when you first open the dashboard
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="default-project">Default Project Filter</Label>
+          <Select
+            value={defaultProjectFilter}
+            onValueChange={setDefaultProjectFilter}
+            disabled={!loaded}
+          >
+            <SelectTrigger className="w-full sm:max-w-xs" id="default-project">
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Choose which project to show by default across dashboard views
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="items-per-page">Items Per Page</Label>
+          <Select
+            value={String(itemsPerPage)}
+            onValueChange={(v) => setItemsPerPage(Number(v))}
+            disabled={!loaded}
+          >
+            <SelectTrigger className="w-full sm:max-w-xs" id="items-per-page">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ITEMS_PER_PAGE_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} items
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Number of rows shown in table views
+          </p>
+        </div>
       </div>
 
       <Button onClick={handleSave} disabled={saving || !userId} className="gap-2">
