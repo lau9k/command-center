@@ -18,7 +18,7 @@ export interface Sponsor {
 }
 
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
 export type ContactStatus = "active" | "inactive" | "lead" | "customer";
 export type ContactSource = "manual" | "referral" | "website" | "linkedin" | "other";
@@ -50,6 +50,7 @@ export interface Task {
   priority: TaskPriority;
   due_date: string | null;
   assignee: string | null;
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
 }
