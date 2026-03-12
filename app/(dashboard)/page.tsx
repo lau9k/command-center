@@ -2,13 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
-import { KPIStrip } from "@/components/dashboard/KPIStrip";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
 import { ContentCalendarPreview } from "@/components/dashboard/ContentCalendarPreview";
-import {
-  RecentActivityFeed,
-  type ActivityItem,
-} from "@/components/dashboard/RecentActivityFeed";
 import { ModuleHealthOverview } from "@/components/dashboard/ModuleHealthOverview";
 import { MemoryFlushCard } from "@/components/dashboard/MemoryFlushCard";
 import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
@@ -16,7 +11,12 @@ import { GitHubActivityCard } from "@/components/dashboard/GitHubActivityCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import { MeetingNotificationList } from "@/components/meetings/meeting-notification";
 import { RankedTaskList } from "@/components/tasks/ranked-task-list";
+import { KPIStripLive } from "@/components/home/KPIStripLive";
+import { LiveActivityStream } from "@/components/home/LiveActivityStream";
+import { UpcomingItemsPanel } from "@/components/home/UpcomingItemsPanel";
+import { QuickActionsBar } from "@/components/home/QuickActionsBar";
 import { scoreTask } from "@/lib/task-scoring";
+import type { HomeStatsResponse } from "@/app/api/home-stats/route";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -29,13 +29,17 @@ export default async function DashboardPage() {
   const yesterday = getYesterdayISO();
   const serviceClient = createServiceClient();
 
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
   // Parallel data fetching for all KPI + section data
   const [
     tasksRes,
     projectsRes,
     contentRes,
     allContentRes,
-    contactsRes,
     contactsCountRes,
     invoicesRes,
     memoryRes,
@@ -46,6 +50,12 @@ export default async function DashboardPage() {
     yesterdayStatsRes,
     sponsorsCountRes,
     sponsorsConfirmedRes,
+    activityLogRes,
+    overdueTasksRes,
+    tasksCompletedTodayRes,
+    newContactsThisWeekRes,
+    upcomingMeetingsRes,
+    scheduledContentRes,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -65,7 +75,6 @@ export default async function DashboardPage() {
       .select("id, status, scheduled_at, scheduled_for, platforms, platform, project_id, title, caption")
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .returns<ContentPost[]>(),
-    serviceClient.from("contacts").select("id, project_id, name, updated_at, projects(id, name, color)").order("updated_at", { ascending: false }),
     serviceClient.from("contacts").select("id", { count: "exact", head: true }),
     serviceClient
       .from("invoices")
@@ -101,6 +110,46 @@ export default async function DashboardPage() {
         .select("amount")
         .eq("status", "confirmed"),
     ).catch(() => ({ data: [] as { amount: number | null }[], error: null })),
+    // Activity log (last 15 entries)
+    serviceClient
+      .from("activity_log")
+      .select("id, action, entity_type, entity_id, entity_name, source, metadata, created_at")
+      .order("created_at", { ascending: false })
+      .limit(15),
+    // Overdue tasks
+    serviceClient
+      .from("tasks")
+      .select("id, title, due_date, priority")
+      .neq("status", "done")
+      .lt("due_date", todayStart)
+      .order("due_date", { ascending: true })
+      .limit(5),
+    // Tasks completed today count
+    serviceClient
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "done")
+      .gte("updated_at", todayStart),
+    // New contacts this week count
+    serviceClient
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", weekAgo),
+    // Upcoming meetings (next 3)
+    serviceClient
+      .from("meetings")
+      .select("id, title, meeting_date")
+      .gte("meeting_date", now.toISOString())
+      .order("meeting_date", { ascending: true })
+      .limit(3),
+    // Scheduled content (next 3)
+    serviceClient
+      .from("content_posts")
+      .select("id, title, scheduled_for, platform")
+      .eq("status", "scheduled")
+      .gte("scheduled_for", now.toISOString())
+      .order("scheduled_for", { ascending: true })
+      .limit(3),
   ]);
 
   // Log query errors server-side for debugging KPI issues
@@ -109,15 +158,20 @@ export default async function DashboardPage() {
     { name: "projects", error: projectsRes.error },
     { name: "content_posts", error: contentRes.error },
     { name: "all_content", error: allContentRes.error },
-    { name: "contacts", error: contactsRes.error },
-    { name: "contacts_count", error: contactsCountRes.error, count: contactsCountRes.count },
+    { name: "contacts_count", error: contactsCountRes.error },
     { name: "invoices", error: invoicesRes.error },
     { name: "memory_stats", error: memoryRes.error },
-    { name: "pipeline_count", error: pipelineCountRes.error, count: pipelineCountRes.count },
+    { name: "pipeline_count", error: pipelineCountRes.error },
     { name: "pipeline_value", error: pipelineValueRes.error },
     { name: "pending_meetings", error: pendingMeetingsRes.error },
     { name: "sponsors_count", error: sponsorsCountRes.error },
     { name: "sponsors_confirmed", error: sponsorsConfirmedRes.error },
+    { name: "activity_log", error: activityLogRes.error },
+    { name: "overdue_tasks", error: overdueTasksRes.error },
+    { name: "tasks_completed_today", error: tasksCompletedTodayRes.error },
+    { name: "new_contacts_week", error: newContactsThisWeekRes.error },
+    { name: "upcoming_meetings", error: upcomingMeetingsRes.error },
+    { name: "scheduled_content", error: scheduledContentRes.error },
   ];
 
   for (const q of queryResults) {
@@ -128,9 +182,7 @@ export default async function DashboardPage() {
 
   const tasks = tasksRes.data ?? [];
   const projects = projectsRes.data ?? [];
-  const contentPosts = contentRes.data ?? [];
   const allContent = (allContentRes.data ?? []) as ContentPost[];
-  const contacts = contactsRes.data ?? [];
   const totalContactsCount = contactsCountRes.count ?? 0;
   const invoices = invoicesRes.data ?? [];
   const memoryStats = memoryRes.data ?? [];
@@ -149,7 +201,7 @@ export default async function DashboardPage() {
     0,
   );
 
-  // Community growth delta: compare live count to yesterday's cached value
+  // Community growth delta
   const yesterdayMemberCount = yesterdayStatsRes.data?.member_count ?? null;
   const communityDelta =
     yesterdayMemberCount !== null && yesterdayMemberCount > 0 && communityMemberCount > 0
@@ -164,15 +216,12 @@ export default async function DashboardPage() {
     tasks.filter((t) => t.status !== "done").map((t) => t.project_id).filter(Boolean)
   );
 
-  const now = new Date();
-  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const contentThisWeek = contentPosts.filter((p) => {
+  const contentThisWeek = allContent.filter((p) => {
     if (!p.scheduled_for) return false;
     const d = new Date(p.scheduled_for);
     return d >= now && d <= weekFromNow;
   }).length;
 
-  // Content status breakdown
   const totalContentPosts = allContent.length;
   const contentDraftCount = allContent.filter((p) => p.status === "draft").length;
   const contentScheduledCount = allContent.filter((p) => p.status === "scheduled").length;
@@ -187,6 +236,28 @@ export default async function DashboardPage() {
     (sum, s) => sum + (s.count ?? 0),
     0
   );
+
+  // Build initial stats for KPIStripLive
+  const initialStats: HomeStatsResponse = {
+    activeTasks,
+    activeProjectCount: activeProjectIds.size,
+    totalContentPosts,
+    contentDraftCount,
+    contentScheduledCount,
+    contentPublishedCount,
+    contentThisWeek,
+    contactsCount: totalContactsCount,
+    pipelineItemCount,
+    pipelineTotalValue,
+    openInvoiceTotal,
+    memoryRecords,
+    sponsorsTotal,
+    sponsorsConfirmed,
+    sponsorsConfirmedRevenue,
+    overdueTasks: overdueTasksRes.error ? 0 : (overdueTasksRes.data?.length ?? 0),
+    tasksCompletedToday: tasksCompletedTodayRes.count ?? 0,
+    newContactsThisWeek: newContactsThisWeekRes.count ?? 0,
+  };
 
   // --- Ranked tasks (priority engine) ---
   const openTasks = (tasks as unknown as TaskWithProject[]).filter((t) => t.status !== "done");
@@ -227,60 +298,13 @@ export default async function DashboardPage() {
     };
   });
 
-  // --- Recent activity feed (last 10 items across tasks/content/contacts) ---
-  type ProjectRef = { name: string; color: string | null };
-  function extractProject(raw: unknown): ProjectRef | null {
-    if (!raw) return null;
-    const obj = (Array.isArray(raw) ? raw[0] : raw) as ProjectRef | undefined;
-    return obj ?? null;
-  }
+  // Activity log entries
+  const activityLogEntries = activityLogRes.data ?? [];
 
-  const activityItems: ActivityItem[] = [];
-
-  for (const t of tasks.slice(0, 10)) {
-    const proj = extractProject(t.projects);
-    activityItems.push({
-      id: t.id,
-      type: "task",
-      title: t.title,
-      projectName: proj?.name ?? null,
-      projectColor: proj?.color ?? null,
-      updatedAt: t.updated_at,
-      href: `/tasks`,
-    });
-  }
-
-  for (const c of contentPosts.slice(0, 10)) {
-    const proj = extractProject(c.projects);
-    activityItems.push({
-      id: c.id,
-      type: "content",
-      title: c.title ?? "Untitled post",
-      projectName: proj?.name ?? null,
-      projectColor: proj?.color ?? null,
-      updatedAt: c.updated_at,
-      href: `/content`,
-    });
-  }
-
-  for (const ct of contacts.slice(0, 10)) {
-    const proj = extractProject(ct.projects);
-    activityItems.push({
-      id: ct.id,
-      type: "contact",
-      title: ct.name,
-      projectName: proj?.name ?? null,
-      projectColor: proj?.color ?? null,
-      updatedAt: ct.updated_at,
-      href: `/contacts`,
-    });
-  }
-
-  // Sort all by updated_at desc, take top 10
-  activityItems.sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-  const recentActivity = activityItems.slice(0, 10);
+  // Upcoming items
+  const overdueTasks = (overdueTasksRes.data ?? []) as { id: string; title: string; due_date: string; priority: string }[];
+  const upcomingMeetings = (upcomingMeetingsRes.data ?? []) as { id: string; title: string; meeting_date: string | null }[];
+  const scheduledContent = (scheduledContentRes.data ?? []) as { id: string; title: string | null; scheduled_for: string | null; platform: string | null }[];
 
   return (
     <div className="space-y-6">
@@ -298,10 +322,13 @@ export default async function DashboardPage() {
         <SessionPromptButton />
       </div>
 
-      {/* 2. Post-Meeting Notifications */}
+      {/* 2. Quick Actions */}
+      <QuickActionsBar />
+
+      {/* 3. Post-Meeting Notifications */}
       <MeetingNotificationList meetings={pendingMeetings} />
 
-      {/* 3. Module Health Overview */}
+      {/* 4. Module Health Overview */}
       <ModuleHealthOverview
         contactsCount={totalContactsCount}
         tasksCount={tasks.length}
@@ -309,46 +336,39 @@ export default async function DashboardPage() {
         pipelineCount={pipelineItemCount}
       />
 
-      {/* 3. KPI Strip */}
-      <KPIStrip
-        activeTasks={activeTasks}
-        activeProjectCount={activeProjectIds.size}
-        contentThisWeek={contentThisWeek}
-        contactsCount={totalContactsCount}
-        openInvoiceTotal={openInvoiceTotal}
-        memoryRecords={memoryRecords}
-        totalContentPosts={totalContentPosts}
-        contentDraftCount={contentDraftCount}
-        contentScheduledCount={contentScheduledCount}
-        contentPublishedCount={contentPublishedCount}
-        pipelineItemCount={pipelineItemCount}
-        pipelineTotalValue={pipelineTotalValue}
+      {/* 5. Live KPI Strip (auto-refresh 60s) */}
+      <KPIStripLive
+        initial={initialStats}
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
-        sponsorsTotal={sponsorsTotal}
-        sponsorsConfirmed={sponsorsConfirmed}
-        sponsorsConfirmedRevenue={sponsorsConfirmedRevenue}
       />
 
-      {/* 4. Ranked Tasks */}
+      {/* 6. Upcoming Items Panel */}
+      <UpcomingItemsPanel
+        meetings={upcomingMeetings}
+        overdueTasks={overdueTasks}
+        scheduledContent={scheduledContent}
+      />
+
+      {/* 7. Ranked Tasks */}
       <RankedTaskList initial={rankedTasks} />
 
-      {/* 5. Content Calendar Preview */}
+      {/* 8. Content Calendar Preview */}
       <ContentCalendarPreview posts={allContent} />
 
-      {/* 5. Project Summary Cards */}
+      {/* 9. Project Summary Cards */}
       <ProjectSummaryCards projects={projectSummaries} />
 
-      {/* 6. Recent Activity Feed */}
-      <RecentActivityFeed items={recentActivity} />
+      {/* 10. Live Activity Stream (auto-refresh 30s) */}
+      <LiveActivityStream initial={activityLogEntries} />
 
-      {/* 7. GitHub Activity */}
+      {/* 11. GitHub Activity */}
       <GitHubActivityCard />
 
-      {/* 8. Telegram Bot Health */}
+      {/* 12. Telegram Bot Health */}
       <TelegramHealthCard />
 
-      {/* 9. Memory Flush Prompt */}
+      {/* 13. Memory Flush Prompt */}
       <MemoryFlushCard />
     </div>
   );

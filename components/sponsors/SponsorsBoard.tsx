@@ -3,8 +3,9 @@
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
-import { Plus, GripVertical, Trash2 } from "lucide-react";
+import { Plus, GripVertical, Trash2, Handshake } from "lucide-react";
 import { KpiCard } from "@/components/ui";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 import type { Sponsor, SponsorStatus, SponsorTier } from "@/lib/types/database";
 
 const COLUMNS: { id: SponsorStatus; label: string; color: string }[] = [
@@ -133,6 +134,20 @@ export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps
     },
     [sponsors],
   );
+
+  if (sponsors.length === 0) {
+    return (
+      <SharedEmptyState
+        icon={<Handshake className="size-12" />}
+        title="No sponsors yet"
+        description="Start tracking sponsorships by adding your first sponsor to the board."
+        action={{
+          label: "Add Sponsor",
+          onClick: () => { setAddingTo("not_contacted"); setAddName(""); },
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">

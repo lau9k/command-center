@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sanitizeText } from "@/lib/sanitize";
 import { StageColumn } from "./StageColumn";
@@ -338,8 +339,8 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
 
   if (sortedStages.length === 0 && items.length === 0) {
     return (
-      <EmptyState
-        icon={<DollarSign />}
+      <SharedEmptyState
+        icon={<DollarSign className="size-12" />}
         title="No deals yet"
         description="Set up pipeline stages and create your first deal to start tracking opportunities."
       />

@@ -49,27 +49,42 @@ const modules = [
 interface SidebarNavProps {
   projects: Project[];
   hasMeekWallet?: boolean;
+  /** When true, show only icons (tablet breakpoint) */
+  collapsed?: boolean;
 }
 
-export function SidebarNav({ projects, hasMeekWallet }: SidebarNavProps) {
+export function SidebarNav({ projects, hasMeekWallet, collapsed }: SidebarNavProps) {
   const pathname = usePathname();
   const financeExpanded = pathname.startsWith("/finance");
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-4 py-5">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
-          Command Center
+      <div className={cn("py-5", collapsed ? "px-2" : "px-4")}>
+        <Link
+          href="/"
+          className={cn(
+            "flex items-center text-lg font-semibold tracking-tight text-foreground",
+            collapsed ? "justify-center" : "gap-2"
+          )}
+          title="Command Center"
+        >
+          {collapsed ? (
+            <LayoutDashboard className="h-5 w-5" />
+          ) : (
+            "Command Center"
+          )}
         </Link>
       </div>
 
       <Separator />
 
-      <ScrollArea className="flex-1 px-3 py-3">
+      <ScrollArea className={cn("flex-1 py-3", collapsed ? "px-1" : "px-3")}>
         <div className="space-y-0.5">
-          <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Modules
-          </p>
+          {!collapsed && (
+            <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Modules
+            </p>
+          )}
           {modules.map((item) => {
             const isActive =
               item.href === "/"
@@ -80,18 +95,20 @@ export function SidebarNav({ projects, hasMeekWallet }: SidebarNavProps) {
               <div key={item.href}>
                 <Link
                   href={item.href}
+                  title={collapsed ? item.label : undefined}
                   className={cn(
-                    "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                    "relative flex items-center rounded-md text-sm font-medium transition-all duration-150",
                     "hover:bg-accent hover:text-accent-foreground",
+                    collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2",
                     isActive
                       ? "bg-sidebar-accent text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-sidebar-primary"
                       : "text-muted-foreground"
                   )}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  {!collapsed && item.label}
                 </Link>
-                {item.href === "/finance" && financeExpanded && hasMeekWallet && (
+                {!collapsed && item.href === "/finance" && financeExpanded && hasMeekWallet && (
                   <Link
                     href="/finance/treasury"
                     className={cn(
@@ -111,40 +128,44 @@ export function SidebarNav({ projects, hasMeekWallet }: SidebarNavProps) {
           })}
         </div>
 
-        <Separator className="my-3" />
+        {!collapsed && (
+          <>
+            <Separator className="my-3" />
 
-        <div className="space-y-0.5">
-          <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Projects
-          </p>
-          {projects.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">
-              No projects yet
-            </p>
-          ) : (
-            projects.map((project) => {
-              const href = `/projects/${project.id}`;
-              const isActive = pathname.startsWith(href);
+            <div className="space-y-0.5">
+              <p className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Projects
+              </p>
+              {projects.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-muted-foreground">
+                  No projects yet
+                </p>
+              ) : (
+                projects.map((project) => {
+                  const href = `/projects/${project.id}`;
+                  const isActive = pathname.startsWith(href);
 
-              return (
-                <Link
-                  key={project.id}
-                  href={href}
-                  className={cn(
-                    "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
-                    "hover:bg-accent hover:text-accent-foreground",
-                    isActive
-                      ? "bg-sidebar-accent text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-sidebar-primary"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  <FolderOpen className="h-4 w-4 shrink-0" />
-                  {project.name}
-                </Link>
-              );
-            })
-          )}
-        </div>
+                  return (
+                    <Link
+                      key={project.id}
+                      href={href}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        isActive
+                          ? "bg-sidebar-accent text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-sidebar-primary"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      <FolderOpen className="h-4 w-4 shrink-0" />
+                      {project.name}
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
       </ScrollArea>
     </div>
   );

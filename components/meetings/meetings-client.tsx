@@ -12,6 +12,7 @@ import {
   Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 import type { Meeting, MeetingAction, MeetingActionItem, MeetingAttendee } from "@/lib/types/database";
 
 type MeetingWithActions = Meeting & { actions: MeetingAction[] };
@@ -217,13 +218,17 @@ export function MeetingsClient({ meetings }: MeetingsClientProps) {
       </div>
 
       {/* Meeting list */}
-      {filtered.length === 0 ? (
+      {filtered.length === 0 && meetings.length === 0 ? (
+        <SharedEmptyState
+          icon={<Calendar className="size-12" />}
+          title="No meetings yet"
+          description="Meetings will appear here when synced from Granola. Connect your account to get started."
+        />
+      ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center">
           <Calendar className="mx-auto size-8 text-muted-foreground" />
           <p className="mt-2 text-sm text-muted-foreground">
-            {statusFilter === "all"
-              ? "No meetings found. Meetings will appear here when synced from Granola."
-              : `No ${STATUS_CONFIG[statusFilter].label.toLowerCase()} meetings.`}
+            No {STATUS_CONFIG[statusFilter as keyof typeof STATUS_CONFIG]?.label.toLowerCase() ?? ""} meetings.
           </p>
         </div>
       ) : (
