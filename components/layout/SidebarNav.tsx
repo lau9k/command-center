@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Calendar,
   CheckSquare,
   Coins,
@@ -30,6 +31,7 @@ const modules = [
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Sponsors", href: "/sponsors", icon: Handshake },
   { label: "Content", href: "/content", icon: FileText },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Community", href: "/community", icon: UsersRound },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
