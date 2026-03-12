@@ -366,6 +366,18 @@ export const ingestTransactionSchema = z.object({
   project_id: z.string().uuid().optional().nullable(),
 });
 
+// ── Email Templates ──────────────────────────────────────
+
+export const createEmailTemplateSchema = z.object({
+  name: z.string().min(1).max(500),
+  subject: z.string().max(2000).optional(),
+  body: z.string().max(50000).optional(),
+  variables: z.array(z.string().max(100)).optional(),
+  category: z.enum(["general", "outreach", "follow_up", "introduction", "proposal", "thank_you"]).optional(),
+});
+
+export const updateEmailTemplateSchema = createEmailTemplateSchema.partial();
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();

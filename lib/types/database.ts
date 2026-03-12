@@ -606,3 +606,19 @@ export interface WalletPnlMonthly {
   reimbursable_expenses: number;
   transaction_count: number;
 }
+
+// --- Email Template types ---
+
+export type EmailTemplateCategory = "general" | "outreach" | "follow_up" | "introduction" | "proposal" | "thank_you";
+
+export interface EmailTemplate {
+  id: string;
+  user_id: string | null;
+  name: string;
+  subject: string;
+  body: string;
+  variables: string[];
+  category: EmailTemplateCategory;
+  created_at: string;
+  updated_at: string;
+}
