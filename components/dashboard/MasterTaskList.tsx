@@ -31,6 +31,7 @@ import type {
   TaskStatus,
   TaskPriority,
 } from "@/lib/types/database";
+import { cn } from "@/lib/utils";
 import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -55,7 +56,8 @@ interface MasterTaskListProps {
 const STATUS_ORDER: Record<TaskStatus, number> = {
   in_progress: 0,
   todo: 1,
-  done: 2,
+  blocked: 2,
+  done: 3,
 };
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
@@ -85,6 +87,14 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 }
 
 const ALL_VALUE = "__all__";
+
+const STATUS_CHIPS = [
+  { label: "All", value: ALL_VALUE },
+  { label: "Todo", value: "todo" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Blocked", value: "blocked" },
+  { label: "Done", value: "done" },
+] as const;
 
 export function MasterTaskList({
   initialTasks,
@@ -273,7 +283,7 @@ export function MasterTaskList({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Master Tasks</h1>
+          <h1 className="text-2xl font-semibold">Tasks</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {tasks.length} task{tasks.length !== 1 ? "s" : ""} across all
             projects
@@ -316,6 +326,32 @@ export function MasterTaskList({
       {/* Quick-add bar */}
       <TaskQuickAdd onAdd={handleQuickAdd} disabled={quickAdding} />
 
+      {/* Status filter chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {STATUS_CHIPS.map((chip) => (
+          <button
+            key={chip.value}
+            type="button"
+            onClick={() => setFilterStatus(chip.value)}
+            className={cn(
+              "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
+              filterStatus === chip.value
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+            )}
+          >
+            {chip.label}
+            {chip.value !== ALL_VALUE && (
+              <span className="ml-1.5 tabular-nums">
+                {tasks.filter((t) =>
+                  chip.value === ALL_VALUE ? true : t.status === chip.value
+                ).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Search & Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full sm:w-auto sm:flex-1">
@@ -352,18 +388,6 @@ export function MasterTaskList({
             <SelectItem value="high">High</SelectItem>
             <SelectItem value="medium">Medium</SelectItem>
             <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger size="sm">
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
-            <SelectItem value="todo">To Do</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
           </SelectContent>
         </Select>
 

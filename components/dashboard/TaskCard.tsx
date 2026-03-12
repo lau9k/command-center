@@ -21,18 +21,21 @@ const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = {
   todo: "in_progress",
   in_progress: "done",
   done: "todo",
+  blocked: "todo",
 };
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "Open",
   in_progress: "In Progress",
   done: "Done",
+  blocked: "Blocked",
 };
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
   todo: statusBadgeClass.scheduled + " border-[#3B82F6]/20",
   in_progress: statusBadgeClass.ready + " border-[#EAB308]/20",
   done: statusBadgeClass.active + " border-[#22C55E]/20",
+  blocked: statusBadgeClass.failed + " border-[#EF4444]/20",
 };
 
 export function TaskCard({

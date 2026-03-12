@@ -23,7 +23,7 @@ import type { Project } from "@/lib/types/project";
 
 const modules = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Master Tasks", href: "/tasks", icon: CheckSquare },
+  { label: "Tasks", href: "/tasks", icon: CheckSquare },
   { label: "Import", href: "/admin/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Meetings", href: "/meetings", icon: Calendar },
