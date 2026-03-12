@@ -4,6 +4,7 @@ import { ContactsClient } from "@/components/dashboard/ContactsClient";
 import { searchContacts } from "@/lib/personize/actions";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/shared/ExportButton";
+import { ContactsSubNav } from "@/components/contacts/ContactsSubNav";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,8 @@ export default async function ContactsPage() {
         }
         actions={<ExportButton table="contacts" />}
       />
+
+      <ContactsSubNav />
 
       <ContactsClient
         initialContacts={contacts}
