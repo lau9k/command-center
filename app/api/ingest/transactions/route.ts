@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTransactionSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSecret } from "@/lib/webhook-auth";
+import { logActivity } from "@/lib/activity-logger";
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
@@ -36,6 +37,15 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Fire-and-forget: don't block response on logging
+  void logActivity({
+    action: "ingested",
+    entity_type: "transaction",
+    entity_id: data.id,
+    entity_name: data.description,
+    source: "webhook",
+  });
 
   return NextResponse.json({ success: true, data }, { status: 201 });
 });
