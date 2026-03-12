@@ -7,6 +7,7 @@ import {
   FileText,
   Layers,
   MessageCircle,
+  Handshake,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 
@@ -25,6 +26,9 @@ interface KPIStripProps {
   pipelineTotalValue: number;
   communityMemberCount: number;
   communityDelta?: number | null;
+  sponsorsTotal: number;
+  sponsorsConfirmed: number;
+  sponsorsConfirmedRevenue: number;
 }
 
 /** Display "No data" for zero/NaN values, otherwise return the value. */
@@ -53,6 +57,9 @@ export function KPIStrip({
   pipelineTotalValue,
   communityMemberCount,
   communityDelta,
+  sponsorsTotal,
+  sponsorsConfirmed,
+  sponsorsConfirmedRevenue,
 }: KPIStripProps) {
   const formattedInvoices =
     isNaN(openInvoiceTotal) || !isFinite(openInvoiceTotal)
@@ -102,6 +109,16 @@ export function KPIStrip({
             : "no deals yet"
         }
         icon={<Layers className="size-5" />}
+      />
+      <KpiCard
+        label="Sponsors"
+        value={safeValue(sponsorsTotal)}
+        subtitle={
+          sponsorsConfirmed > 0
+            ? `${sponsorsConfirmed} confirmed · $${sponsorsConfirmedRevenue.toLocaleString()}`
+            : "none confirmed yet"
+        }
+        icon={<Handshake className="size-5" />}
       />
       <KpiCard
         label="Community"
