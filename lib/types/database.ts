@@ -34,6 +34,20 @@ export interface Sponsor {
   updated_at: string;
 }
 
+export type OutreachType = "email" | "call" | "meeting" | "linkedin" | "other";
+export type OutreachStatus = "sent" | "replied" | "no_response" | "follow_up_needed";
+
+export interface SponsorOutreach {
+  id: string;
+  sponsor_id: string;
+  type: OutreachType;
+  subject: string | null;
+  notes: string | null;
+  status: OutreachStatus;
+  contacted_at: string;
+  created_at: string;
+}
+
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
