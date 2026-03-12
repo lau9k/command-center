@@ -2,6 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { MasterTaskList } from "@/components/dashboard/MasterTaskList";
 import type { TaskWithProject } from "@/lib/types/database";
 import { seedTasksIfEmpty } from "@/lib/seed-tasks";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { ExportButton } from "@/components/shared/ExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -59,15 +61,22 @@ export default async function TasksPage() {
   }).length;
 
   return (
-    <MasterTaskList
-      initialTasks={allTasks}
-      projects={projects ?? []}
-      kpis={{
-        totalOpen,
-        dueThisWeek,
-        overdue,
-        completedThisWeek,
-      }}
-    />
+    <div className="space-y-6">
+      <PageHeader
+        title="Tasks"
+        description="Manage tasks with priority engine"
+        actions={<ExportButton table="tasks" />}
+      />
+      <MasterTaskList
+        initialTasks={allTasks}
+        projects={projects ?? []}
+        kpis={{
+          totalOpen,
+          dueThisWeek,
+          overdue,
+          completedThisWeek,
+        }}
+      />
+    </div>
   );
 }
