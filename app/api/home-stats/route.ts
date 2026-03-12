@@ -18,6 +18,9 @@ export interface HomeStatsResponse {
   sponsorsTotal: number;
   sponsorsConfirmed: number;
   sponsorsConfirmedRevenue: number;
+  overdueTasks: number;
+  tasksCompletedToday: number;
+  newContactsThisWeek: number;
 }
 
 /** Safely query a table, returning a fallback on error (e.g. table doesn't exist). */
@@ -59,6 +62,8 @@ export const GET = withErrorHandler(async function GET() {
 
   const now = new Date();
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
     tasks,
@@ -70,6 +75,9 @@ export const GET = withErrorHandler(async function GET() {
     memoryStats,
     sponsorsAll,
     sponsorsConfirmedRes,
+    overdueTasks,
+    tasksCompletedToday,
+    newContactsThisWeek,
   ] = await Promise.all([
     // Tasks (need status + project_id for active count + project count)
     safeQuery(
@@ -145,6 +153,32 @@ export const GET = withErrorHandler(async function GET() {
           .eq("status", "confirmed"),
       [] as { amount: number | null }[],
     ),
+
+    // Overdue tasks (not done, due_date < today)
+    safeCount(() =>
+      supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .neq("status", "done")
+        .lt("due_date", todayStart),
+    ),
+
+    // Tasks completed today
+    safeCount(() =>
+      supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "done")
+        .gte("updated_at", todayStart),
+    ),
+
+    // New contacts this week
+    safeCount(() =>
+      supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", weekAgo),
+    ),
   ]);
 
   // Compute KPIs
@@ -200,6 +234,9 @@ export const GET = withErrorHandler(async function GET() {
     sponsorsTotal: sponsorsAll,
     sponsorsConfirmed: sponsorsConfirmedRes.length,
     sponsorsConfirmedRevenue,
+    overdueTasks,
+    tasksCompletedToday,
+    newContactsThisWeek,
   };
 
   return NextResponse.json({ data: response });
