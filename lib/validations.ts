@@ -392,6 +392,31 @@ export const createNotificationSchema = z.object({
   action_url: z.string().max(2000).optional().nullable(),
 });
 
+// ── Saved Views ──────────────────────────────────────────
+
+const filterConditionSchema = z.object({
+  field: z.string().min(1).max(200),
+  operator: z.enum(["eq", "neq", "gt", "gte", "lt", "lte", "ilike", "in", "is_null", "is_not_null"]),
+  value: z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(z.string()),
+    z.null(),
+  ]),
+});
+
+export const createSavedViewSchema = z.object({
+  name: z.string().min(1).max(200),
+  entity_type: z.enum(["contacts", "tasks", "pipeline_items", "content_posts", "transactions", "sponsors"]),
+  filters: z.array(filterConditionSchema).max(20).default([]),
+  sort_by: z.string().max(200).optional().nullable(),
+  sort_direction: z.enum(["asc", "desc"]).optional().default("asc"),
+  is_default: z.boolean().optional().default(false),
+});
+
+export const updateSavedViewSchema = createSavedViewSchema.partial();
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
