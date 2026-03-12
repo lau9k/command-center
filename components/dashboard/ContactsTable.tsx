@@ -1,7 +1,9 @@
 "use client";
 
 import type { Contact } from "@/lib/types/database";
-import { MessageCircle } from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, FileSearch } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -65,6 +67,7 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
             {!hasPersonizeData && <TableHead>Tags</TableHead>}
             <TableHead>Last Activity</TableHead>
             <TableHead className="text-right">Score</TableHead>
+            <TableHead className="w-[70px]" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -128,6 +131,19 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {contact.priority_score ?? contact.score ?? 0}
+              </TableCell>
+              <TableCell>
+                {!contact.record_id && (
+                  <Link
+                    href={`/contacts/${contact.id}/prep`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                      <FileSearch className="size-3.5" />
+                      Prep
+                    </Button>
+                  </Link>
+                )}
               </TableCell>
             </TableRow>
           ))}
