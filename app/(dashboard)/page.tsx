@@ -42,6 +42,8 @@ export default async function DashboardPage() {
     communityMemberCount,
     pendingMeetingsRes,
     yesterdayStatsRes,
+    sponsorsCountRes,
+    sponsorsConfirmedRes,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -86,6 +88,17 @@ export default async function DashboardPage() {
       .order("fetched_at", { ascending: false })
       .limit(1)
       .single(),
+    Promise.resolve(
+      serviceClient
+        .from("sponsors")
+        .select("id", { count: "exact", head: true }),
+    ).catch(() => ({ count: 0 as number | null, data: null, error: null })),
+    Promise.resolve(
+      serviceClient
+        .from("sponsors")
+        .select("amount")
+        .eq("status", "confirmed"),
+    ).catch(() => ({ data: [] as { amount: number | null }[], error: null })),
   ]);
 
   // Log query errors server-side for debugging KPI issues
@@ -101,6 +114,8 @@ export default async function DashboardPage() {
     { name: "pipeline_count", error: pipelineCountRes.error, count: pipelineCountRes.count },
     { name: "pipeline_value", error: pipelineValueRes.error },
     { name: "pending_meetings", error: pendingMeetingsRes.error },
+    { name: "sponsors_count", error: sponsorsCountRes.error },
+    { name: "sponsors_confirmed", error: sponsorsConfirmedRes.error },
   ];
 
   for (const q of queryResults) {
@@ -124,6 +139,13 @@ export default async function DashboardPage() {
     0
   );
   const pendingMeetings = (pendingMeetingsRes.data ?? []) as Meeting[];
+  const sponsorsTotal = (sponsorsCountRes as { count: number | null }).count ?? 0;
+  const sponsorsConfirmedData = (sponsorsConfirmedRes.data ?? []) as { amount: number | null }[];
+  const sponsorsConfirmed = sponsorsConfirmedData.length;
+  const sponsorsConfirmedRevenue = sponsorsConfirmedData.reduce(
+    (sum: number, s: { amount: number | null }) => sum + Number(s.amount ?? 0),
+    0,
+  );
 
   // Community growth delta: compare live count to yesterday's cached value
   const yesterdayMemberCount = yesterdayStatsRes.data?.member_count ?? null;
@@ -291,6 +313,9 @@ export default async function DashboardPage() {
         pipelineTotalValue={pipelineTotalValue}
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
+        sponsorsTotal={sponsorsTotal}
+        sponsorsConfirmed={sponsorsConfirmed}
+        sponsorsConfirmedRevenue={sponsorsConfirmedRevenue}
       />
 
       {/* 4. Content Calendar Preview */}
