@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
+import { scoreTask } from "@/lib/task-scoring";
 import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { KPIStrip } from "@/components/dashboard/KPIStrip";
@@ -9,13 +10,14 @@ import {
   RecentActivityFeed,
   type ActivityItem,
 } from "@/components/dashboard/RecentActivityFeed";
+import { RankedTaskList } from "@/components/dashboard/RankedTaskList";
 import { ModuleHealthOverview } from "@/components/dashboard/ModuleHealthOverview";
 import { MemoryFlushCard } from "@/components/dashboard/MemoryFlushCard";
 import { TelegramHealthCard } from "@/components/dashboard/TelegramHealthCard";
 import { GitHubActivityCard } from "@/components/dashboard/GitHubActivityCard";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import { MeetingNotificationList } from "@/components/meetings/meeting-notification";
-import type { ContentPost, Meeting } from "@/lib/types/database";
+import type { ContentPost, Meeting, Task } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -215,13 +217,35 @@ export default async function DashboardPage() {
     };
   });
 
-  // --- Recent activity feed (last 10 items across tasks/content/contacts) ---
-  type ProjectRef = { name: string; color: string | null };
+  // --- Helpers ---
+  type ProjectRef = { id?: string; name: string; color: string | null };
   function extractProject(raw: unknown): ProjectRef | null {
     if (!raw) return null;
     const obj = (Array.isArray(raw) ? raw[0] : raw) as ProjectRef | undefined;
     return obj ?? null;
   }
+
+  // --- Ranked tasks (scored by priority engine) ---
+  const openTasks = tasks.filter((t) => t.status !== "done");
+  const rankedTasks = openTasks
+    .map((t) => {
+      const proj = extractProject(t.projects);
+      const { score, factors } = scoreTask(t as unknown as Task, proj ? { id: proj.id ?? "", name: proj.name } : null);
+      return {
+        id: t.id,
+        project_id: t.project_id,
+        title: t.title,
+        due_date: t.due_date,
+        priority: t.priority,
+        score,
+        factors,
+        projects: proj ? { id: proj.id ?? "", name: proj.name, color: proj.color } : null,
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
+
+  // --- Recent activity feed (last 10 items across tasks/content/contacts) ---
 
   const activityItems: ActivityItem[] = [];
 
@@ -318,7 +342,15 @@ export default async function DashboardPage() {
         sponsorsConfirmedRevenue={sponsorsConfirmedRevenue}
       />
 
-      {/* 4. Content Calendar Preview */}
+      {/* 4. Ranked Tasks */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">
+          Top Priority Tasks
+        </h2>
+        <RankedTaskList tasks={rankedTasks} />
+      </section>
+
+      {/* 5. Content Calendar Preview */}
       <ContentCalendarPreview posts={allContent} />
 
       {/* 5. Project Summary Cards */}
