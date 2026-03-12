@@ -33,7 +33,7 @@ import {
 import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle, ListTodo, Ban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
-const statusConfig: Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+const statusConfig: Partial<Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" }>> = {
   todo: { label: "To Do", icon: Circle, variant: "outline" },
   in_progress: { label: "In Progress", icon: Clock, variant: "secondary" },
   done: { label: "Done", icon: CheckCircle2, variant: "default" },
@@ -184,7 +184,7 @@ export default function ProjectTasksPage() {
           </TableHeader>
           <TableBody>
             {tasks.map((task) => {
-              const config = statusConfig[task.status];
+              const config = statusConfig[task.status] ?? { label: task.status, icon: Circle, variant: "outline" as const };
               const StatusIcon = config.icon;
               return (
                 <TableRow key={task.id}>
