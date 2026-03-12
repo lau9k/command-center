@@ -53,3 +53,27 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 
   return NextResponse.json({ data }, { status: 201 });
 });
+
+export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+  const supabase = createServiceClient();
+  const body = await request.json();
+
+  const ids: unknown = body.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id): id is string => typeof id === "string")) {
+    return NextResponse.json(
+      { error: "Body must include { ids: string[] }" },
+      { status: 400 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .in("id", ids);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, updated: ids.length });
+});
