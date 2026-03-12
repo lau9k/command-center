@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { validateWebhookSignature } from "@/lib/webhook-auth";
+import { validateWebhookSecret } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { scoreTask } from "@/lib/task-scoring";
+import type { Task } from "@/lib/types/database";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
   if (authError) return authError;
 
+  const rawBody = await request.text();
   const parsed = ingestTaskSchema.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
