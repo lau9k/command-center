@@ -1,12 +1,12 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProfileForm } from "@/components/settings/ProfileForm";
+import { SettingsProfile } from "./SettingsProfile";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
+import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { DataManagement } from "@/components/settings/DataManagement";
 import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel";
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs";
-import { SettingsThemeToggle } from "./SettingsThemeToggle";
 import { SeedDemoButton } from "./SeedDemoButton";
 import { SettingsDangerZone } from "./SettingsDangerZone";
 import {
@@ -15,7 +15,7 @@ import {
   Key,
   Bell,
   Database,
-  Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface SettingsClientProps {
@@ -43,6 +43,10 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
             <Puzzle className="h-4 w-4" />
             Integrations
           </TabsTrigger>
+          <TabsTrigger value="preferences" className="gap-1.5">
+            <SlidersHorizontal className="h-4 w-4" />
+            Preferences
+          </TabsTrigger>
           <TabsTrigger value="api-keys" className="gap-1.5">
             <Key className="h-4 w-4" />
             API Keys
@@ -55,22 +59,18 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
             <Database className="h-4 w-4" />
             Data
           </TabsTrigger>
-          <TabsTrigger value="general" className="gap-1.5">
-            <Settings className="h-4 w-4" />
-            General
-          </TabsTrigger>
         </TabsList>
 
-        {/* Profile Tab */}
+        {/* Profile Tab — read-only */}
         <TabsContent value="profile">
           <div className="rounded-lg border border-border bg-card p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Profile</h2>
               <p className="text-sm text-muted-foreground">
-                Edit your profile information and preferences
+                Your account information
               </p>
             </div>
-            <ProfileForm email={email} userId={userId} />
+            <SettingsProfile email={email} userId={userId} />
           </div>
         </TabsContent>
 
@@ -82,10 +82,25 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
                 Integrations
               </h2>
               <p className="text-sm text-muted-foreground">
-                Manage connected services and third-party integrations
+                Connected services and third-party integrations
               </p>
             </div>
             <IntegrationsPanel />
+          </div>
+        </TabsContent>
+
+        {/* Preferences Tab */}
+        <TabsContent value="preferences">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Preferences
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Customize your dashboard experience
+              </p>
+            </div>
+            <PreferencesPanel userId={userId} />
           </div>
         </TabsContent>
 
@@ -156,32 +171,6 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
                   </p>
                 </div>
                 <SeedDemoButton />
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* General Tab */}
-        <TabsContent value="general">
-          <div className="space-y-6">
-            {/* Appearance */}
-            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Appearance
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Customize how the dashboard looks
-                </p>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Theme</p>
-                  <p className="text-sm text-muted-foreground">
-                    Switch between dark and light mode
-                  </p>
-                </div>
-                <SettingsThemeToggle />
               </div>
             </div>
 

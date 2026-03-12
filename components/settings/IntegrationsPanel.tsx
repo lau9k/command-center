@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Database, Brain, Workflow, Loader2 } from "lucide-react";
+import { Database, Brain, Calendar, Github } from "lucide-react";
 
 interface Integration {
   id: string;
@@ -12,108 +9,75 @@ interface Integration {
   description: string;
   icon: React.ReactNode;
   connected: boolean;
+  detail: string;
 }
 
-const INITIAL_INTEGRATIONS: Integration[] = [
+const INTEGRATIONS: Integration[] = [
+  {
+    id: "supabase",
+    name: "Supabase",
+    description: "Database, auth, and real-time backend",
+    icon: <Database className="h-5 w-5" />,
+    connected: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    detail: process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+      : "Not configured",
+  },
   {
     id: "personize",
     name: "Personize",
     description: "AI-powered contact enrichment and personalization",
     icon: <Brain className="h-5 w-5" />,
     connected: true,
+    detail: "API connected",
   },
   {
-    id: "supabase",
-    name: "Supabase",
-    description: "Database, auth, and real-time backend",
-    icon: <Database className="h-5 w-5" />,
-    connected: true,
-  },
-  {
-    id: "n8n",
-    name: "n8n",
-    description: "Workflow automation and integrations",
-    icon: <Workflow className="h-5 w-5" />,
+    id: "granola",
+    name: "Granola",
+    description: "Meeting notes and transcription",
+    icon: <Calendar className="h-5 w-5" />,
     connected: false,
+    detail: "Not configured",
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    description: "Repository management and CI/CD",
+    icon: <Github className="h-5 w-5" />,
+    connected: false,
+    detail: "Not configured",
   },
 ];
 
 export function IntegrationsPanel() {
-  const [integrations, setIntegrations] =
-    useState<Integration[]>(INITIAL_INTEGRATIONS);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  const handleToggle = useCallback(
-    async (id: string) => {
-      setTogglingId(id);
-      const integration = integrations.find((i) => i.id === id);
-      if (!integration) return;
-
-      const newState = !integration.connected;
-
-      // Optimistic update
-      setIntegrations((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, connected: newState } : i))
-      );
-
-      try {
-        // Simulate API call
-        await new Promise((r) => setTimeout(r, 800));
-        toast.success(
-          `${integration.name} ${newState ? "connected" : "disconnected"}`
-        );
-      } catch {
-        // Revert on failure
-        setIntegrations((prev) =>
-          prev.map((i) =>
-            i.id === id ? { ...i, connected: !newState } : i
-          )
-        );
-        toast.error(`Failed to update ${integration.name}`);
-      } finally {
-        setTogglingId(null);
-      }
-    },
-    [integrations]
-  );
-
   return (
-    <div className="divide-y divide-border">
-      {integrations.map((integration) => (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {INTEGRATIONS.map((integration) => (
         <div
           key={integration.id}
-          className="flex items-center justify-between py-4 first:pt-0 last:pb-0"
+          className="flex items-start gap-3 rounded-lg border border-border p-4"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
-              {integration.icon}
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">
-                  {integration.name}
-                </p>
-                <Badge
-                  variant={integration.connected ? "default" : "secondary"}
-                  className="text-xs"
-                >
-                  {integration.connected ? "Connected" : "Disconnected"}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {integration.description}
-              </p>
-            </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
+            {integration.icon}
           </div>
-          <div className="flex items-center gap-2">
-            {togglingId === integration.id && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-            <Switch
-              checked={integration.connected}
-              onCheckedChange={() => handleToggle(integration.id)}
-              disabled={togglingId === integration.id}
-            />
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-foreground">
+                {integration.name}
+              </p>
+              <Badge
+                variant={integration.connected ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {integration.connected ? "Connected" : "Disconnected"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {integration.description}
+            </p>
+            <p className="text-xs font-mono text-muted-foreground">
+              {integration.detail}
+            </p>
           </div>
         </div>
       ))}
