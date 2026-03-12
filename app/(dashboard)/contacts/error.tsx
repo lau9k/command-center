@@ -9,5 +9,5 @@ export default function ContactsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <DashboardError error={error} reset={reset} />;
+  return <DashboardError error={error} reset={reset} module="contacts" />;
 }
