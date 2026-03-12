@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import Link from "next/link";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
-import { Plus, GripVertical, Trash2, Handshake } from "lucide-react";
+import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
+import { Handshake } from "lucide-react";
 import { KpiCard } from "@/components/ui";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
-import type { Sponsor, SponsorStatus, SponsorTier } from "@/lib/types/database";
+import { SponsorColumn } from "./SponsorColumn";
+import type { Sponsor, SponsorStatus } from "@/lib/types/database";
 
 const COLUMNS: { id: SponsorStatus; label: string; color: string }[] = [
   { id: "not_contacted", label: "Not Contacted", color: "#6B7280" },
@@ -16,27 +16,10 @@ const COLUMNS: { id: SponsorStatus; label: string; color: string }[] = [
   { id: "declined", label: "Declined", color: "#EF4444" },
 ];
 
-const TIER_CONFIG: Record<SponsorTier, { label: string; className: string }> = {
-  bronze: { label: "Bronze", className: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
-  silver: { label: "Silver", className: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300" },
-  gold: { label: "Gold", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
-  platinum: { label: "Platinum", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
-  title: { label: "Title", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
-};
-
 function formatCurrency(amount: number): string {
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `$${(amount / 1_000).toFixed(1)}K`;
   return `$${amount.toLocaleString()}`;
-}
-
-function TierBadge({ tier }: { tier: SponsorTier }) {
-  const config = TIER_CONFIG[tier];
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.className}`}>
-      {config.label}
-    </span>
-  );
 }
 
 interface SponsorsBoardProps {
@@ -165,114 +148,46 @@ export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps
           {COLUMNS.map((col) => {
             const colSponsors = grouped.get(col.id) ?? [];
             return (
-              <div key={col.id} className="flex w-[280px] shrink-0 flex-col">
-                {/* Column Header */}
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block size-3 rounded-full" style={{ backgroundColor: col.color }} />
-                    <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      {colSponsors.length}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { setAddingTo(col.id); setAddName(""); }}
-                    className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <Plus className="size-4" />
-                  </button>
-                </div>
-
-                {/* Quick Add */}
-                {addingTo === col.id && (
-                  <div className="mb-2 rounded-lg border border-border bg-card p-2">
-                    <input
-                      type="text"
-                      value={addName}
-                      onChange={(e) => setAddName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleQuickAdd(col.id);
-                        if (e.key === "Escape") { setAddingTo(null); setAddName(""); }
-                      }}
-                      placeholder="Sponsor name..."
-                      autoFocus
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        onClick={() => handleQuickAdd(col.id)}
-                        disabled={isCreating || !addName.trim()}
-                        className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        {isCreating ? "Adding..." : "Add"}
-                      </button>
-                      <button
-                        onClick={() => { setAddingTo(null); setAddName(""); }}
-                        className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        Cancel
-                      </button>
+              <SponsorColumn
+                key={col.id}
+                column={col}
+                items={colSponsors}
+                onQuickAdd={(status) => { setAddingTo(status); setAddName(""); }}
+                onDelete={handleDelete}
+                quickAddSlot={
+                  addingTo === col.id ? (
+                    <div className="mb-2 rounded-lg border border-border bg-card p-2">
+                      <input
+                        type="text"
+                        value={addName}
+                        onChange={(e) => setAddName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleQuickAdd(col.id);
+                          if (e.key === "Escape") { setAddingTo(null); setAddName(""); }
+                        }}
+                        placeholder="Sponsor name..."
+                        autoFocus
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handleQuickAdd(col.id)}
+                          disabled={isCreating || !addName.trim()}
+                          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {isCreating ? "Adding..." : "Add"}
+                        </button>
+                        <button
+                          onClick={() => { setAddingTo(null); setAddName(""); }}
+                          className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Droppable Column */}
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex min-h-[120px] flex-1 flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors ${
-                        snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : ""
-                      }`}
-                    >
-                      {colSponsors.map((sponsor, index) => (
-                        <Draggable key={sponsor.id} draggableId={sponsor.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              className={`group rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow ${
-                                dragSnapshot.isDragging ? "shadow-lg" : "hover:shadow-md"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div
-                                  {...dragProvided.dragHandleProps}
-                                  className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                                >
-                                  <GripVertical className="size-4" />
-                                </div>
-                                <Link href={`/sponsors/${sponsor.id}`} className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="truncate text-sm font-medium text-foreground">{sponsor.name}</p>
-                                    <TierBadge tier={sponsor.tier} />
-                                  </div>
-                                  {sponsor.contact_name && (
-                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{sponsor.contact_name}</p>
-                                  )}
-                                  {Number(sponsor.amount) > 0 && (
-                                    <p className="mt-1 text-xs font-medium text-foreground">
-                                      {formatCurrency(Number(sponsor.amount))}
-                                    </p>
-                                  )}
-                                </Link>
-                                <button
-                                  onClick={() => handleDelete(sponsor.id)}
-                                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </div>
+                  ) : undefined
+                }
+              />
             );
           })}
         </div>
