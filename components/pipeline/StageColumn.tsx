@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pipelineStageClass } from "@/lib/design-tokens";
@@ -25,12 +27,21 @@ interface StageColumnProps {
 }
 
 export function StageColumn({ stage, items, onCardClick, onQuickAdd }: StageColumnProps) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+
   const totalValue = items.reduce(
     (sum, item) => sum + parseDealValue(item.metadata?.deal_value),
     0
   );
 
   const stageStyles = pipelineStageClass[stage.slug] ?? pipelineStageClass["lead"];
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 88,
+    overscan: 5,
+  });
 
   return (
     <div className="flex min-w-[280px] flex-col">
@@ -65,42 +76,89 @@ export function StageColumn({ stage, items, onCardClick, onQuickAdd }: StageColu
       </div>
 
       {/* Droppable area */}
-      <Droppable droppableId={stage.id}>
+      <Droppable
+        droppableId={stage.id}
+        mode="virtual"
+        renderClone={(provided, _snapshot, rubric) => {
+          const item = items[rubric.source.index];
+          return (
+            <div
+              ref={provided.innerRef}
+              {...provided.draggableProps}
+              {...provided.dragHandleProps}
+            >
+              <DealCard
+                item={item}
+                onClick={onCardClick}
+                dragHandleProps={null}
+              />
+            </div>
+          );
+        }}
+      >
         {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
+            ref={(el) => {
+              provided.innerRef(el);
+              parentRef.current = el;
+            }}
             {...provided.droppableProps}
             className={cn(
-              "flex min-h-[200px] flex-1 flex-col gap-2 rounded-lg border border-border p-2 transition-colors",
+              "max-h-[calc(100vh-280px)] min-h-[200px] flex-1 overflow-y-auto rounded-lg border border-border p-2 transition-colors",
               stageStyles?.border,
               "border-l-2",
               stageStyles?.bg,
               snapshot.isDraggingOver && stageStyles?.bgDragOver
             )}
           >
-            {items.map((item, index) => (
-              <Draggable key={item.id} draggableId={item.id} index={index}>
-                {(dragProvided) => (
-                  <div
-                    ref={dragProvided.innerRef}
-                    {...dragProvided.draggableProps}
-                  >
-                    <DealCard
-                      item={item}
-                      onClick={onCardClick}
-                      dragHandleProps={dragProvided.dragHandleProps}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
-
-            {items.length === 0 && !snapshot.isDraggingOver && (
+            {items.length === 0 && !snapshot.isDraggingOver ? (
               <div className="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-border py-8">
                 <p className="text-xs text-muted-foreground">
                   Drop deals here
                 </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  height: virtualizer.getTotalSize(),
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = items[virtualRow.index];
+                  return (
+                    <Draggable
+                      key={item.id}
+                      draggableId={item.id}
+                      index={virtualRow.index}
+                    >
+                      {(dragProvided) => (
+                        <div
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          {...dragProvided.dragHandleProps}
+                          style={{
+                            ...dragProvided.draggableProps.style,
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            transform: `translateY(${virtualRow.start}px)`,
+                          }}
+                        >
+                          <div className="pb-2">
+                            <DealCard
+                              item={item}
+                              onClick={onCardClick}
+                              dragHandleProps={dragProvided.dragHandleProps}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  );
+                })}
               </div>
             )}
           </div>

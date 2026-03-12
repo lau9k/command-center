@@ -362,7 +362,7 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex h-full gap-4 overflow-x-auto pb-4">
           {sortedStages.map((stage) => (
             <div key={stage.id} className="flex shrink-0 flex-col" style={{ width: 300 }}>
               <StageColumn

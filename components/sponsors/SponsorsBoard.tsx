@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Plus, GripVertical, Trash2, Handshake } from "lucide-react";
 import { KpiCard } from "@/components/ui";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
@@ -36,6 +37,152 @@ function TierBadge({ tier }: { tier: SponsorTier }) {
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.className}`}>
       {config.label}
     </span>
+  );
+}
+
+function SponsorCardContent({
+  sponsor,
+  dragHandleProps,
+  onDelete,
+}: {
+  sponsor: Sponsor;
+  dragHandleProps: React.HTMLAttributes<HTMLElement> | null | undefined;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <div
+        {...dragHandleProps}
+        className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <GripVertical className="size-4" />
+      </div>
+      <Link href={`/sponsors/${sponsor.id}`} className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-medium text-foreground">{sponsor.name}</p>
+          <TierBadge tier={sponsor.tier} />
+        </div>
+        {sponsor.contact_name && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{sponsor.contact_name}</p>
+        )}
+        {Number(sponsor.amount) > 0 && (
+          <p className="mt-1 text-xs font-medium text-foreground">
+            {formatCurrency(Number(sponsor.amount))}
+          </p>
+        )}
+      </Link>
+      <button
+        onClick={() => onDelete(sponsor.id)}
+        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+      >
+        <Trash2 className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function VirtualizedSponsorColumn({
+  columnId,
+  sponsors: colSponsors,
+  onDelete,
+}: {
+  columnId: SponsorStatus;
+  sponsors: Sponsor[];
+  onDelete: (id: string) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+
+  const virtualizer = useVirtualizer({
+    count: colSponsors.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    overscan: 5,
+  });
+
+  return (
+    <Droppable
+      droppableId={columnId}
+      mode="virtual"
+      renderClone={(provided, _snapshot, rubric) => {
+        const sponsor = colSponsors[rubric.source.index];
+        return (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className="group rounded-lg border border-border bg-card p-3 shadow-lg"
+          >
+            <SponsorCardContent
+              sponsor={sponsor}
+              dragHandleProps={null}
+              onDelete={onDelete}
+            />
+          </div>
+        );
+      }}
+    >
+      {(provided, snapshot) => (
+        <div
+          ref={(el) => {
+            provided.innerRef(el);
+            parentRef.current = el;
+          }}
+          {...provided.droppableProps}
+          className={`max-h-[calc(100vh-280px)] min-h-[120px] flex-1 overflow-y-auto rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors ${
+            snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : ""
+          }`}
+        >
+          {colSponsors.length === 0 ? (
+            <div style={{ height: 0 }} />
+          ) : (
+            <div
+              style={{
+                height: virtualizer.getTotalSize(),
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const sponsor = colSponsors[virtualRow.index];
+                return (
+                  <Draggable
+                    key={sponsor.id}
+                    draggableId={sponsor.id}
+                    index={virtualRow.index}
+                  >
+                    {(dragProvided) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        style={{
+                          ...dragProvided.draggableProps.style,
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        <div className="pb-2">
+                          <div className="group rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md">
+                            <SponsorCardContent
+                              sponsor={sponsor}
+                              dragHandleProps={dragProvided.dragHandleProps}
+                              onDelete={onDelete}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </Droppable>
   );
 }
 
@@ -216,62 +363,12 @@ export function SponsorsBoard({ sponsors: initial, eventId }: SponsorsBoardProps
                   </div>
                 )}
 
-                {/* Droppable Column */}
-                <Droppable droppableId={col.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`flex min-h-[120px] flex-1 flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors ${
-                        snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : ""
-                      }`}
-                    >
-                      {colSponsors.map((sponsor, index) => (
-                        <Draggable key={sponsor.id} draggableId={sponsor.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              className={`group rounded-lg border border-border bg-card p-3 shadow-sm transition-shadow ${
-                                dragSnapshot.isDragging ? "shadow-lg" : "hover:shadow-md"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div
-                                  {...dragProvided.dragHandleProps}
-                                  className="mt-0.5 cursor-grab text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                                >
-                                  <GripVertical className="size-4" />
-                                </div>
-                                <Link href={`/sponsors/${sponsor.id}`} className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="truncate text-sm font-medium text-foreground">{sponsor.name}</p>
-                                    <TierBadge tier={sponsor.tier} />
-                                  </div>
-                                  {sponsor.contact_name && (
-                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{sponsor.contact_name}</p>
-                                  )}
-                                  {Number(sponsor.amount) > 0 && (
-                                    <p className="mt-1 text-xs font-medium text-foreground">
-                                      {formatCurrency(Number(sponsor.amount))}
-                                    </p>
-                                  )}
-                                </Link>
-                                <button
-                                  onClick={() => handleDelete(sponsor.id)}
-                                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                {/* Virtualized Droppable Column */}
+                <VirtualizedSponsorColumn
+                  columnId={col.id}
+                  sponsors={colSponsors}
+                  onDelete={handleDelete}
+                />
               </div>
             );
           })}
