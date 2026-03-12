@@ -36,7 +36,6 @@ export interface DossierTask {
 export interface DossierPipelineItem {
   id: string;
   title: string;
-  value: number | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -134,7 +133,7 @@ export async function GET(
         // Pipeline items mentioning contact name in title
         supabase
           .from("pipeline_items")
-          .select("id, title, value, sort_order, created_at, updated_at, pipeline_stages(name, slug, color)")
+          .select("id, title, sort_order, created_at, updated_at, pipeline_stages(name, slug, color)")
           .ilike("title", `%${contact.name}%`)
           .order("updated_at", { ascending: false })
           .limit(20),
@@ -150,7 +149,6 @@ export async function GET(
         return {
           id: raw.id as string,
           title: raw.title as string,
-          value: raw.value as number | null,
           sort_order: raw.sort_order as number,
           created_at: raw.created_at as string,
           updated_at: raw.updated_at as string,

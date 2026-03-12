@@ -26,7 +26,7 @@ export const createTaskSchema = z.object({
   priority: z.enum(["critical", "high", "medium", "low"]).optional(),
   due_date: z.string().datetime().optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
-  assigned_to: z.string().max(200).optional().nullable(),
+  assignee: z.string().max(200).optional().nullable(),
   recurrence_rule: z.enum(["daily", "weekly", "monthly"]).optional().nullable(),
   is_recurring_template: z.boolean().optional(),
 });
@@ -47,7 +47,7 @@ export const createContentPostSchema = z.object({
   image_url: z.string().url().optional().nullable(),
   media_urls: z.array(z.string().url()).optional().nullable(),
   buffer_profile_ids: z.array(z.string()).optional().nullable(),
-  buffer_post_id: z.string().max(200).optional().nullable(),
+  buffer_id: z.string().max(200).optional().nullable(),
   buffer_status: z.string().max(50).optional().nullable(),
   buffer_sent_at: z.string().datetime().optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
