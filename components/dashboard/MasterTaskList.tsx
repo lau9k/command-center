@@ -343,9 +343,7 @@ export function MasterTaskList({
             {chip.label}
             {chip.value !== ALL_VALUE && (
               <span className="ml-1.5 tabular-nums">
-                {tasks.filter((t) =>
-                  chip.value === ALL_VALUE ? true : t.status === chip.value
-                ).length}
+                {tasks.filter((t) => t.status === chip.value).length}
               </span>
             )}
           </button>
