@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { Calendar, ClipboardCheck, LayoutGrid, Plus } from "lucide-react";
 import Link from "next/link";
+import { startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BufferCalendar } from "@/components/content/BufferCalendar";
@@ -20,32 +21,78 @@ type PostWithProject = ContentPost & {
 
 type ViewMode = "calendar" | "board";
 
-interface ContentPageShellProps {
-  calendarPosts: PostWithProject[];
-  allPosts: ContentPost[];
-  projects: Pick<Project, "id" | "name" | "color">[];
-}
-
-export function ContentPageShell({
-  calendarPosts,
-  allPosts,
-  projects,
-}: ContentPageShellProps) {
+export function ContentPageShell() {
   const [view, setView] = useState<ViewMode>("calendar");
-  const [posts, setPosts] = useState<ContentPost[]>(allPosts);
+  const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [calendarPosts, setCalendarPosts] = useState<PostWithProject[]>([]);
+  const [projects, setProjects] = useState<
+    Pick<Project, "id" | "name" | "color">[]
+  >([]);
+  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
 
-  const refreshPosts = useCallback(async () => {
+  const fetchAllPosts = useCallback(async () => {
     try {
-      const res = await fetch("/api/content-posts");
+      const res = await fetch("/api/content");
       if (res.ok) {
-        const data = await res.json();
-        setPosts(Array.isArray(data) ? data : []);
+        const json = await res.json();
+        const data: PostWithProject[] = Array.isArray(json.data)
+          ? json.data
+          : [];
+        setPosts(data);
+
+        // Extract unique projects from joined data
+        const projectMap = new Map<
+          string,
+          Pick<Project, "id" | "name" | "color">
+        >();
+        for (const post of data) {
+          if (post.projects) {
+            projectMap.set(post.projects.id, post.projects);
+          }
+        }
+        setProjects(
+          Array.from(projectMap.values()).sort((a, b) =>
+            a.name.localeCompare(b.name)
+          )
+        );
       }
     } catch {
       // silent
     }
   }, []);
+
+  const fetchCalendarPosts = useCallback(async () => {
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 0 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+    const params = new URLSearchParams({
+      start: weekStart.toISOString(),
+      end: weekEnd.toISOString(),
+    });
+    try {
+      const res = await fetch(`/api/content/calendar?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCalendarPosts(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    async function init() {
+      setLoading(true);
+      await Promise.all([fetchAllPosts(), fetchCalendarPosts()]);
+      setLoading(false);
+    }
+    init();
+  }, [fetchAllPosts, fetchCalendarPosts]);
+
+  const refreshPosts = useCallback(async () => {
+    await Promise.all([fetchAllPosts(), fetchCalendarPosts()]);
+  }, [fetchAllPosts, fetchCalendarPosts]);
 
   const handleNewPost = useCallback(
     async (data: ContentFormData) => {
@@ -75,6 +122,24 @@ export function ContentPageShell({
     },
     [refreshPosts]
   );
+
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-foreground">
+            Content Calendar
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Schedule and manage posts across all projects
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <div className="size-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -135,7 +200,7 @@ export function ContentPageShell({
         </div>
       </div>
 
-      {posts.length === 0 && allPosts.length === 0 ? (
+      {posts.length === 0 ? (
         <div className="space-y-4">
           <ModuleEmptyState module="content" />
           <div className="flex justify-center">
