@@ -278,6 +278,24 @@ export const updatePipelineItemSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
+// ── Sponsors ─────────────────────────────────────────────
+
+export const createSponsorSchema = z.object({
+  name: z.string().min(1).max(500),
+  contact_name: z.string().max(500).optional().nullable(),
+  contact_email: z.string().email().max(500).optional().nullable(),
+  company_url: z.string().max(1000).optional().nullable(),
+  tier: z.enum(["bronze", "silver", "gold", "platinum", "title"]).optional(),
+  status: z.enum(["not_contacted", "contacted", "negotiating", "confirmed", "declined"]).optional(),
+  amount: z.number().min(0).optional(),
+  currency: z.string().max(10).optional(),
+  notes: z.string().max(10000).optional().nullable(),
+});
+
+export const updateSponsorSchema = createSponsorSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
