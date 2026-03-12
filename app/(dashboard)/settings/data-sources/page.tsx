@@ -3,6 +3,8 @@ import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+export const revalidate = 3600;
+
 export default function DataSourcesPage() {
   return (
     <div className="space-y-6">

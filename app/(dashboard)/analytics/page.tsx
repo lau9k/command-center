@@ -1,5 +1,7 @@
 "use client";
 
+export const revalidate = 60;
+
 import { useEffect, useState } from "react";
 import {
   BarChart,

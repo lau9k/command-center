@@ -1,5 +1,7 @@
 "use client";
 
+export const revalidate = 86400;
+
 import { useCallback, useRef, useState } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
