@@ -12,6 +12,8 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const pageSize = parseInt(searchParams.get("pageSize") ?? "50", 10);
   const sort = searchParams.get("sort") ?? undefined;
   const tag = searchParams.get("tag");
+  const status = searchParams.get("status");
+  const contactSource = searchParams.get("contactSource");
   const source = searchParams.get("source") ?? "personize";
 
   // Try Personize first (unless explicitly requesting supabase)
@@ -52,10 +54,16 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   if (tag) {
     supabaseQuery = supabaseQuery.contains("tags", [tag]);
   }
+  if (status) {
+    supabaseQuery = supabaseQuery.eq("status", status);
+  }
+  if (contactSource) {
+    supabaseQuery = supabaseQuery.eq("source", contactSource);
+  }
 
   const search = query ?? searchParams.get("search");
   if (search) {
-    supabaseQuery = supabaseQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    supabaseQuery = supabaseQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`);
   }
 
   const { data, error } = await supabaseQuery;
