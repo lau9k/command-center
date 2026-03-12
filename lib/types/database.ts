@@ -1,3 +1,22 @@
+export type SponsorTier = "bronze" | "silver" | "gold" | "platinum" | "title";
+export type SponsorStatus = "not_contacted" | "contacted" | "negotiating" | "confirmed" | "declined";
+
+export interface Sponsor {
+  id: string;
+  user_id: string | null;
+  name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  company_url: string | null;
+  tier: SponsorTier;
+  status: SponsorStatus;
+  amount: number;
+  currency: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
