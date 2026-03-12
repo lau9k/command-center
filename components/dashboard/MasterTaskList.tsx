@@ -88,13 +88,13 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 
 const ALL_VALUE = "__all__";
 
-const STATUS_CHIPS = [
+const STATUS_CHIPS: readonly { label: string; value: string }[] = [
   { label: "All", value: ALL_VALUE },
   { label: "Todo", value: "todo" },
   { label: "In Progress", value: "in_progress" },
   { label: "Blocked", value: "blocked" },
   { label: "Done", value: "done" },
-] as const;
+];
 
 export function MasterTaskList({
   initialTasks,

@@ -33,7 +33,7 @@ import {
 import { Plus, Pencil, Trash2, CheckCircle2, Clock, Circle, ListTodo, Ban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
-const statusConfig: Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" }> = {
+const statusConfig: Record<TaskStatus, { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   todo: { label: "To Do", icon: Circle, variant: "outline" },
   in_progress: { label: "In Progress", icon: Clock, variant: "secondary" },
   done: { label: "Done", icon: CheckCircle2, variant: "default" },

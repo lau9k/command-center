@@ -16,7 +16,9 @@ import {
   Bell,
   Database,
   SlidersHorizontal,
+  Activity,
 } from "lucide-react";
+import Link from "next/link";
 
 interface SettingsClientProps {
   email: string | null;
@@ -59,6 +61,13 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
             <Database className="h-4 w-4" />
             Data
           </TabsTrigger>
+          <Link
+            href="/settings/data-sources"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Activity className="h-4 w-4" />
+            Data Sources
+          </Link>
         </TabsList>
 
         {/* Profile Tab — read-only */}
