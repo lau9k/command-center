@@ -78,7 +78,7 @@ function buildTimeline(
       type: "pipeline",
       title: p.title,
       description: p.stage
-        ? `Stage: ${p.stage.name}${p.value ? ` \u00B7 $${p.value.toLocaleString()}` : ""}`
+        ? `Stage: ${p.stage.name}`
         : undefined,
       timestamp: p.updated_at ?? p.created_at,
     });

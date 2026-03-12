@@ -89,7 +89,9 @@ export interface PersonizeContact {
   record_id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   company: string | null;
+  role: string | null;
   job_title: string | null;
   has_conversation: boolean;
   message_count: number;
@@ -99,8 +101,11 @@ export interface PersonizeContact {
   status: "active";
   tags: string[];
   score: number;
+  notes: string | null;
   project_id: string;
   last_contact_date: string | null;
+  deleted_at: string | null;
+  merged_into_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -44,8 +44,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       .limit(5),
     supabase
       .from("pipeline_items")
-      .select("id, project_id, title, stage")
-      .or(`title.ilike.${pattern},stage.ilike.${pattern}`)
+      .select("id, project_id, title, stage_id")
+      .ilike("title", pattern)
       .limit(5),
     supabase
       .from("content_posts")
@@ -91,7 +91,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         id: p.id,
         type: "pipeline",
         title: p.title,
-        subtitle: p.stage,
+        subtitle: p.stage_id,
         href: `/projects/${p.project_id}/pipeline`,
       });
     }

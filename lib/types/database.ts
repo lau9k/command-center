@@ -98,12 +98,17 @@ export interface Contact {
   project_id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   company: string | null;
+  role: string | null;
   source: ContactSource;
   status: ContactStatus;
   tags: string[];
   score: number;
+  notes: string | null;
   last_contact_date: string | null;
+  deleted_at: string | null;
+  merged_into_id: string | null;
   created_at: string;
   updated_at: string;
   // Personize-specific fields (present when sourced from Personize SDK)
@@ -117,10 +122,15 @@ export interface Contact {
 
 export interface PipelineItem {
   id: string;
+  pipeline_id: string;
+  stage_id: string;
   project_id: string;
+  user_id: string;
   title: string;
-  stage: string;
-  value: number | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  sort_order: number;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
