@@ -12,7 +12,7 @@ export function validateWebhookSecret(
   if (!secret) {
     return NextResponse.json(
       { success: false, error: "Webhook secret not configured" },
-      { status: 500 }
+      { status: 503 }
     );
   }
 
