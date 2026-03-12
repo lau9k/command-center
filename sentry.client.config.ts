@@ -6,9 +6,21 @@ Sentry.init({
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV || "development",
   release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA,
 
-  // Performance sampling: 20% in production, 100% in preview/development
+  // Performance sampling: 10% in production, 100% in preview/development
   tracesSampleRate:
-    process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ? 0.2 : 1.0,
+    process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ? 0.1 : 1.0,
+
+  // Session Replay: capture 100% of error sessions, 0% of normal sessions
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 1.0,
+
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: true,
+      blockAllMedia: true,
+    }),
+    Sentry.browserTracingIntegration(),
+  ],
 
   // Scrub PII from breadcrumbs
   beforeBreadcrumb(breadcrumb) {
