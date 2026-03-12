@@ -5,7 +5,7 @@ import { SettingsProfile } from "./SettingsProfile";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { DataManagement } from "@/components/settings/DataManagement";
-import { ApiKeysPanel } from "@/components/settings/ApiKeysPanel";
+import { APIKeyManager } from "@/components/settings/APIKeyManager";
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs";
 import { SeedDemoButton } from "./SeedDemoButton";
 import { SettingsDangerZone } from "./SettingsDangerZone";
@@ -124,7 +124,7 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
                 View and manage API keys used by the application
               </p>
             </div>
-            <ApiKeysPanel />
+            <APIKeyManager />
           </div>
         </TabsContent>
 
