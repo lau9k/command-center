@@ -296,6 +296,59 @@ export const updateSponsorSchema = createSponsorSchema.partial().extend({
   id: z.string().uuid(),
 });
 
+// ── Webhook Ingest: Contacts ─────────────────────────────
+
+export const ingestContactSchema = z.object({
+  name: z.string().min(1).max(500),
+  email: z.string().email().max(500),
+  phone: z.string().max(50).optional().nullable(),
+  company: z.string().max(500).optional().nullable(),
+  role: z.string().max(500).optional().nullable(),
+  notes: z.string().max(10000).optional().nullable(),
+  tags: z.array(z.string().max(100)).optional().nullable(),
+  score: z.number().int().min(0).max(100).optional().nullable(),
+  source: z.string().max(200).optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+});
+
+// ── Webhook Ingest: Conversations ────────────────────────
+
+export const ingestConversationSchema = z.object({
+  contact_email: z.string().email().max(500),
+  summary: z.string().max(10000).optional().nullable(),
+  channel: z.string().max(100).optional().nullable(),
+  last_message_at: z.string().datetime().optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+});
+
+// ── Webhook Ingest: Tasks ────────────────────────────────
+
+export const ingestTaskSchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).optional().nullable(),
+  status: z.enum(["todo", "in_progress", "done", "blocked"]).optional(),
+  priority: z.enum(["critical", "high", "medium", "low"]).optional(),
+  due_date: z.string().datetime().optional().nullable(),
+  assignee: z.string().max(200).optional().nullable(),
+  tags: z.array(z.string().max(100)).optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+});
+
+// ── Webhook Ingest: Transactions ─────────────────────────
+
+export const ingestTransactionSchema = z.object({
+  date: z.string().max(50),
+  description: z.string().max(1000),
+  amount: z.number(),
+  currency: z.string().max(10).optional(),
+  category: z.string().max(200).optional().nullable(),
+  wallet: z.string().max(200).optional().nullable(),
+  type: z.string().max(50).optional().nullable(),
+  notes: z.string().max(10000).optional().nullable(),
+  project_id: z.string().uuid().optional().nullable(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
