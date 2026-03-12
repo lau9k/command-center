@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceEmptyState } from "./FinanceEmptyState";
 import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";
 import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
+import { PlaidSyncButton } from "@/components/finance/PlaidSyncButton";
 import type {
   Transaction,
   Debt,
@@ -46,11 +47,14 @@ export default async function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Finance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Track income, expenses, debts, and net worth
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Finance</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Track income, expenses, debts, and net worth
+          </p>
+        </div>
+        <PlaidSyncButton />
       </div>
 
       <ConnectedAccounts />
