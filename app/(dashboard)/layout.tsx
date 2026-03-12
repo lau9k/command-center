@@ -2,6 +2,8 @@ import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { CommandPaletteProvider } from "@/components/search/CommandPaletteProvider";
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
 import type { Notification } from "@/lib/types/database";

@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
+import { SharedEmptyState } from "@/components/shared/EmptyState";
 
 const TAG_OPTIONS = ["Personize", "Hackathon", "MEEK", "Personal"] as const;
 
@@ -262,7 +262,12 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
             New Contact
           </Button>
         </div>
-        <ModuleEmptyState module="contacts" />
+        <SharedEmptyState
+          icon={<Users className="size-12" />}
+          title="No contacts yet"
+          description="Import your contact list to start tracking relationships, scores, and engagement."
+          action={{ label: "New Contact", onClick: openNewForm }}
+        />
         <ContactForm
           open={formOpen}
           onOpenChange={setFormOpen}
