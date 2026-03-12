@@ -6,8 +6,8 @@ Sentry.init({
   environment: process.env.VERCEL_ENV || "development",
   release: process.env.VERCEL_GIT_COMMIT_SHA,
 
-  // Performance sampling: 20% in production, 100% in preview/development
-  tracesSampleRate: process.env.VERCEL_ENV === "production" ? 0.2 : 1.0,
+  // Performance sampling: 10% in production, 100% in preview/development
+  tracesSampleRate: process.env.VERCEL_ENV === "production" ? 0.1 : 1.0,
 
   // Scrub PII from events
   beforeSend(event) {
