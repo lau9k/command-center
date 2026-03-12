@@ -30,6 +30,11 @@ interface GmailHeader {
   value?: string | null;
 }
 
+const hasGmailCredentials = !!(
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET
+);
+
 function getOAuth2Client() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -57,6 +62,8 @@ function getHeader(headers: GmailHeader[], name: string): string | null {
 }
 
 export async function getLastSyncDate(): Promise<string | null> {
+  if (!hasGmailCredentials) return null;
+
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("sync_log")
@@ -71,6 +78,10 @@ export async function getLastSyncDate(): Promise<string | null> {
 }
 
 export async function syncGmail(): Promise<GmailSyncSummary> {
+  if (!hasGmailCredentials) {
+    return { success: true, synced: 0, errors: 0, results: [] };
+  }
+
   const supabase = createServiceClient();
   const oauth2 = getOAuth2Client();
 
