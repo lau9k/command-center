@@ -327,12 +327,14 @@ export const ingestContactSchema = z.object({
   tags: z.array(z.string().max(100)).optional().nullable(),
   score: z.number().int().min(0).max(100).optional().nullable(),
   source: z.string().max(200).optional().nullable(),
+  qualified_status: z.string().max(100).optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
 });
 
 // ── Webhook Ingest: Conversations ────────────────────────
 
 export const ingestConversationSchema = z.object({
+  external_id: z.string().max(500),
   contact_email: z.string().email().max(500),
   summary: z.string().max(10000).optional().nullable(),
   channel: z.string().max(100).optional().nullable(),
@@ -344,6 +346,7 @@ export const ingestConversationSchema = z.object({
 // ── Webhook Ingest: Tasks ────────────────────────────────
 
 export const ingestTaskSchema = z.object({
+  external_id: z.string().max(500),
   title: z.string().min(1).max(500),
   description: z.string().max(10000).optional().nullable(),
   status: z.enum(["todo", "in_progress", "done", "blocked"]).optional(),
@@ -357,15 +360,16 @@ export const ingestTaskSchema = z.object({
 // ── Webhook Ingest: Transactions ─────────────────────────
 
 export const ingestTransactionSchema = z.object({
-  date: z.string().max(50),
-  description: z.string().max(1000),
+  external_id: z.string().max(500),
+  name: z.string().min(1).max(1000),
   amount: z.number(),
-  currency: z.string().max(10).optional(),
+  type: z.enum(["expense", "income"]).default("expense"),
   category: z.string().max(200).optional().nullable(),
-  wallet: z.string().max(200).optional().nullable(),
-  type: z.string().max(50).optional().nullable(),
+  interval: z.enum(["monthly", "biweekly", "weekly", "one_time"]).default("one_time"),
+  due_day: z.number().int().min(1).max(31).optional().nullable(),
+  start_date: z.string().max(50).optional().nullable(),
+  end_date: z.string().max(50).optional().nullable(),
   notes: z.string().max(10000).optional().nullable(),
-  project_id: z.string().uuid().optional().nullable(),
 });
 
 // ── Email Templates ──────────────────────────────────────

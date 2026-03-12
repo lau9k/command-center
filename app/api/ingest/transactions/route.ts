@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTransactionSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { validateWebhookSecret } from "@/lib/webhook-auth";
+import { validateWebhookSignature } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  const authError = validateWebhookSecret(request);
+  const { error: authError, body: rawBody } =
+    await validateWebhookSignature(request);
   if (authError) return authError;
 
-  const body = await request.json();
-
-  const parsed = ingestTransactionSchema.safeParse(body);
+  const parsed = ingestTransactionSchema.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -25,9 +24,10 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
+  // Upsert by external_id (Plaid transaction ID) for deduplication
   const { data, error } = await supabase
     .from("transactions")
-    .insert(parsed.data)
+    .upsert(parsed.data, { onConflict: "external_id" })
     .select()
     .single();
 
@@ -38,13 +38,12 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     );
   }
 
-  // Fire-and-forget: don't block response on logging
   void logActivity({
     action: "ingested",
     entity_type: "transaction",
     entity_id: data.id,
-    entity_name: data.description,
-    source: "webhook",
+    entity_name: data.name,
+    source: "n8n",
   });
 
   return NextResponse.json({ success: true, data }, { status: 201 });

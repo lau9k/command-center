@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { validateWebhookSecret } from "@/lib/webhook-auth";
+import { validateWebhookSignature } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
+import { scoreTask } from "@/lib/task-scoring";
+import type { Task } from "@/lib/types/database";
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  const authError = validateWebhookSecret(request);
+  const { error: authError, body: rawBody } =
+    await validateWebhookSignature(request);
   if (authError) return authError;
 
-  const body = await request.json();
-
-  const parsed = ingestTaskSchema.safeParse(body);
+  const parsed = ingestTaskSchema.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -25,9 +26,44 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
+  // Compute priority_score using the scoring engine
+  const taskForScoring: Task = {
+    id: "",
+    external_id: parsed.data.external_id,
+    title: parsed.data.title,
+    description: parsed.data.description ?? null,
+    status: parsed.data.status ?? "todo",
+    priority: parsed.data.priority ?? "medium",
+    due_date: parsed.data.due_date ?? null,
+    assignee: parsed.data.assignee ?? null,
+    tags: parsed.data.tags ?? null,
+    project_id: parsed.data.project_id ?? null,
+    recurrence_rule: null,
+    recurrence_parent_id: null,
+    is_recurring_template: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  let project: { name: string } | null = null;
+  if (parsed.data.project_id) {
+    const { data: proj } = await supabase
+      .from("projects")
+      .select("name")
+      .eq("id", parsed.data.project_id)
+      .single();
+    project = proj;
+  }
+
+  const { score } = scoreTask(taskForScoring, project);
+
+  // Upsert by external_id for deduplication
   const { data, error } = await supabase
     .from("tasks")
-    .insert(parsed.data)
+    .upsert(
+      { ...parsed.data, priority_score: score },
+      { onConflict: "external_id" }
+    )
     .select()
     .single();
 
@@ -38,13 +74,12 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     );
   }
 
-  // Fire-and-forget: don't block response on logging
   void logActivity({
     action: "ingested",
     entity_type: "task",
     entity_id: data.id,
     entity_name: data.title,
-    source: "webhook",
+    source: "n8n",
   });
 
   return NextResponse.json({ success: true, data }, { status: 201 });
