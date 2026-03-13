@@ -15,6 +15,7 @@ import { KPIStripLive } from "@/components/home/KPIStripLive";
 import { LiveActivityStream } from "@/components/home/LiveActivityStream";
 import { UpcomingItemsPanel } from "@/components/home/UpcomingItemsPanel";
 import { QuickActionsBar } from "@/components/home/QuickActionsBar";
+import { DataSourceStatus } from "@/components/home/data-source-status";
 import { scoreTask } from "@/lib/task-scoring";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
@@ -342,6 +343,9 @@ export default async function DashboardPage() {
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
       />
+
+      {/* 5b. Data Source Status */}
+      <DataSourceStatus />
 
       {/* 6. Upcoming Items Panel */}
       <UpcomingItemsPanel
