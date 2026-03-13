@@ -14,6 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TemplateEditor } from "@/components/templates/TemplateEditor";
 import type { EmailTemplate, EmailTemplateCategory } from "@/lib/types/database";
@@ -34,6 +44,7 @@ export default function TemplatesPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -66,9 +77,12 @@ export default function TemplatesPage() {
     setEditorOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     const prev = templates;
     setTemplates((t) => t.filter((tpl) => tpl.id !== id));
+    setDeleteTarget(null);
 
     try {
       const res = await fetch(`/api/templates/${id}`, { method: "DELETE" });
@@ -182,7 +196,7 @@ export default function TemplatesPage() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(template.id)}
+                    onClick={() => setDeleteTarget(template)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -225,6 +239,24 @@ export default function TemplatesPage() {
         template={editingTemplate}
         onSave={handleSave}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDeleteConfirm}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

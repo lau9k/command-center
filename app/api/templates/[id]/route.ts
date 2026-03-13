@@ -1,12 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateEmailTemplateSchema } from "@/lib/validations";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+function detectVariables(subject: string, body: string): string[] {
+  const combined = `${subject} ${body}`;
+  const variableMatches = combined.match(/\{\{(\w+)\}\}/g);
+  return variableMatches
+    ? [...new Set(variableMatches.map((m: string) => m.replace(/\{\{|\}\}/g, "")))]
+    : [];
+}
+
+async function resolveVariables(
+  supabase: ReturnType<typeof createServiceClient>,
+  id: string,
+  parsed: { subject?: string; body?: string }
 ) {
-  const { id } = await params;
+  if (parsed.subject === undefined && parsed.body === undefined) return {};
+
+  const { data: current } = await supabase
+    .from("email_templates")
+    .select("subject, body")
+    .eq("id", id)
+    .single();
+
+  const subject = parsed.subject ?? current?.subject ?? "";
+  const templateBody = parsed.body ?? current?.body ?? "";
+  return { variables: detectVariables(subject, templateBody) };
+}
+
+export const GET = withErrorHandler(async function GET(
+  _request: NextRequest,
+  context?: { params: Promise<Record<string, string>> },
+) {
+  const { id } = (await context?.params) ?? {};
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -20,43 +51,33 @@ export async function GET(
   }
 
   return NextResponse.json({ data });
-}
+});
 
-export async function PUT(
+export const PUT = withErrorHandler(async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context?: { params: Promise<Record<string, string>> },
 ) {
-  const { id } = await params;
+  const { id } = (await context?.params) ?? {};
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
   const supabase = createServiceClient();
   const body = await request.json();
 
   const parsed = updateEmailTemplateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
   }
 
-  // Auto-detect variables from subject and body if either changed
-  const updateData: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.subject !== undefined || parsed.data.body !== undefined) {
-    // Fetch current template to merge subject/body for variable detection
-    const { data: current } = await supabase
-      .from("email_templates")
-      .select("subject, body")
-      .eq("id", id)
-      .single();
-
-    const subject = parsed.data.subject ?? current?.subject ?? "";
-    const templateBody = parsed.data.body ?? current?.body ?? "";
-    const combined = `${subject} ${templateBody}`;
-    const variableMatches = combined.match(/\{\{(\w+)\}\}/g);
-    updateData.variables = variableMatches
-      ? [...new Set(variableMatches.map((m: string) => m.replace(/\{\{|\}\}/g, "")))]
-      : [];
-  }
+  const variableData = await resolveVariables(supabase, id, parsed.data);
 
   const { data, error } = await supabase
     .from("email_templates")
-    .update(updateData)
+    .update({ ...parsed.data, ...variableData })
     .eq("id", id)
     .select("*")
     .single();
@@ -66,13 +87,53 @@ export async function PUT(
   }
 
   return NextResponse.json({ data });
-}
+});
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+export const PATCH = withErrorHandler(async function PATCH(
+  request: NextRequest,
+  context?: { params: Promise<Record<string, string>> },
 ) {
-  const { id } = await params;
+  const { id } = (await context?.params) ?? {};
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+  const body = await request.json();
+
+  const parsed = updateEmailTemplateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const variableData = await resolveVariables(supabase, id, parsed.data);
+
+  const { data, error } = await supabase
+    .from("email_templates")
+    .update({ ...parsed.data, ...variableData })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ data });
+});
+
+export const DELETE = withErrorHandler(async function DELETE(
+  _request: NextRequest,
+  context?: { params: Promise<Record<string, string>> },
+) {
+  const { id } = (await context?.params) ?? {};
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
   const supabase = createServiceClient();
 
   const { error } = await supabase.from("email_templates").delete().eq("id", id);
@@ -82,4 +143,4 @@ export async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-}
+});
