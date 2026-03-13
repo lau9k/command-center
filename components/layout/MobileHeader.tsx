@@ -1,16 +1,19 @@
 "use client";
 
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/dashboard/user-nav";
+import { NotificationBell } from "@/components/dashboard/NotificationBell";
 import { openMobileSidebar } from "./ResponsiveSidebar";
+import type { Notification } from "@/lib/types/database";
 
 interface MobileHeaderProps {
   email: string | null;
   unreadCount: number;
+  initialNotifications?: Notification[];
 }
 
-export function MobileHeader({ email, unreadCount }: MobileHeaderProps) {
+export function MobileHeader({ email, unreadCount, initialNotifications = [] }: MobileHeaderProps) {
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4 lg:hidden">
       <Button
@@ -26,15 +29,10 @@ export function MobileHeader({ email, unreadCount }: MobileHeaderProps) {
       <h1 className="text-lg font-semibold md:hidden">Command Center</h1>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-          <span className="sr-only">Notifications</span>
-        </Button>
+        <NotificationBell
+          initialNotifications={initialNotifications}
+          initialUnreadCount={unreadCount}
+        />
         <UserNav email={email} />
       </div>
     </header>
