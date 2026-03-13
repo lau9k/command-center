@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { ingestContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSecret } from "@/lib/webhook-auth";
 import { logActivity } from "@/lib/activity-logger";
+import { logSync } from "@/lib/gmail-sync-log";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { n8nContactPayload } from "@/lib/ingest/n8n-adapters";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
   if (authError) return authError;
 
   const rawBody = await request.text();
-  const parsed = ingestContactSchema.safeParse(JSON.parse(rawBody));
+  const parsed = n8nContactPayload.safeParse(JSON.parse(rawBody));
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -23,29 +24,39 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
+  const items = parsed.data;
   const supabase = createServiceClient();
 
   // Upsert by email — update existing contact or insert new one
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(parsed.data, { onConflict: "email" })
-    .select()
-    .single();
+    .upsert(items, { onConflict: "email" })
+    .select();
 
   if (error) {
+    void logSync("n8n:contacts", "error", 0, error.message);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
   }
 
-  void logActivity({
-    action: "ingested",
-    entity_type: "contact",
-    entity_id: data.id,
-    entity_name: data.name,
-    source: "n8n",
-  });
+  const results = data ?? [];
 
-  return NextResponse.json({ success: true, data }, { status: 201 });
+  for (const row of results) {
+    void logActivity({
+      action: "ingested",
+      entity_type: "contact",
+      entity_id: row.id,
+      entity_name: row.name,
+      source: "n8n",
+    });
+  }
+
+  void logSync("n8n:contacts", "success", results.length);
+
+  return NextResponse.json(
+    { success: true, data: results, count: results.length },
+    { status: 201 }
+  );
 }), RATE_LIMITS.ingest);
