@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { encrypt } from "@/lib/gmail-crypto";
 
@@ -39,6 +40,13 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     );
   }
 
+  // Get the authenticated user
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const supabase = createServiceClient();
 
   // Check if account already exists
@@ -53,6 +61,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     await supabase
       .from("gmail_accounts")
       .update({
+        user_id: user.id,
         refresh_token_encrypted: encrypt(parsed.data.refresh_token),
         status: "active",
         updated_at: new Date().toISOString(),
@@ -68,6 +77,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("gmail_accounts")
     .insert({
+      user_id: user.id,
       email_address: parsed.data.email_address,
       refresh_token_encrypted: encrypt(parsed.data.refresh_token),
       status: "active",

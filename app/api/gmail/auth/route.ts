@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createClient } from "@/lib/supabase/server";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.labels",
 ];
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     return NextResponse.json(
       { error: "Google OAuth is not configured" },
-      { status: 500 }
+      { status: 503 }
     );
   }
 
@@ -46,4 +47,4 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.redirect(authUrl);
-}
+});

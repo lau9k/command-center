@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state"); // user_id for CSRF verification
+  const state = url.searchParams.get("state"); // user_id passed through OAuth state
   const error = url.searchParams.get("error");
 
   const redirectBase = `${url.origin}/settings/data-sources`;
@@ -32,14 +32,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const redirectUri = `${url.origin}/api/gmail/callback`;
-  const oauth2Client = new google.auth.OAuth2(
-    clientId,
-    clientSecret,
-    redirectUri
-  );
-
   try {
+    const redirectUri = `${url.origin}/api/gmail/callback`;
+    const oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+
     // Exchange authorization code for tokens
     const { tokens } = await oauth2Client.getToken(code);
 
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
       await supabase
         .from("gmail_accounts")
         .update({
+          user_id: state,
           refresh_token_encrypted: encrypt(tokens.refresh_token),
           status: "active",
           updated_at: new Date().toISOString(),
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
         .eq("id", existing.id);
     } else {
       await supabase.from("gmail_accounts").insert({
+        user_id: state,
         email_address: emailAddress,
         refresh_token_encrypted: encrypt(tokens.refresh_token),
         status: "active",
