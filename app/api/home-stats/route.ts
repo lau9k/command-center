@@ -11,6 +11,7 @@ export interface HomeStatsResponse {
   contentPublishedCount: number;
   contentThisWeek: number;
   contactsCount: number;
+  conversationsCount: number;
   pipelineItemCount: number;
   pipelineTotalValue: number;
   openInvoiceTotal: number;
@@ -21,6 +22,7 @@ export interface HomeStatsResponse {
   overdueTasks: number;
   tasksCompletedToday: number;
   newContactsThisWeek: number;
+  lastUpdated: string;
 }
 
 /** Safely query a table, returning a fallback on error (e.g. table doesn't exist). */
@@ -78,6 +80,7 @@ export const GET = withErrorHandler(async function GET() {
     overdueTasks,
     tasksCompletedToday,
     newContactsThisWeek,
+    conversationsCount,
   ] = await Promise.all([
     // Tasks (need status + project_id for active count + project count)
     safeQuery(
@@ -111,14 +114,15 @@ export const GET = withErrorHandler(async function GET() {
         .select("id", { count: "exact", head: true }),
     ),
 
-    // Pipeline values (exclude closed-lost)
+    // Pipeline values: join pipeline_stages to exclude "lost" stage by slug,
+    // and read value from metadata->value since pipeline_items has no value column
     safeQuery(
       () =>
         supabase
           .from("pipeline_items")
-          .select("value")
-          .neq("stage", "closed-lost"),
-      [] as { value: number | null }[],
+          .select("metadata, pipeline_stages!inner(slug)")
+          .neq("pipeline_stages.slug", "lost"),
+      [] as { metadata: Record<string, unknown> | null; pipeline_stages: { slug: string }[] }[],
     ),
 
     // Open invoices
@@ -131,10 +135,10 @@ export const GET = withErrorHandler(async function GET() {
       [] as { amount: number | null; status: string }[],
     ),
 
-    // Memory stats
+    // Memory stats — sum both legacy "count" and newer "record_count" columns
     safeQuery(
-      () => supabase.from("memory_stats").select("count"),
-      [] as { count: number | null }[],
+      () => supabase.from("memory_stats").select("count, record_count"),
+      [] as { count: number; record_count: number | null }[],
     ),
 
     // Sponsors total count
@@ -179,6 +183,13 @@ export const GET = withErrorHandler(async function GET() {
         .select("id", { count: "exact", head: true })
         .gte("created_at", weekAgo),
     ),
+
+    // Conversations count
+    safeCount(() =>
+      supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true }),
+    ),
   ]);
 
   // Compute KPIs
@@ -199,7 +210,7 @@ export const GET = withErrorHandler(async function GET() {
   const contentPublishedCount = allContent.filter((p) => p.status === "published").length;
 
   const pipelineTotalValue = pipelineValues.reduce(
-    (sum, item) => sum + Number(item.value ?? 0),
+    (sum, item) => sum + Number((item.metadata as Record<string, unknown>)?.value ?? 0),
     0,
   );
 
@@ -209,7 +220,7 @@ export const GET = withErrorHandler(async function GET() {
   );
 
   const memoryRecords = memoryStats.reduce(
-    (sum, s) => sum + (s.count ?? 0),
+    (sum, s) => sum + (s.record_count ?? s.count ?? 0),
     0,
   );
 
@@ -227,6 +238,7 @@ export const GET = withErrorHandler(async function GET() {
     contentPublishedCount,
     contentThisWeek,
     contactsCount,
+    conversationsCount,
     pipelineItemCount: pipelineCount,
     pipelineTotalValue,
     openInvoiceTotal,
@@ -237,6 +249,7 @@ export const GET = withErrorHandler(async function GET() {
     overdueTasks,
     tasksCompletedToday,
     newContactsThisWeek,
+    lastUpdated: new Date().toISOString(),
   };
 
   return NextResponse.json({ data: response });
