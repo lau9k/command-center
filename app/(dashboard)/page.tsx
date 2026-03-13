@@ -336,7 +336,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 1. AI Focus Panel */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <AIFocusPanel />
         <SessionPromptButton />
       </div>
