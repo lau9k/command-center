@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/database";
 import { Badge } from "@/components/ui/badge";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { statusBadgeClass } from "@/lib/design-tokens";
+import { ProjectSubNav } from "@/components/projects/ProjectSubNav";
 
 const statusColors: Record<string, string> = {
   active: statusBadgeClass.active,
@@ -12,11 +12,6 @@ const statusColors: Record<string, string> = {
   completed: statusBadgeClass.completed,
   archived: statusBadgeClass.archived,
 };
-
-interface Tab {
-  label: string;
-  href: string;
-}
 
 export default async function ProjectLayout({
   children,
@@ -38,15 +33,6 @@ export default async function ProjectLayout({
     notFound();
   }
 
-  const tabs: Tab[] = [
-    { label: "Summary", href: `/projects/${projectId}` },
-    { label: "Content", href: `/projects/${projectId}/content` },
-    { label: "Pipeline", href: `/projects/${projectId}/pipeline` },
-    { label: "Tasks", href: `/projects/${projectId}/tasks` },
-    { label: "Contacts", href: `/projects/${projectId}/contacts` },
-    { label: "Events", href: `/projects/${projectId}/events` },
-  ];
-
   return (
     <div className="space-y-6">
       <div>
@@ -62,17 +48,7 @@ export default async function ProjectLayout({
         )}
       </div>
 
-      <nav className="flex gap-1 border-b">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border-b-2 border-transparent hover:border-foreground transition-colors -mb-px"
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
+      <ProjectSubNav projectId={projectId} />
 
       {children}
     </div>

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { PipelineKPIStrip } from "@/components/pipeline/PipelineKPIStrip";
+import { Kanban } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,30 @@ export default async function ProjectPipelinePage({
   const wonDeals = items.filter((item) => wonStageIds.has(item.stage_id)).length;
   const completedDeals = wonDeals + items.filter((item) => lostStageIds.has(item.stage_id)).length;
   const winRate = completedDeals > 0 ? Math.round((wonDeals / completedDeals) * 100) : 0;
+
+  if (stages.length === 0 && items.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Pipeline</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage deals and track progress through stages
+          </p>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card px-8 py-16 text-center">
+          <div className="text-text-muted [&_svg]:size-12">
+            <Kanban />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-lg font-semibold text-foreground">No pipeline stages yet</h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Set up pipeline stages for this project to start tracking deals.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

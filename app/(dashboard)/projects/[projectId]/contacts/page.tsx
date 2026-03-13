@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import type { Contact, ContactStatus, ContactSource } from "@/lib/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Users,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import ContactDetail from "@/components/contacts/ContactDetail";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusColors: Record<ContactStatus, "default" | "secondary" | "outline" | "destructive"> = {
   active: "default",
@@ -48,6 +58,9 @@ const sourceLabels: Record<ContactSource, string> = {
   linkedin: "LinkedIn",
   other: "Other",
 };
+
+const ALL_VALUE = "__all__";
+const PAGE_SIZE = 20;
 
 type ContactFormData = {
   name: string;
@@ -76,6 +89,12 @@ export default function ProjectContactsPage() {
   const [form, setForm] = useState<ContactFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>(ALL_VALUE);
+  const [filterSource, setFilterSource] = useState<string>(ALL_VALUE);
+  const [page, setPage] = useState(1);
 
   const fetchContacts = useCallback(async () => {
     const { data } = await supabase
@@ -114,6 +133,39 @@ export default function ProjectContactsPage() {
     };
   }, [fetchContacts, projectId, supabase]);
 
+  // Reset page on filter change
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, filterSource]);
+
+  const filtered = useMemo(() => {
+    let result = contacts;
+
+    if (filterStatus !== ALL_VALUE) {
+      result = result.filter((c) => c.status === filterStatus);
+    }
+    if (filterSource !== ALL_VALUE) {
+      result = result.filter((c) => c.source === filterSource);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.email && c.email.toLowerCase().includes(q)) ||
+          (c.company && c.company.toLowerCase().includes(q)) ||
+          (c.tags && c.tags.some((tag) => tag.toLowerCase().includes(q)))
+      );
+    }
+
+    return result;
+  }, [contacts, filterStatus, filterSource, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const hasFilters = filterStatus !== ALL_VALUE || filterSource !== ALL_VALUE || search.trim() !== "";
+
   function openCreate() {
     setEditingContact(null);
     setForm(emptyForm);
@@ -146,9 +198,19 @@ export default function ProjectContactsPage() {
     };
 
     if (editingContact) {
-      await supabase.from("contacts").update(payload).eq("id", editingContact.id);
+      const { error } = await supabase.from("contacts").update(payload).eq("id", editingContact.id);
+      if (error) {
+        toast.error("Failed to update contact");
+      } else {
+        toast.success("Contact updated");
+      }
     } else {
-      await supabase.from("contacts").insert(payload);
+      const { error } = await supabase.from("contacts").insert(payload);
+      if (error) {
+        toast.error("Failed to create contact");
+      } else {
+        toast.success("Contact created");
+      }
     }
 
     setSaving(false);
@@ -157,12 +219,17 @@ export default function ProjectContactsPage() {
   }
 
   async function handleDelete(id: string) {
-    await supabase.from("contacts").delete().eq("id", id);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete contact");
+    } else {
+      toast.success("Contact deleted");
+    }
     fetchContacts();
   }
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading contacts...</p>;
+    return <ContactsLoadingSkeleton />;
   }
 
   if (selectedContact) {
@@ -175,73 +242,175 @@ export default function ProjectContactsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Contacts</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Contacts</h2>
+          <p className="text-sm text-muted-foreground">
+            {contacts.length} contact{contacts.length !== 1 ? "s" : ""} in this project
+          </p>
+        </div>
         <Button onClick={openCreate} size="sm">
           <Plus className="mr-2 h-4 w-4" />
           Add Contact
         </Button>
       </div>
 
-      {contacts.length === 0 ? (
+      {/* Search & Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search contacts by name, email, company, or tag..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="lead">Lead</SelectItem>
+            <SelectItem value="customer">Customer</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterSource} onValueChange={setFilterSource}>
+          <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectValue placeholder="All Sources" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All Sources</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="referral">Referral</SelectItem>
+            <SelectItem value="website">Website</SelectItem>
+            <SelectItem value="linkedin">LinkedIn</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilterStatus(ALL_VALUE);
+              setFilterSource(ALL_VALUE);
+              setSearch("");
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {/* Contacts table */}
+      {filtered.length === 0 && contacts.length === 0 && !hasFilters ? (
         <EmptyState
           icon={<Users />}
           title="No contacts yet"
           description="Add your first contact to get started."
+          action={{ label: "Add Contact", onClick: openCreate }}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Search />}
+          title="No contacts match filters"
+          description="Try adjusting your search or filters."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.map((contact) => (
-              <TableRow
-                key={contact.id}
-                className="cursor-pointer"
-                onClick={() => setSelectedContact(contact)}
-              >
-                <TableCell className="font-medium">{contact.name}</TableCell>
-                <TableCell>{contact.email ?? "—"}</TableCell>
-                <TableCell>{contact.company ?? "—"}</TableCell>
-                <TableCell>{sourceLabels[contact.source]}</TableCell>
-                <TableCell>
-                  <Badge variant={statusColors[contact.status]}>
-                    {contact.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => openEdit(contact)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => handleDelete(contact.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <>
+          <div className="rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((contact) => (
+                  <TableRow
+                    key={contact.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedContact(contact)}
+                  >
+                    <TableCell className="font-medium">{contact.name}</TableCell>
+                    <TableCell>{contact.email ?? "—"}</TableCell>
+                    <TableCell>{contact.company ?? "—"}</TableCell>
+                    <TableCell>{sourceLabels[contact.source]}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusColors[contact.status]}>
+                        {contact.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => openEdit(contact)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleDelete(contact.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} contacts
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -333,6 +502,39 @@ export default function ProjectContactsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function ContactsLoadingSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <div className="flex gap-3">
+        <Skeleton className="h-10 flex-1" />
+        <Skeleton className="h-10 w-[150px]" />
+        <Skeleton className="h-10 w-[150px]" />
+      </div>
+      <div className="rounded-md border border-border">
+        <div className="space-y-0">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 border-b border-border px-4 py-3 last:border-0">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
