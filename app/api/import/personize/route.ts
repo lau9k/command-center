@@ -1,71 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
+import { batchMemorize, type BatchContact } from "@/lib/personize/batch-memorize";
 
 export const runtime = "nodejs";
-// Allow long-running sequential calls (up to 5 minutes)
+// Allow long-running batch calls (up to 5 minutes)
 export const maxDuration = 300;
 
 const personizeImportSchema = z.object({
   import_id: z.string().uuid("import_id must be a valid UUID"),
 });
 
-interface PersonizeRequestBody {
-  import_id: string;
-}
-
-interface ContactRecord {
-  first_name?: string | null;
-  last_name?: string | null;
-  email?: string | null;
-  job_title?: string | null;
-  company_name?: string | null;
-  linkedin_url?: string | null;
-  website?: string | null;
-  phone?: string | null;
-  industry?: string | null;
-  city?: string | null;
-  country?: string | null;
-}
-
-function buildMemorizePayload(contact: ContactRecord, filename: string) {
-  const lines = [
-    `Contact: ${contact.first_name ?? ""} ${contact.last_name ?? ""}`.trim(),
-    contact.email ? `Email: ${contact.email}` : null,
-    contact.job_title ? `Title: ${contact.job_title}` : null,
-    contact.company_name ? `Company: ${contact.company_name}` : null,
-    contact.linkedin_url ? `LinkedIn: ${contact.linkedin_url}` : null,
-    contact.website ? `Website: ${contact.website}` : null,
-    contact.phone ? `Phone: ${contact.phone}` : null,
-    contact.industry ? `Industry: ${contact.industry}` : null,
-    contact.city || contact.country
-      ? `Location: ${[contact.city, contact.country].filter(Boolean).join(", ")}`
-      : null,
-  ].filter(Boolean);
-
-  return {
-    content: lines.join("\n"),
-    entity: { email: contact.email ?? "" },
-    type: "Contact",
-    tags: ["csv-import", filename],
-    enhanced: true,
-  };
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.PERSONIZE_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "PERSONIZE_API_KEY is not configured" },
-      { status: 500 }
-    );
-  }
-
-  let body: PersonizeRequestBody;
+  let body: z.infer<typeof personizeImportSchema>;
   try {
     const raw = await request.json();
     const parsed = personizeImportSchema.safeParse(raw);
@@ -106,7 +53,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contacts = importRecord.mapped_data as ContactRecord[];
+  const contacts = importRecord.mapped_data as BatchContact[];
   const filename = importRecord.filename as string;
 
   // Set status to processing
@@ -120,78 +67,45 @@ export async function POST(request: NextRequest) {
     })
     .eq("id", body.import_id);
 
-  let processed = 0;
-  let errors = 0;
-  const errorDetails: { index: number; email: string | null; error: string }[] = [];
-
-  for (let i = 0; i < contacts.length; i++) {
-    const contact = contacts[i];
-    const payload = buildMemorizePayload(contact, filename);
-
-    try {
-      const res = await fetch(
-        "https://agent.personize.ai/api/v1/memory/memorize",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (!res.ok) {
-        const errText = await res.text();
-        errors++;
-        errorDetails.push({
-          index: i,
-          email: contact.email ?? null,
-          error: `HTTP ${res.status}: ${errText.slice(0, 200)}`,
-        });
-      } else {
-        processed++;
-      }
-    } catch (err) {
-      errors++;
-      errorDetails.push({
-        index: i,
-        email: contact.email ?? null,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-    }
-
-    // Update progress in Supabase after each contact
+  const result = await batchMemorize(contacts, filename, async (progress) => {
+    // Update progress in Supabase for polling
     await supabase
       .from("imports")
       .update({
-        processed_count: processed + errors,
-        error_count: errors,
-        error_details: errorDetails,
+        processed_count: progress.processed,
+        error_count: progress.failed,
       })
       .eq("id", body.import_id);
+  });
 
-    // Rate limit: 1 request per second (skip delay after last contact)
-    if (i < contacts.length - 1) {
-      await delay(1000);
+  // Build per-contact error details for compatibility with existing UI
+  const errorDetails: { index: number; email: string | null; error: string }[] = [];
+  for (const batchErr of result.errors) {
+    for (const idx of batchErr.contactIndices) {
+      const contact = contacts[idx];
+      errorDetails.push({
+        index: idx,
+        email: contact?.email ?? null,
+        error: batchErr.error,
+      });
     }
   }
 
   // Set final status
-  const finalStatus = errors === contacts.length ? "failed" : "complete";
+  const finalStatus = result.succeeded === 0 && result.total > 0 ? "failed" : "complete";
   await supabase
     .from("imports")
     .update({
       status: finalStatus,
-      processed_count: processed + errors,
-      error_count: errors,
+      processed_count: result.total,
+      error_count: result.failed,
       error_details: errorDetails,
     })
     .eq("id", body.import_id);
 
   return NextResponse.json({
-    imported: processed,
-    errors,
+    imported: result.succeeded,
+    errors: result.failed,
     details: errorDetails,
   });
 }
