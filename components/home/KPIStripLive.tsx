@@ -20,6 +20,8 @@ import {
   MessagesSquare,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { KpiStripSkeleton } from "@/components/home/kpi-card-skeleton";
+import { KpiErrorState } from "@/components/home/kpi-error-state";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -57,8 +59,9 @@ export function KPIStripLive({
   communityDelta,
 }: KPIStripLiveProps) {
   const router = useRouter();
-  const [stats, setStats] = useState<HomeStatsResponse>(initial);
+  const [stats, setStats] = useState<HomeStatsResponse | null>(initial);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>(initial.lastUpdated);
   const [, setTick] = useState(0);
 
@@ -70,9 +73,12 @@ export function KPIStripLive({
         const json = (await res.json()) as { data: HomeStatsResponse };
         setStats(json.data);
         setLastUpdated(json.data.lastUpdated);
+        setHasError(false);
+      } else {
+        setHasError(true);
       }
     } catch {
-      // Silently fail — keep showing last known data
+      setHasError(true);
     } finally {
       setIsRefreshing(false);
     }
@@ -88,6 +94,24 @@ export function KPIStripLive({
     const tick = setInterval(() => setTick((n) => n + 1), 15_000);
     return () => clearInterval(tick);
   }, []);
+
+  if (!stats) {
+    return (
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-foreground">Key Metrics</h2>
+        <KpiStripSkeleton />
+      </section>
+    );
+  }
+
+  if (hasError && !stats) {
+    return (
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-foreground">Key Metrics</h2>
+        <KpiErrorState onRetry={fetchStats} />
+      </section>
+    );
+  }
 
   const formattedInvoices =
     isNaN(stats.openInvoiceTotal) || !isFinite(stats.openInvoiceTotal)
@@ -121,6 +145,11 @@ export function KPIStripLive({
         <span className="text-xs text-muted-foreground">
           Updated {formatTimeAgo(lastUpdated)}
         </span>
+        {hasError && (
+          <span className="text-xs text-destructive">
+            Refresh failed — showing last known data
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <KpiCard
