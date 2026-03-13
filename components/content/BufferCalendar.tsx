@@ -34,6 +34,8 @@ import { Button } from "@/components/ui/button";
 import type { ContentPost, Project } from "@/lib/types/database";
 import { BufferPostCard } from "./BufferPostCard";
 import { BufferPostDetail } from "./BufferPostDetail";
+import { CalendarPostCard } from "./calendar-post-card";
+import { CalendarEmpty } from "./calendar-empty";
 
 type ViewMode = "week" | "month";
 
@@ -342,25 +344,7 @@ export function BufferCalendar({
 
       {/* Empty state */}
       {!loading && posts.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-          <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[#3B82F6]/10">
-            <CalendarPlus className="size-8 text-[#3B82F6]" />
-          </div>
-          <h3 className="mb-1 text-base font-semibold text-foreground">
-            No posts scheduled
-          </h3>
-          <p className="mb-4 max-w-xs text-center text-sm text-muted-foreground">
-            Start by creating a post and scheduling it for this{" "}
-            {viewMode === "week" ? "week" : "month"}.
-          </p>
-          <Button
-            size="sm"
-            className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
-          >
-            <Plus className="mr-1 size-4" />
-            Schedule your first post
-          </Button>
-        </div>
+        <CalendarEmpty viewMode={viewMode} />
       )}
 
       {/* PostDetail slide-out */}
@@ -582,9 +566,8 @@ function MonthView({
                             {...dragProvided.draggableProps}
                             {...dragProvided.dragHandleProps}
                           >
-                            <BufferPostCard
+                            <CalendarPostCard
                               post={post}
-                              compact
                               onClick={() => onPostClick(post)}
                               isDragging={dragSnapshot.isDragging}
                             />
