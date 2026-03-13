@@ -14,12 +14,14 @@ import {
   Calendar,
   FileText,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sanitizeText } from "@/lib/sanitize";
 import { StageColumn } from "./StageColumn";
+import { AddDealDialog } from "./AddDealDialog";
 import { parseDealValue, formatCurrency } from "./DealCard";
 import type { PipelineItemData } from "./DealCard";
 import type { PipelineStage } from "./StageColumn";
@@ -168,6 +170,7 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
   const [quickAddStageId, setQuickAddStageId] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [showAddDeal, setShowAddDeal] = useState(false);
 
   const stageMap = useMemo(() => {
     const map = new Map<string, PipelineStage>();
@@ -359,6 +362,29 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
         <KpiCard label="Total Deals" value={items.length} />
         <KpiCard label="Open Deals" value={openDealsCount} />
       </div>
+
+      {/* Add Deal Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddDeal(true)}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Plus className="size-4" />
+          Add Deal
+        </button>
+      </div>
+
+      {/* Add Deal Dialog */}
+      {sortedStages.length > 0 && (
+        <AddDealDialog
+          open={showAddDeal}
+          onOpenChange={setShowAddDeal}
+          stages={sortedStages}
+          pipelineId={sortedStages[0].pipeline_id}
+          projectId={projectId ?? sortedStages[0].project_id ?? ""}
+          onDealCreated={(newItem) => setItems((prev) => [...prev, newItem])}
+        />
+      )}
 
       {/* Kanban Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
