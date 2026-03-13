@@ -1,8 +1,6 @@
 "use client";
 
-export const revalidate = 60;
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -16,6 +14,17 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
+import {
+  TrendingUp,
+  Target,
+  DollarSign,
+  CheckCircle2,
+  FileText,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { PipelineFunnel } from "@/components/analytics/PipelineFunnel";
+import { TrendCharts } from "@/components/analytics/TrendCharts";
 
 interface AnalyticsData {
   sponsorsByTier: { tier: string; count: number }[];
@@ -23,7 +32,32 @@ interface AnalyticsData {
   contentByPlatform: { platform: string; count: number }[];
   tasksByStatus: { status: string; count: number }[];
   tasksByProject: { project: string; count: number }[];
+  pipelineByWeek: { week: string; count: number; value: number }[];
+  tasksCompletedByWeek: { week: string; count: number }[];
+  contentByWeek: { week: string; count: number }[];
+  contactsByWeek: { week: string; count: number }[];
+  pipelineFunnel: {
+    stage_name: string;
+    count: number;
+    value: number;
+    conversion_rate: number;
+  }[];
+  kpi: {
+    totalDeals: number;
+    winRate: number;
+    avgDealSize: number;
+    tasksPerWeek: number;
+    contentPerWeek: number;
+  };
 }
+
+type Period = "7d" | "30d" | "90d";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  "7d": "7 Days",
+  "30d": "30 Days",
+  "90d": "90 Days",
+};
 
 const COLORS = [
   "#6366f1",
@@ -50,17 +84,29 @@ function formatLabel(s: unknown): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatCurrency(amount: number): string {
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<Period>("30d");
 
-  useEffect(() => {
-    fetch("/api/analytics")
+  const fetchData = useCallback((p: Period) => {
+    setLoading(true);
+    fetch(`/api/analytics?period=${p}`)
       .then((res) => res.json())
       .then((json) => setData(json))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchData(period);
+  }, [period, fetchData]);
 
   if (loading) {
     return (
@@ -72,6 +118,14 @@ export default function AnalyticsPage() {
           <p className="text-sm text-muted-foreground">
             Charts and trend visualizations across all modules.
           </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-24 animate-pulse rounded-lg border border-border bg-card"
+            />
+          ))}
         </div>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -95,15 +149,77 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex-1 space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Analytics
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Charts and trend visualizations across all modules.
-        </p>
+      {/* Header with period selector */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Analytics
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Charts and trend visualizations across all modules.
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+          {(["7d", "30d", "90d"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                period === p
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <KpiCard
+          label="Total Deals"
+          value={data.kpi.totalDeals}
+          icon={<TrendingUp className="size-5" />}
+        />
+        <KpiCard
+          label="Win Rate"
+          value={`${data.kpi.winRate}%`}
+          icon={<Target className="size-5" />}
+        />
+        <KpiCard
+          label="Avg Deal Size"
+          value={formatCurrency(data.kpi.avgDealSize)}
+          icon={<DollarSign className="size-5" />}
+        />
+        <KpiCard
+          label="Tasks / Week"
+          value={data.kpi.tasksPerWeek}
+          icon={<CheckCircle2 className="size-5" />}
+        />
+        <KpiCard
+          label="Content / Week"
+          value={data.kpi.contentPerWeek}
+          icon={<FileText className="size-5" />}
+        />
+      </div>
+
+      {/* Pipeline Funnel */}
+      <ChartCard title="Pipeline Conversion Funnel">
+        <PipelineFunnel data={data.pipelineFunnel} />
+      </ChartCard>
+
+      {/* Trend Charts */}
+      <TrendCharts
+        tasksCompleted={data.tasksCompletedByWeek}
+        contentPublished={data.contentByWeek}
+        contactsAdded={data.contactsByWeek}
+        pipelineDeals={data.pipelineByWeek}
+      />
+
+      {/* Existing breakdown charts */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Sponsors by Tier */}
         <ChartCard title="Sponsors by Tier">
