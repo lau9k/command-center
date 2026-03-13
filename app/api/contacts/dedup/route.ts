@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { logActivity } from "@/lib/activity-logger";
 
 interface ContactRow {
   id: string;
@@ -76,6 +78,25 @@ export const GET = withErrorHandler(async function GET() {
     return NextResponse.json({ pairs: [] });
   }
 
+  // Load dismissed pairs from activity_log
+  const { data: dismissals } = await supabase
+    .from("activity_log")
+    .select("metadata")
+    .eq("action", "updated")
+    .eq("entity_type", "contact")
+    .not("metadata", "is", null);
+
+  const dismissedKeys = new Set<string>();
+  if (dismissals) {
+    for (const d of dismissals) {
+      const meta = d.metadata as Record<string, unknown> | null;
+      if (meta?.dismissed_duplicate && Array.isArray(meta.pair_ids)) {
+        const ids = meta.pair_ids as string[];
+        dismissedKeys.add(ids.sort().join(":"));
+      }
+    }
+  }
+
   const pairs: DuplicatePair[] = [];
   const seen = new Set<string>();
 
@@ -94,7 +115,7 @@ export const GET = withErrorHandler(async function GET() {
     for (let i = 0; i < group.length; i++) {
       for (let j = i + 1; j < group.length; j++) {
         const pairKey = [group[i].id, group[j].id].sort().join(":");
-        if (seen.has(pairKey)) continue;
+        if (seen.has(pairKey) || dismissedKeys.has(pairKey)) continue;
         seen.add(pairKey);
         pairs.push({
           contactA: group[i],
@@ -113,7 +134,7 @@ export const GET = withErrorHandler(async function GET() {
       const a = allContacts[i];
       const b = allContacts[j];
       const pairKey = [a.id, b.id].sort().join(":");
-      if (seen.has(pairKey)) continue;
+      if (seen.has(pairKey) || dismissedKeys.has(pairKey)) continue;
 
       const nameSim = bigramSimilarity(a.name, b.name);
       if (nameSim < 0.7) continue;
@@ -147,4 +168,40 @@ export const GET = withErrorHandler(async function GET() {
   pairs.sort((a, b) => b.confidence - a.confidence);
 
   return NextResponse.json({ pairs });
+});
+
+const dismissSchema = z.object({
+  contactAId: z.string().uuid(),
+  contactBId: z.string().uuid(),
+});
+
+/**
+ * POST /api/contacts/dedup
+ * Dismisses a duplicate pair so it no longer appears in results.
+ */
+export const POST = withErrorHandler(async function POST(request: NextRequest) {
+  const body = await request.json();
+  const parsed = dismissSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const { contactAId, contactBId } = parsed.data;
+
+  await logActivity({
+    action: "updated",
+    entity_type: "contact",
+    entity_id: contactAId,
+    source: "manual",
+    metadata: {
+      dismissed_duplicate: true,
+      pair_ids: [contactAId, contactBId].sort(),
+    },
+  });
+
+  return NextResponse.json({ dismissed: true });
 });

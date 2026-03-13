@@ -13,6 +13,7 @@ import {
   Mail,
   Building2,
   User,
+  X,
 } from "lucide-react";
 import { MergeContactDialog } from "@/components/contacts/MergeContactDialog";
 
@@ -44,6 +45,7 @@ export function DedupClient() {
   const [pairs, setPairs] = useState<DuplicatePair[]>([]);
   const [loading, setLoading] = useState(true);
   const [mergePair, setMergePair] = useState<DuplicatePair | null>(null);
+  const [dismissing, setDismissing] = useState<string | null>(null);
 
   const fetchDuplicates = useCallback(async () => {
     setLoading(true);
@@ -67,6 +69,32 @@ export function DedupClient() {
     setMergePair(null);
     fetchDuplicates();
   }, [fetchDuplicates]);
+
+  const handleDismiss = useCallback(async (pair: DuplicatePair) => {
+    const pairKey = `${pair.contactA.id}:${pair.contactB.id}`;
+    setDismissing(pairKey);
+    try {
+      const res = await fetch("/api/contacts/dedup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactAId: pair.contactA.id,
+          contactBId: pair.contactB.id,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to dismiss");
+      setPairs((prev) =>
+        prev.filter(
+          (p) => !(p.contactA.id === pair.contactA.id && p.contactB.id === pair.contactB.id)
+        )
+      );
+      toast.success("Pair dismissed");
+    } catch {
+      toast.error("Failed to dismiss pair");
+    } finally {
+      setDismissing(null);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -134,6 +162,20 @@ export function DedupClient() {
                   >
                     <GitMerge className="size-3.5" />
                     Merge
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 text-muted-foreground"
+                    onClick={() => handleDismiss(pair)}
+                    disabled={dismissing === `${pair.contactA.id}:${pair.contactB.id}`}
+                  >
+                    {dismissing === `${pair.contactA.id}:${pair.contactB.id}` ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <X className="size-3.5" />
+                    )}
+                    Not Duplicate
                   </Button>
                 </div>
               </div>
