@@ -5,9 +5,7 @@ import { GmailConnect } from "@/components/settings/gmail-connect";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
-
 export const revalidate = 3600;
-
 export default function DataSourcesPage() {
   return (
     <div className="space-y-6">
@@ -26,7 +24,6 @@ export default function DataSourcesPage() {
           Monitor the health and sync status of your connected data sources
         </p>
       </div>
-
       <div className="rounded-lg border border-border bg-card p-6 space-y-6">
         <div>
           <h2 className="text-lg font-semibold text-foreground">
@@ -37,7 +34,6 @@ export default function DataSourcesPage() {
           </p>
         </div>
         <DataSourcesPanel />
-
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium text-foreground mb-2">
             Bank Accounts (Plaid)
@@ -46,13 +42,15 @@ export default function DataSourcesPage() {
             Connect bank accounts to automatically sync transactions
           </p>
           <PlaidConnect />
+        </div>
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-medium text-foreground mb-2">
             Gmail
           </h3>
           <Suspense>
             <GmailConnect />
           </Suspense>
         </div>
-
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium text-foreground mb-2">
             Granola Meetings
