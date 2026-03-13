@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 interface SearchResult {
   id: string;
-  type: "contact" | "pipeline" | "content" | "task";
+  type: "contact" | "pipeline" | "content" | "task" | "sponsor";
   title: string;
   subtitle: string | null;
   href: string;
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const supabase = createServiceClient();
   const pattern = `%${q}%`;
 
-  const [contacts, pipeline, content, tasks] = await Promise.all([
+  const [contacts, pipeline, content, tasks, sponsors] = await Promise.all([
     supabase
       .from("contacts")
       .select("id, project_id, name, company, email")
@@ -43,9 +43,26 @@ export async function GET(request: NextRequest) {
       .select("id, project_id, title, status, priority")
       .ilike("title", pattern)
       .limit(5),
+    supabase
+      .from("sponsors")
+      .select("id, name, tier, status, contact_name")
+      .or(`name.ilike.${pattern},contact_name.ilike.${pattern}`)
+      .limit(5),
   ]);
 
   const results: SearchResult[] = [];
+
+  if (tasks.data) {
+    for (const t of tasks.data) {
+      results.push({
+        id: t.id,
+        type: "task",
+        title: t.title,
+        subtitle: [t.status, t.priority].filter(Boolean).join(" · ") || null,
+        href: t.project_id ? `/projects/${t.project_id}/tasks` : "/tasks",
+      });
+    }
+  }
 
   if (contacts.data) {
     for (const c of contacts.data) {
@@ -83,14 +100,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (tasks.data) {
-    for (const t of tasks.data) {
+  if (sponsors.data) {
+    for (const s of sponsors.data) {
       results.push({
-        id: t.id,
-        type: "task",
-        title: t.title,
-        subtitle: [t.status, t.priority].filter(Boolean).join(" · ") || null,
-        href: t.project_id ? `/projects/${t.project_id}/tasks` : "/tasks",
+        id: s.id,
+        type: "sponsor",
+        title: s.name,
+        subtitle: [s.tier, s.status].filter(Boolean).join(" · ") || null,
+        href: "/sponsors",
       });
     }
   }
