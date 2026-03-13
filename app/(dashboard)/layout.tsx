@@ -19,6 +19,7 @@ export default async function DashboardLayout({
   let hasMeekWallet = false;
   let userEmail: string | null = null;
   let unreadCount = 0;
+  let notifications: Notification[] = [];
 
   try {
     const supabase = await createClient();
@@ -40,10 +41,19 @@ export default async function DashboardLayout({
     userEmail = userRes.data?.user?.email ?? null;
 
     if (userRes.data?.user) {
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("read", false);
+      const [{ data: notifData }, { count }] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("read", false),
+      ]);
+
+      notifications = (notifData as Notification[]) ?? [];
       unreadCount = count ?? 0;
     }
   } catch {
@@ -56,7 +66,7 @@ export default async function DashboardLayout({
         <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Mobile header: hamburger + bell + avatar (visible < lg) */}
-          <MobileHeader email={userEmail} unreadCount={unreadCount} />
+          <MobileHeader email={userEmail} unreadCount={unreadCount} initialNotifications={notifications} />
           {/* Desktop header: full header (visible >= lg) */}
           <div className="hidden lg:block">
             <Header projects={projects} />
