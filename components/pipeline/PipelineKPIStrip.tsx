@@ -1,4 +1,4 @@
-import { Layers, DollarSign, TrendingUp, Target } from "lucide-react";
+import { Layers, DollarSign, TrendingUp, Target, CalendarCheck } from "lucide-react";
 import { KpiCard } from "@/components/ui";
 
 function formatCurrency(amount: number): string {
@@ -12,6 +12,8 @@ interface PipelineKPIStripProps {
   totalValue: number;
   avgDealSize: number;
   winRate: number;
+  weightedForecast?: number;
+  closingThisMonth?: number;
 }
 
 export function PipelineKPIStrip({
@@ -19,9 +21,11 @@ export function PipelineKPIStrip({
   totalValue,
   avgDealSize,
   winRate,
+  weightedForecast,
+  closingThisMonth,
 }: PipelineKPIStripProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
       <KpiCard
         label="Total Deals"
         value={totalDeals.toString()}
@@ -42,6 +46,20 @@ export function PipelineKPIStrip({
         value={`${winRate}%`}
         icon={<Target className="size-5" />}
       />
+      {weightedForecast != null && (
+        <KpiCard
+          label="Weighted Forecast"
+          value={formatCurrency(weightedForecast)}
+          icon={<DollarSign className="size-5" />}
+        />
+      )}
+      {closingThisMonth != null && (
+        <KpiCard
+          label="Closing This Month"
+          value={closingThisMonth.toString()}
+          icon={<CalendarCheck className="size-5" />}
+        />
+      )}
     </div>
   );
 }
