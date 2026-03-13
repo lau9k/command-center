@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Users,
   CheckSquare,
@@ -78,6 +79,24 @@ function formatEntityType(type: string): string {
   return type.replace(/_/g, " ");
 }
 
+const entityRouteMap: Record<string, string> = {
+  contact: "/contacts",
+  task: "/tasks",
+  conversation: "/conversations",
+  sponsor: "/sponsors",
+  transaction: "/pipeline",
+  content_post: "/content",
+};
+
+function getEntityHref(entry: ActivityLogEntry): string | null {
+  const base = entityRouteMap[entry.entity_type];
+  if (!base) return null;
+  if (entry.entity_id && (entry.entity_type === "sponsor" || entry.entity_type === "contact")) {
+    return `${base}/${entry.entity_id}`;
+  }
+  return base;
+}
+
 interface ActivityItemProps {
   entry: ActivityLogEntry;
 }
@@ -87,6 +106,17 @@ export function ActivityItem({ entry }: ActivityItemProps) {
   const colorClass = entityColorMap[entry.entity_type] ?? "text-muted-foreground bg-muted";
   const verb = actionVerbs[entry.action] ?? entry.action;
   const badgeClass = sourceBadgeClass[entry.source] ?? sourceBadgeClass.manual;
+  const href = getEntityHref(entry);
+
+  const nameContent = entry.entity_name ? (
+    href ? (
+      <Link href={href} className="font-medium text-foreground underline-offset-2 hover:underline">
+        {entry.entity_name}
+      </Link>
+    ) : (
+      <span className="font-medium text-foreground">{entry.entity_name}</span>
+    )
+  ) : null;
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">
@@ -100,12 +130,7 @@ export function ActivityItem({ entry }: ActivityItemProps) {
         <p className="text-sm text-foreground">
           <span className="font-medium">{verb}</span>{" "}
           <span className="text-muted-foreground">{formatEntityType(entry.entity_type)}</span>
-          {entry.entity_name && (
-            <>
-              {" "}
-              <span className="font-medium text-foreground">{entry.entity_name}</span>
-            </>
-          )}
+          {nameContent && <> {nameContent}</>}
         </p>
         <div className="mt-1 flex items-center gap-2">
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>

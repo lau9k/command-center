@@ -11,7 +11,7 @@ export default async function ActivityPage() {
     .from("activity_log")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(20);
 
   if (error) {
     console.error("[Activity] query error:", error.message);

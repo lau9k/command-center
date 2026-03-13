@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Filter } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { ActivityItem, type ActivityLogEntry } from "./ActivityItem";
+import {
+  ActivityFilters,
+  getDateRangeBounds,
+  type ActivityFilterState,
+} from "./ActivityFilters";
 import { EmptyState } from "@/components/ui/empty-state";
 
-const ENTITY_TYPES = ["contact", "task", "conversation", "sponsor", "transaction", "content_post"] as const;
-const SOURCES = ["manual", "webhook", "n8n", "granola", "plaid", "personize"] as const;
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 interface ActivityFeedProps {
   initialEntries: ActivityLogEntry[];
@@ -46,97 +49,137 @@ function groupByDate(entries: ActivityLogEntry[]): Record<string, ActivityLogEnt
 
 const DATE_ORDER = ["Today", "Yesterday", "This Week", "Older"];
 
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-start gap-3 px-4 py-3">
+          <div className="mt-0.5 h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ActivityFeed({ initialEntries }: ActivityFeedProps) {
   const [entries, setEntries] = useState<ActivityLogEntry[]>(initialEntries);
-  const [entityType, setEntityType] = useState("");
-  const [source, setSource] = useState("");
+  const [filters, setFilters] = useState<ActivityFilterState>({
+    entityTypes: [],
+    sources: [],
+    dateRange: "",
+  });
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialEntries.length >= PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isInitialMount = useRef(true);
 
-  const fetchEntries = useCallback(async (type: string, src: string, offset = 0, append = false) => {
-    setLoading(true);
-    try {
+  const buildParams = useCallback(
+    (offset = 0): URLSearchParams => {
       const params = new URLSearchParams();
-      if (type) params.set("entity_type", type);
-      if (src) params.set("source", src);
+      if (filters.entityTypes.length === 1) {
+        params.set("entity_type", filters.entityTypes[0]);
+      }
+      if (filters.sources.length === 1) {
+        params.set("source", filters.sources[0]);
+      }
+      const { from, to } = getDateRangeBounds(filters.dateRange);
+      if (from) params.set("date_from", from);
+      if (to) params.set("date_to", to);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(offset));
+      return params;
+    },
+    [filters]
+  );
 
-      const res = await fetch(`/api/activity?${params.toString()}`);
-      const json = await res.json();
-      const data = (json.data ?? []) as ActivityLogEntry[];
-
+  const fetchEntries = useCallback(
+    async (offset = 0, append = false) => {
       if (append) {
-        setEntries((prev) => [...prev, ...data]);
+        setLoadingMore(true);
       } else {
-        setEntries(data);
+        setLoading(true);
       }
-      setHasMore(data.length >= PAGE_SIZE);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      try {
+        const params = buildParams(offset);
+        const res = await fetch(`/api/activity?${params.toString()}`);
+        const json = await res.json();
+        let data = (json.data ?? []) as ActivityLogEntry[];
 
+        // Client-side multi-value filtering for entity_type and source
+        if (filters.entityTypes.length > 1) {
+          data = data.filter((e) => filters.entityTypes.includes(e.entity_type));
+        }
+        if (filters.sources.length > 1) {
+          data = data.filter((e) => filters.sources.includes(e.source));
+        }
+
+        if (append) {
+          setEntries((prev) => [...prev, ...data]);
+        } else {
+          setEntries(data);
+        }
+        setHasMore(data.length >= PAGE_SIZE);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [buildParams, filters.entityTypes, filters.sources]
+  );
+
+  // Refetch when filters change (skip initial mount since we have initialEntries)
   useEffect(() => {
-    fetchEntries(entityType, source);
-  }, [entityType, source, fetchEntries]);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    fetchEntries(0, false);
+  }, [fetchEntries]);
 
-  const loadMore = () => {
-    fetchEntries(entityType, source, entries.length, true);
-  };
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (observerEntries) => {
+        const first = observerEntries[0];
+        if (first.isIntersecting && hasMore && !loading && !loadingMore) {
+          fetchEntries(entries.length, true);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, entries.length, fetchEntries]);
 
   const grouped = groupByDate(entries);
+  const hasFilters =
+    filters.entityTypes.length > 0 || filters.sources.length > 0 || filters.dateRange !== "";
 
   return (
     <div className="space-y-4">
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
-        <Filter className="h-4 w-4 text-muted-foreground" />
+      <ActivityFilters filters={filters} onChange={setFilters} />
 
-        <select
-          value={entityType}
-          onChange={(e) => setEntityType(e.target.value)}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-        >
-          <option value="">All types</option>
-          {ENTITY_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t.replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-        >
-          <option value="">All sources</option>
-          {SOURCES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        {(entityType || source) && (
-          <button
-            onClick={() => {
-              setEntityType("");
-              setSource("");
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {/* Feed */}
-      {entries.length === 0 && !loading ? (
+      {loading ? (
+        <div className="rounded-lg border border-border bg-card">
+          <LoadingSkeleton />
+        </div>
+      ) : entries.length === 0 ? (
         <EmptyState
-          title="No activity yet"
-          description="Actions like creating contacts, updating tasks, or syncing data will appear here."
+          title={hasFilters ? "No matching activity" : "No activity yet"}
+          description={
+            hasFilters
+              ? "Try adjusting your filters to see more results."
+              : "Actions like creating contacts, updating tasks, or syncing data will appear here."
+          }
         />
       ) : (
         <div className="space-y-6">
@@ -155,16 +198,12 @@ export function ActivityFeed({ initialEntries }: ActivityFeedProps) {
         </div>
       )}
 
-      {/* Load More */}
-      {hasMore && entries.length > 0 && (
-        <div className="flex justify-center pt-2">
-          <button
-            onClick={loadMore}
-            disabled={loading}
-            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Load more"}
-          </button>
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-1" />
+
+      {loadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
     </div>

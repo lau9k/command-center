@@ -6,7 +6,9 @@ import { z } from "zod";
 const activityQuerySchema = z.object({
   entity_type: z.string().optional(),
   source: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).default(50),
+  date_from: z.string().datetime({ offset: true }).optional(),
+  date_to: z.string().datetime({ offset: true }).optional(),
+  limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).default(0),
 });
 
@@ -36,6 +38,12 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
   if (params.source) {
     query = query.eq("source", params.source);
+  }
+  if (params.date_from) {
+    query = query.gte("created_at", params.date_from);
+  }
+  if (params.date_to) {
+    query = query.lte("created_at", params.date_to);
   }
 
   const { data, error } = await query;
