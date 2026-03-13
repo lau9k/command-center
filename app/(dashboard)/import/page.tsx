@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ImportProgress } from "@/components/import/import-progress";
 import { ImportDropzone } from "@/components/dashboard/ImportDropzone";
 import {
   ColumnMapper,
@@ -552,13 +553,6 @@ export default function ImportPage() {
     [importResponse]
   );
 
-  const personizeProgressPercent =
-    personizeProgress && personizeProgress.total > 0
-      ? Math.round(
-          (personizeProgress.processed / personizeProgress.total) * 100
-        )
-      : 0;
-
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -915,78 +909,17 @@ export default function ImportPage() {
                 </div>
               )}
 
-            {/* Personize sending progress */}
-            {personizeSending && personizeProgress && (
-              <div className="space-y-4 py-4">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-lg font-medium">
-                    Sending to Personize...
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {personizeProgress.processed} of{" "}
-                    {personizeProgress.total} contacts processed
-                    {personizeProgress.errors > 0 &&
-                      ` (${personizeProgress.errors} errors)`}
-                  </p>
-                </div>
-                <Progress
-                  value={personizeProgressPercent}
-                  className="w-full"
-                />
-                <p className="text-center text-xs text-muted-foreground">
-                  {personizeProgressPercent}% complete — rate limited to 1
-                  contact/sec
-                </p>
-              </div>
-            )}
-
-            {/* Personize results */}
-            {personizeResult && (
+            {/* Personize batch progress */}
+            {(personizeSending || personizeResult) && personizeProgress && (
               <div className="space-y-4">
-                <div className="flex flex-col items-center gap-3 py-4">
-                  {personizeResult.errors === 0 ? (
-                    <CheckCircle2 className="h-10 w-10 text-green-500" />
-                  ) : personizeResult.imported > 0 ? (
-                    <AlertCircle className="h-10 w-10 text-yellow-500" />
-                  ) : (
-                    <AlertCircle className="h-10 w-10 text-red-500" />
-                  )}
-                  <p className="text-lg font-medium">
-                    {personizeResult.errors === 0
-                      ? "All Contacts Sent Successfully"
-                      : personizeResult.imported > 0
-                        ? "Completed with Errors"
-                        : "Send Failed"}
-                  </p>
-                </div>
+                <ImportProgress
+                  total={personizeProgress.total}
+                  processed={personizeProgress.processed}
+                  errors={personizeProgress.errors}
+                  status={personizeProgress.status}
+                />
 
-                <div className="rounded-lg border p-4">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <p className="text-2xl font-bold text-green-600">
-                        {personizeResult.imported}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Successful
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-red-600">
-                        {personizeResult.errors}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Failed</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        {importResponse?.imported ?? 0}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                    </div>
-                  </div>
-                </div>
-
-                {personizeResult.details.length > 0 && (
+                {personizeResult && personizeResult.details.length > 0 && (
                   <div className="rounded-lg border p-4">
                     <p className="mb-2 text-sm font-medium">Error Details</p>
                     <div className="max-h-40 space-y-1 overflow-y-auto">
@@ -1007,11 +940,13 @@ export default function ImportPage() {
                   </div>
                 )}
 
-                <div className="flex justify-start pt-2">
-                  <Button variant="outline" onClick={resetAll}>
-                    Import Another File
-                  </Button>
-                </div>
+                {personizeResult && (
+                  <div className="flex justify-start pt-2">
+                    <Button variant="outline" onClick={resetAll}>
+                      Import Another File
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
