@@ -67,6 +67,7 @@ export function NotificationDrawer({
                 key={notification.id}
                 notification={notification}
                 onRead={onMarkAsRead}
+                onClose={() => onOpenChange(false)}
               />
             ))}
           </ScrollArea>

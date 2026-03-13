@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Notification } from "@/lib/types/database";
 
@@ -19,35 +20,11 @@ export function useNotifications({
   const [notifications, setNotifications] =
     useState<Notification[]>(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  const supabase = createClient();
+  const mountedRef = useRef(true);
 
-  // Real-time subscription for new notifications
-  useEffect(() => {
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const notification = payload.new as Notification;
-          setNotifications((prev) =>
-            [notification, ...prev].slice(0, MAX_NOTIFICATIONS)
-          );
-          if (!notification.read) {
-            setUnreadCount((c) => c + 1);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
-
-  // Poll for updated notifications every 30s
-  useEffect(() => {
-    async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const supabase = createClient();
       const [{ data }, { count }] = await Promise.all([
         supabase
           .from("notifications")
@@ -60,45 +37,99 @@ export function useNotifications({
           .eq("read", false),
       ]);
 
-      if (data) {
-        setNotifications(data as Notification[]);
+      if (mountedRef.current) {
+        if (data) setNotifications(data as Notification[]);
+        if (count !== null) setUnreadCount(count);
       }
-      if (count !== null) {
-        setUnreadCount(count);
-      }
+    } catch {
+      // silently fail on poll
     }
+  }, []);
 
+  // Real-time subscription for new notifications + toast
+  useEffect(() => {
+    mountedRef.current = true;
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          if (!mountedRef.current) return;
+          const notification = payload.new as Notification;
+          setNotifications((prev) =>
+            [notification, ...prev].slice(0, MAX_NOTIFICATIONS)
+          );
+          if (!notification.read) {
+            setUnreadCount((c) => c + 1);
+          }
+
+          // Show toast popup for new notifications
+          toast(notification.title, {
+            description: notification.body ?? undefined,
+            action: notification.action_url
+              ? {
+                  label: "View",
+                  onClick: () => {
+                    window.location.href = notification.action_url!;
+                  },
+                }
+              : undefined,
+          });
+        }
+      )
+      .subscribe();
+
+    // Poll for updated notifications every 30s
     const interval = setInterval(fetchNotifications, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [supabase]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
+    return () => {
+      mountedRef.current = false;
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [fetchNotifications]);
+
+  const markAsRead = useCallback(async (id: string) => {
+    // Optimistic update
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [id] }),
+      });
+    } catch {
+      // Revert on failure
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === id ? { ...n, read: false } : n))
       );
-      setUnreadCount((c) => Math.max(0, c - 1));
-
-      await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("id", id);
-    },
-    [supabase]
-  );
+      setUnreadCount((c) => c + 1);
+    }
+  }, []);
 
   const markAllRead = useCallback(async () => {
-    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
-    if (unreadIds.length === 0) return;
+    const previousNotifs = notifications;
+    const previousCount = unreadCount;
 
+    // Optimistic update
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     setUnreadCount(0);
 
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .in("id", unreadIds);
-  }, [supabase, notifications]);
+    try {
+      await fetch("/api/notifications/read-all", { method: "POST" });
+    } catch {
+      // Revert on failure
+      setNotifications(previousNotifs);
+      setUnreadCount(previousCount);
+    }
+  }, [notifications, unreadCount]);
 
   return { notifications, unreadCount, markAsRead, markAllRead };
 }
