@@ -22,20 +22,28 @@ const typeIconColors: Record<NotificationType, string> = {
 interface NotificationItemProps {
   notification: Notification;
   onRead: (id: string) => void;
+  onClose?: () => void;
 }
 
-export function NotificationItem({ notification, onRead }: NotificationItemProps) {
+export function NotificationItem({ notification, onRead, onClose }: NotificationItemProps) {
   const Icon = typeIcons[notification.type];
+
+  function handleClick() {
+    if (!notification.read) onRead(notification.id);
+    if (notification.action_url) {
+      onClose?.();
+      window.location.href = notification.action_url;
+    }
+  }
 
   return (
     <button
       className={cn(
         "flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/50",
-        !notification.read && "border-l-2 border-l-blue-500 bg-accent/30"
+        !notification.read && "border-l-2 border-l-blue-500 bg-accent/30",
+        notification.action_url && "cursor-pointer"
       )}
-      onClick={() => {
-        if (!notification.read) onRead(notification.id);
-      }}
+      onClick={handleClick}
     >
       <Icon
         className={cn(
