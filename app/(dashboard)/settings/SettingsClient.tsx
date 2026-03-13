@@ -17,6 +17,7 @@ import {
   Database,
   SlidersHorizontal,
   Activity,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,6 +62,13 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
             <Database className="h-4 w-4" />
             Data
           </TabsTrigger>
+          <Link
+            href="/settings/governance"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Governance
+          </Link>
           <Link
             href="/settings/data-sources"
             className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
