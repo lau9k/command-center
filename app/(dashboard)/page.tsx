@@ -57,6 +57,8 @@ export default async function DashboardPage() {
     newContactsThisWeekRes,
     upcomingMeetingsRes,
     scheduledContentRes,
+    overdueTasksCountRes,
+    conversationsCountRes,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -81,12 +83,12 @@ export default async function DashboardPage() {
       .from("invoices")
       .select("amount, status")
       .in("status", ["sent", "overdue"]),
-    serviceClient.from("memory_stats").select("count"),
+    serviceClient.from("memory_stats").select("count, record_count"),
     serviceClient.from("pipeline_items").select("id", { count: "exact", head: true }),
     serviceClient
       .from("pipeline_items")
-      .select("value")
-      .neq("stage", "closed-lost"),
+      .select("metadata, pipeline_stages!inner(slug)")
+      .neq("pipeline_stages.slug", "lost"),
     fetchCommunityMemberCount(),
     serviceClient
       .from("meetings")
@@ -151,6 +153,16 @@ export default async function DashboardPage() {
       .gte("scheduled_for", now.toISOString())
       .order("scheduled_for", { ascending: true })
       .limit(3),
+    // Overdue tasks count (exact, not capped by limit)
+    serviceClient
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "done")
+      .lt("due_date", todayStart),
+    // Conversations count
+    serviceClient
+      .from("conversations")
+      .select("id", { count: "exact", head: true }),
   ]);
 
   // Log query errors server-side for debugging KPI issues
@@ -173,6 +185,8 @@ export default async function DashboardPage() {
     { name: "new_contacts_week", error: newContactsThisWeekRes.error },
     { name: "upcoming_meetings", error: upcomingMeetingsRes.error },
     { name: "scheduled_content", error: scheduledContentRes.error },
+    { name: "overdue_tasks_count", error: overdueTasksCountRes.error },
+    { name: "conversations_count", error: conversationsCountRes.error },
   ];
 
   for (const q of queryResults) {
@@ -190,7 +204,8 @@ export default async function DashboardPage() {
   const pipelineItemCount = pipelineCountRes.count ?? 0;
   const pipelineValues = pipelineValueRes.data ?? [];
   const pipelineTotalValue = pipelineValues.reduce(
-    (sum: number, item: { value: number | null }) => sum + Number(item.value ?? 0),
+    (sum: number, item: { metadata: Record<string, unknown> | null }) =>
+      sum + Number((item.metadata as Record<string, unknown>)?.value ?? 0),
     0
   );
   const pendingMeetings = (pendingMeetingsRes.data ?? []) as Meeting[];
@@ -234,7 +249,8 @@ export default async function DashboardPage() {
   );
 
   const memoryRecords = memoryStats.reduce(
-    (sum, s) => sum + (s.count ?? 0),
+    (sum: number, s: { count: number | null; record_count: number | null }) =>
+      sum + (s.record_count ?? s.count ?? 0),
     0
   );
 
@@ -248,6 +264,7 @@ export default async function DashboardPage() {
     contentPublishedCount,
     contentThisWeek,
     contactsCount: totalContactsCount,
+    conversationsCount: conversationsCountRes.count ?? 0,
     pipelineItemCount,
     pipelineTotalValue,
     openInvoiceTotal,
@@ -255,9 +272,10 @@ export default async function DashboardPage() {
     sponsorsTotal,
     sponsorsConfirmed,
     sponsorsConfirmedRevenue,
-    overdueTasks: overdueTasksRes.error ? 0 : (overdueTasksRes.data?.length ?? 0),
+    overdueTasks: overdueTasksCountRes.count ?? 0,
     tasksCompletedToday: tasksCompletedTodayRes.count ?? 0,
     newContactsThisWeek: newContactsThisWeekRes.count ?? 0,
+    lastUpdated: new Date().toISOString(),
   };
 
   // --- Ranked tasks (priority engine) ---

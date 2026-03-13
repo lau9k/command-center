@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   UserPlus,
   Loader2,
+  RefreshCw,
+  MessagesSquare,
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
@@ -33,6 +35,16 @@ function safeSubtitle(v: number, suffix: string): string {
   return `across ${v} ${suffix}${v !== 1 ? "s" : ""}`;
 }
 
+function formatTimeAgo(isoString: string): string {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+  if (seconds < 5) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
 interface KPIStripLiveProps {
   initial: HomeStatsResponse;
   communityMemberCount: number;
@@ -47,6 +59,8 @@ export function KPIStripLive({
   const router = useRouter();
   const [stats, setStats] = useState<HomeStatsResponse>(initial);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>(initial.lastUpdated);
+  const [, setTick] = useState(0);
 
   const fetchStats = useCallback(async () => {
     setIsRefreshing(true);
@@ -55,6 +69,7 @@ export function KPIStripLive({
       if (res.ok) {
         const json = (await res.json()) as { data: HomeStatsResponse };
         setStats(json.data);
+        setLastUpdated(json.data.lastUpdated);
       }
     } catch {
       // Silently fail — keep showing last known data
@@ -67,6 +82,12 @@ export function KPIStripLive({
     const interval = setInterval(fetchStats, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchStats]);
+
+  // Update the "X ago" display every 15 seconds
+  useEffect(() => {
+    const tick = setInterval(() => setTick((n) => n + 1), 15_000);
+    return () => clearInterval(tick);
+  }, []);
 
   const formattedInvoices =
     isNaN(stats.openInvoiceTotal) || !isFinite(stats.openInvoiceTotal)
@@ -85,9 +106,21 @@ export function KPIStripLive({
     <section className="space-y-2">
       <div className="flex items-center gap-2">
         <h2 className="text-lg font-semibold text-foreground">Key Metrics</h2>
-        {isRefreshing && (
+        {isRefreshing ? (
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        ) : (
+          <button
+            type="button"
+            onClick={fetchStats}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Refresh metrics"
+          >
+            <RefreshCw className="size-4" />
+          </button>
         )}
+        <span className="text-xs text-muted-foreground">
+          Updated {formatTimeAgo(lastUpdated)}
+        </span>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <KpiCard
@@ -138,6 +171,12 @@ export function KPIStripLive({
           subtitle="this week"
           icon={<UserPlus className="size-5" />}
           onClick={() => router.push("/contacts")}
+        />
+        <KpiCard
+          label="Conversations"
+          value={safeValue(stats.conversationsCount)}
+          subtitle={stats.conversationsCount > 0 ? "total tracked" : "none yet"}
+          icon={<MessagesSquare className="size-5" />}
         />
         <KpiCard
           label="Pipeline Items"
