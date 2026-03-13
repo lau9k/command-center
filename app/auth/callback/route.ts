@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-
   const redirectTo = searchParams.get("redirectTo") ?? "/";
 
   if (code) {
@@ -15,6 +14,5 @@ export async function GET(request: Request) {
     }
   }
 
-  // If code is missing or exchange failed, redirect to login with error
   return NextResponse.redirect(new URL("/login?error=auth_failed", origin));
 }

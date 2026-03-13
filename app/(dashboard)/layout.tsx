@@ -4,6 +4,7 @@ import { MobileHeader } from "@/components/layout/MobileHeader";
 import { CommandPaletteProvider } from "@/components/search/CommandPaletteProvider";
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
+import { AuthProvider } from "@/components/providers/auth-provider";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
 import type { Notification } from "@/lib/types/database";
@@ -61,19 +62,21 @@ export default async function DashboardLayout({
   }
 
   return (
-    <CommandPaletteProvider>
-      <div className="flex h-screen">
-        <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Mobile header: hamburger + bell + avatar (visible < lg) */}
-          <MobileHeader email={userEmail} unreadCount={unreadCount} initialNotifications={notifications} />
-          {/* Desktop header: full header (visible >= lg) */}
-          <div className="hidden lg:block">
-            <Header projects={projects} />
+    <AuthProvider>
+      <CommandPaletteProvider>
+        <div className="flex h-screen">
+          <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            {/* Mobile header: hamburger + bell + avatar (visible < lg) */}
+            <MobileHeader email={userEmail} unreadCount={unreadCount} initialNotifications={notifications} />
+            {/* Desktop header: full header (visible >= lg) */}
+            <div className="hidden lg:block">
+              <Header projects={projects} />
+            </div>
+            <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
           </div>
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
-      </div>
-    </CommandPaletteProvider>
+      </CommandPaletteProvider>
+    </AuthProvider>
   );
 }

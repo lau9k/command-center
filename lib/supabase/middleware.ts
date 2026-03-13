@@ -33,13 +33,22 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/callback")
-  ) {
+  const publicPaths = ["/login", "/callback", "/auth/callback", "/auth/sign-out"];
+  const isPublic = publicPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.searchParams.set("redirectTo", request.nextUrl.pathname);
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users away from login page
+  if (user && request.nextUrl.pathname.startsWith("/login")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
