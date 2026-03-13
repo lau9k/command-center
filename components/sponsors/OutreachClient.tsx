@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search } from "lucide-react";
 import type { Sponsor, SponsorStatus } from "@/lib/types/database";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,16 @@ export function OutreachClient({ sponsors }: OutreachClientProps) {
       .join(" ");
   }
 
+  const ROW_HEIGHT = 48;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: filteredSponsors.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+
   return (
     <div className="space-y-6">
       {/* Bulk Outreach Form */}
@@ -143,87 +154,118 @@ export function OutreachClient({ sponsors }: OutreachClientProps) {
       </div>
 
       {/* Sponsors Table */}
-      <div className="rounded-lg border border-border">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="w-10 px-3 py-3">
-                  <Checkbox
-                    checked={allFilteredSelected}
-                    onCheckedChange={toggleAll}
-                    aria-label="Select all sponsors"
-                  />
-                </th>
-                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
-                  Sponsor
-                </th>
-                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
-                  Contact
-                </th>
-                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
-                  Email
-                </th>
-                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
-                  Tier
-                </th>
-                <th className="px-3 py-3 text-left font-medium text-muted-foreground">
-                  Stage
-                </th>
+      <div
+        ref={scrollRef}
+        className="rounded-lg border border-border overflow-y-auto"
+        style={{ maxHeight: "calc(100vh - 320px)" }}
+      >
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted/50">
+              <th className="w-10 px-3 py-3">
+                <Checkbox
+                  checked={allFilteredSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all sponsors"
+                />
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                Sponsor
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                Contact
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                Email
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                Tier
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-muted-foreground">
+                Stage
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredSponsors.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-3 py-8 text-center text-muted-foreground"
+                >
+                  No sponsors found
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredSponsors.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-8 text-center text-muted-foreground"
-                  >
-                    No sponsors found
-                  </td>
-                </tr>
-              ) : (
-                filteredSponsors.map((sponsor) => (
-                  <tr
-                    key={sponsor.id}
-                    className="border-b border-border/50 transition-colors hover:bg-muted/30"
-                  >
-                    <td className="px-3 py-3">
-                      <Checkbox
-                        checked={selectedIds.has(sponsor.id)}
-                        onCheckedChange={() => toggleOne(sponsor.id)}
-                        aria-label={`Select ${sponsor.name}`}
-                      />
-                    </td>
-                    <td className="px-3 py-3 font-medium text-foreground">
-                      {sponsor.name}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {sponsor.contact_name ?? "—"}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {sponsor.contact_email ?? "—"}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${TIER_COLORS[sponsor.tier] ?? ""}`}
-                      >
-                        {sponsor.tier}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLORS[sponsor.status] ?? ""}`}
-                      >
-                        {formatStatus(sponsor.status)}
-                      </span>
-                    </td>
+            ) : (
+              <>
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{ height: virtualizer.getVirtualItems()[0].start, padding: 0, border: "none" }}
+                    />
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                )}
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const sponsor = filteredSponsors[virtualRow.index];
+                  return (
+                    <tr
+                      key={sponsor.id}
+                      data-index={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      className="border-b border-border/50 transition-colors hover:bg-muted/30"
+                    >
+                      <td className="w-10 px-3 py-3">
+                        <Checkbox
+                          checked={selectedIds.has(sponsor.id)}
+                          onCheckedChange={() => toggleOne(sponsor.id)}
+                          aria-label={`Select ${sponsor.name}`}
+                        />
+                      </td>
+                      <td className="px-3 py-3 font-medium text-foreground">
+                        {sponsor.name}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {sponsor.contact_name ?? "—"}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {sponsor.contact_email ?? "—"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${TIER_COLORS[sponsor.tier] ?? ""}`}
+                        >
+                          {sponsor.tier}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLORS[sponsor.status] ?? ""}`}
+                        >
+                          {formatStatus(sponsor.status)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{
+                        height:
+                          virtualizer.getTotalSize() -
+                          (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
+                        padding: 0,
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                )}
+              </>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Generated Drafts */}
