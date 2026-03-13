@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Conversation } from "@/lib/types/database";
 import { ConversationList } from "@/components/conversations/ConversationList";
@@ -55,15 +56,17 @@ export default async function ConversationsPage() {
         </p>
       </div>
 
-      <ConversationList
-        initialConversations={conversations}
-        kpis={{
-          total: conversations.length,
-          thisWeek,
-          uniqueContacts: uniqueContactIds.size,
-          channels: uniqueChannels.size,
-        }}
-      />
+      <Suspense>
+        <ConversationList
+          initialConversations={conversations}
+          kpis={{
+            total: conversations.length,
+            thisWeek,
+            uniqueContacts: uniqueContactIds.size,
+            channels: uniqueChannels.size,
+          }}
+        />
+      </Suspense>
     </div>
   );
 }

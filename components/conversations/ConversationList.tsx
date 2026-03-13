@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   MessageSquare,
@@ -13,20 +14,16 @@ import {
   Calendar,
   Users,
   Clock,
+  Hash,
+  Send,
 } from "lucide-react";
 import type { Conversation } from "@/lib/types/database";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { KpiCard } from "@/components/ui/kpi-card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ConversationDetailDrawer } from "./ConversationDetailDrawer";
 
 interface ConversationWithContact extends Conversation {
@@ -38,13 +35,29 @@ interface ConversationWithContact extends Conversation {
   } | null;
 }
 
-const CHANNEL_OPTIONS = ["email", "meeting", "linkedin", "phone", "other"] as const;
+const CHANNEL_TABS = [
+  { value: "all", label: "All" },
+  { value: "email", label: "Email" },
+  { value: "slack", label: "Slack" },
+  { value: "telegram", label: "Telegram" },
+  { value: "other", label: "Other" },
+] as const;
 
 const channelConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   email: {
     label: "Email",
     icon: <Mail className="size-3" />,
     className: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  },
+  slack: {
+    label: "Slack",
+    icon: <Hash className="size-3" />,
+    className: "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+  },
+  telegram: {
+    label: "Telegram",
+    icon: <Send className="size-3" />,
+    className: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-400",
   },
   meeting: {
     label: "Meeting",
@@ -79,18 +92,54 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ initialConversations, kpis }: ConversationListProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [conversations, setConversations] = useState<ConversationWithContact[]>(initialConversations);
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithContact | null>(null);
-  const [search, setSearch] = useState("");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
+  const [channelFilter, setChannelFilter] = useState<string>(searchParams.get("channel") ?? "all");
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync filter state to URL query params
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (channelFilter && channelFilter !== "all") params.set("channel", channelFilter);
+    if (search.trim()) params.set("q", search.trim());
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "/conversations", { scroll: false });
+  }, [channelFilter, search, router]);
+
+  // Channel counts from current data
+  const channelCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: conversations.length };
+    for (const c of conversations) {
+      const ch = c.channel ?? "other";
+      counts[ch] = (counts[ch] ?? 0) + 1;
+    }
+    // Group non-primary channels into "other" for the tab count
+    const primaryChannels = new Set(["email", "slack", "telegram"]);
+    let otherCount = 0;
+    for (const [k, v] of Object.entries(counts)) {
+      if (k !== "all" && !primaryChannels.has(k)) {
+        otherCount += v;
+      }
+    }
+    counts.other = otherCount;
+    return counts;
+  }, [conversations]);
 
   const filteredConversations = useMemo(() => {
     let result = conversations;
 
     if (channelFilter && channelFilter !== "all") {
-      result = result.filter((c) => c.channel === channelFilter);
+      if (channelFilter === "other") {
+        const primaryChannels = new Set(["email", "slack", "telegram"]);
+        result = result.filter((c) => !primaryChannels.has(c.channel ?? "other"));
+      } else {
+        result = result.filter((c) => c.channel === channelFilter);
+      }
     }
 
     if (search.trim()) {
@@ -110,7 +159,7 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
     try {
       const params = new URLSearchParams();
       params.set("limit", "50");
-      if (source && source !== "all") params.set("source", source);
+      if (source && source !== "all" && source !== "other") params.set("source", source);
       if (searchTerm) params.set("search", searchTerm);
 
       const res = await fetch(`/api/conversations?${params}`);
@@ -191,35 +240,47 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
         />
       </section>
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search conversations by subject or contact..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-          {isSearching && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-              Searching...
-            </span>
-          )}
-        </div>
-        <Select value={channelFilter} onValueChange={handleChannelFilterChange}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sources</SelectItem>
-            {CHANNEL_OPTIONS.map((ch) => (
-              <SelectItem key={ch} value={ch}>
-                {channelConfig[ch]?.label ?? ch}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Channel Filter Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/50 p-1">
+        {CHANNEL_TABS.map((tab) => {
+          const isActive = channelFilter === tab.value;
+          const count = channelCounts[tab.value] ?? 0;
+          return (
+            <Button
+              key={tab.value}
+              variant={isActive ? "default" : "ghost"}
+              size="sm"
+              className={`gap-1.5 whitespace-nowrap ${
+                isActive ? "" : "text-muted-foreground"
+              }`}
+              onClick={() => handleChannelFilterChange(tab.value)}
+            >
+              {tab.label}
+              <Badge
+                variant={isActive ? "secondary" : "outline"}
+                className="ml-0.5 px-1.5 text-xs"
+              >
+                {count}
+              </Badge>
+            </Button>
+          );
+        })}
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by contact name, subject, or content..."
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-9"
+        />
+        {isSearching && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            Searching...
+          </span>
+        )}
       </div>
 
       {/* Conversation Cards */}
