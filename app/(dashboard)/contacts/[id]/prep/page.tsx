@@ -1,7 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { notFound } from "next/navigation";
 import { ContactPrepClient } from "@/components/contacts/ContactPrepClient";
-import type { DossierResponse } from "@/app/api/contacts/[id]/dossier/route";
+import type { DossierPipelineItem } from "@/app/api/contacts/[id]/dossier/route";
+import type { PrepResponse } from "@/app/api/contacts/[id]/prep/route";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,8 @@ export default async function ContactPrepPage({ params }: PrepPageProps) {
     notFound();
   }
 
-  // Fetch related data in parallel
-  const [conversationsResult, meetingsResult, tasksResult, pipelineResult] =
+  // Fetch all related data in parallel
+  const [conversationsResult, meetingsResult, tasksResult, pipelineResult, activityResult] =
     await Promise.all([
       supabase
         .from("conversations")
@@ -59,30 +60,37 @@ export default async function ContactPrepPage({ params }: PrepPageProps) {
         .ilike("title", `%${contact.name}%`)
         .order("updated_at", { ascending: false })
         .limit(20),
+
+      supabase
+        .from("activity_log")
+        .select("id, action, entity_type, entity_id, metadata, created_at")
+        .eq("entity_id", id)
+        .order("created_at", { ascending: false })
+        .limit(30),
     ]);
 
-  const dossier: DossierResponse = {
-    contact: contact as DossierResponse["contact"],
-    conversations: (conversationsResult.data ?? []) as DossierResponse["conversations"],
-    meetings: (meetingsResult.data ?? []) as DossierResponse["meetings"],
-    tasks: (tasksResult.data ?? []) as DossierResponse["tasks"],
+  const prepData: PrepResponse = {
+    contact: contact as PrepResponse["contact"],
+    conversations: (conversationsResult.data ?? []) as PrepResponse["conversations"],
+    meetings: (meetingsResult.data ?? []) as PrepResponse["meetings"],
+    tasks: (tasksResult.data ?? []) as PrepResponse["tasks"],
     pipeline_items: (pipelineResult.data ?? []).map((item) => {
       const raw = item as Record<string, unknown>;
       return {
         id: raw.id as string,
         title: raw.title as string,
-        value: raw.value as number | null,
         sort_order: raw.sort_order as number,
         created_at: raw.created_at as string,
         updated_at: raw.updated_at as string,
-        stage: raw.pipeline_stages as DossierResponse["pipeline_items"][number]["stage"],
+        stage: raw.pipeline_stages as DossierPipelineItem["stage"],
       };
     }),
+    activity_log: (activityResult.data ?? []) as PrepResponse["activity_log"],
   };
 
   return (
     <div className="space-y-6">
-      <ContactPrepClient dossier={dossier} />
+      <ContactPrepClient prepData={prepData} />
     </div>
   );
 }
