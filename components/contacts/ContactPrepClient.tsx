@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ContactTimeline } from "@/components/contacts/ContactTimeline";
 import { ContactFactsSidebar } from "@/components/contacts/ContactFactsSidebar";
+import { ContactContextCard } from "@/components/contacts/contact-context-card";
 import type { DossierResponse } from "@/app/api/contacts/[id]/dossier/route";
 
 interface ContactPrepClientProps {
@@ -46,7 +47,7 @@ export function ContactPrepClient({ dossier }: ContactPrepClientProps) {
         </div>
 
         {/* Sidebar (sticky) */}
-        <aside className="lg:sticky lg:top-6 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <ContactFactsSidebar
             contact={contact}
             counts={{
@@ -55,6 +56,10 @@ export function ContactPrepClient({ dossier }: ContactPrepClientProps) {
               tasks: tasks.length,
               pipelineItems: pipeline_items.length,
             }}
+          />
+          <ContactContextCard
+            contactId={contact.id}
+            contactName={contact.name}
           />
         </aside>
       </div>
