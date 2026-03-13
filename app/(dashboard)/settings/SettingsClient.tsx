@@ -7,6 +7,7 @@ import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { DataManagement } from "@/components/settings/DataManagement";
 import { APIKeyManager } from "@/components/settings/APIKeyManager";
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs";
+import { SyncConfigPanel } from "@/components/settings/SyncConfigPanel";
 import { SeedDemoButton } from "./SeedDemoButton";
 import { SettingsDangerZone } from "./SettingsDangerZone";
 import {
@@ -18,6 +19,7 @@ import {
   SlidersHorizontal,
   Activity,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -57,6 +59,10 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
           <TabsTrigger value="notifications" className="gap-1.5">
             <Bell className="h-4 w-4" />
             Notifications
+          </TabsTrigger>
+          <TabsTrigger value="sync" className="gap-1.5">
+            <RefreshCw className="h-4 w-4" />
+            Sync
           </TabsTrigger>
           <TabsTrigger value="data" className="gap-1.5">
             <Database className="h-4 w-4" />
@@ -148,6 +154,22 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
               </p>
             </div>
             <NotificationPrefs />
+          </div>
+        </TabsContent>
+
+        {/* Sync Configuration Tab */}
+        <TabsContent value="sync">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Sync Configuration
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Manage data source connections, sync schedules, and trigger
+                manual syncs
+              </p>
+            </div>
+            <SyncConfigPanel />
           </div>
         </TabsContent>
 
