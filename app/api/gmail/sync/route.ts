@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { syncGmail, getLastSyncDate } from "@/lib/gmail-sync";
+import { verifyCronAuth } from "@/lib/cron-auth";
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  // Verify cron key or API secret for authorization
-  const authHeader = request.headers.get("authorization");
-  const cronKey = process.env.CRON_KEY;
-  const apiSecret = process.env.API_SECRET;
-
-  const token = authHeader?.replace("Bearer ", "");
-  if (!token || (token !== cronKey && token !== apiSecret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
 
   const summary = await syncGmail();
 
@@ -24,14 +18,8 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 });
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronKey = process.env.CRON_KEY;
-  const apiSecret = process.env.API_SECRET;
-
-  const token = authHeader?.replace("Bearer ", "");
-  if (!token || (token !== cronKey && token !== apiSecret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
 
   const lastSync = await getLastSyncDate();
 
