@@ -10,6 +10,11 @@ const outreachRequestSchema = z.object({
   body_template: z.string().min(1).max(10000),
 });
 
+const patchOutreachStatusSchema = z.object({
+  sponsor_id: z.string().uuid(),
+  outreach_status: z.enum(["draft", "sent", "replied", "converted"]),
+});
+
 function interpolate(
   template: string,
   variables: Record<string, string>
@@ -18,6 +23,30 @@ function interpolate(
     return variables[key] ?? match;
   });
 }
+
+export const GET = withErrorHandler(async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const statusFilter = searchParams.get("outreach_status");
+
+  const supabase = createServiceClient();
+
+  let query = supabase
+    .from("sponsors")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("outreach_status", statusFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ data: data ?? [] });
+});
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const body = await request.json();
@@ -74,4 +103,34 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ data: drafts });
+});
+
+export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+  const body = await request.json();
+
+  const parsed = patchOutreachStatusSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const { sponsor_id, outreach_status } = parsed.data;
+
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("sponsors")
+    .update({ outreach_status, updated_at: new Date().toISOString() })
+    .eq("id", sponsor_id)
+    .select()
+    .single();
+
+  if (error) {
+    const status = error.code === "PGRST116" ? 404 : 500;
+    return NextResponse.json({ error: error.message }, { status });
+  }
+
+  return NextResponse.json({ data });
 });

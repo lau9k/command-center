@@ -16,6 +16,7 @@ export interface Event {
 
 export type SponsorTier = "bronze" | "silver" | "gold" | "platinum" | "title";
 export type SponsorStatus = "not_contacted" | "contacted" | "negotiating" | "confirmed" | "declined";
+export type SponsorOutreachStatus = "draft" | "sent" | "replied" | "converted";
 
 export interface Sponsor {
   id: string;
@@ -29,6 +30,7 @@ export interface Sponsor {
   amount: number;
   currency: string;
   notes: string | null;
+  outreach_status: SponsorOutreachStatus;
   event_id: string | null;
   created_at: string;
   updated_at: string;
