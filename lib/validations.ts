@@ -373,6 +373,15 @@ export const ingestTransactionSchema = z.object({
   notes: z.string().max(10000).optional().nullable(),
 });
 
+// ── Community Events ─────────────────────────────────────
+
+export const createCommunityEventSchema = z.object({
+  title: z.string().min(1).max(500),
+  description: z.string().max(2000).optional().nullable(),
+  event_type: z.enum(["new_member", "token_transfer", "social_mention"]),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+});
+
 // ── Email Templates ──────────────────────────────────────
 
 export const createEmailTemplateSchema = z.object({

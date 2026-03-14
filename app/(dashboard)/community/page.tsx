@@ -2,7 +2,8 @@ import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CommunityDashboard } from "@/components/community/CommunityDashboard";
 import type { Member } from "@/components/community/MemberCard";
-import type { ActivityEvent } from "@/components/community/ActivityFeed";
+import type { ActivityEvent, ActivityEventType } from "@/components/community/ActivityFeed";
+import type { CommunityEventType } from "@/lib/types/database";
 import type { GrowthDataPoint } from "@/components/community/GrowthChart";
 
 export const revalidate = 300;
@@ -56,8 +57,21 @@ export default async function CommunityPage() {
         )
       : 0;
 
-  // Activity events — empty until community_events table exists
-  const events: ActivityEvent[] = [];
+  // Fetch recent community events from Supabase
+  const eventsRes = await supabase
+    .from("community_events")
+    .select("id, title, description, event_type, created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const events: ActivityEvent[] = (eventsRes.data ?? []).map(
+    (e: { id: string; title: string; description: string | null; event_type: CommunityEventType; created_at: string }) => ({
+      id: e.id,
+      type: e.event_type as ActivityEventType,
+      description: e.description ?? e.title,
+      timestamp: e.created_at,
+    })
+  );
 
   // Build growth data from community_stats cache history
   const statsHistory = statsHistoryRes.data ?? [];
