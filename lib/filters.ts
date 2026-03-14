@@ -119,3 +119,29 @@ export function filtersFromSearchParams(param: string | null): FilterCondition[]
     return [];
   }
 }
+
+// ── Serialize / deserialize filters for saved views (JSON) ─
+
+export function serializeFilters(filters: FilterCondition[]): string {
+  return JSON.stringify(filters);
+}
+
+export function deserializeFilters(json: string | null): FilterCondition[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// ── Compare two filter sets for equality ──────────────────
+
+export function filtersEqual(
+  a: FilterCondition[],
+  b: FilterCondition[]
+): boolean {
+  if (a.length !== b.length) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
