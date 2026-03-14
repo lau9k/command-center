@@ -1,6 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
-import { AIFocusPanel } from "@/components/dashboard/AIFocusPanel";
+import { AIFocusPanelLive } from "@/components/home/ai-focus-panel";
+import { DailyBriefingWidget } from "@/components/home/daily-briefing";
+import { MemoryHealthWidget } from "@/components/home/memory-health-widget";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
 import { ContentCalendarPreview } from "@/components/dashboard/ContentCalendarPreview";
@@ -335,11 +337,17 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* 1. AI Focus Panel */}
+      {/* 1. AI Focus Panel + Daily Briefing */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <AIFocusPanel />
+        <AIFocusPanelLive />
         <SessionPromptButton />
       </div>
+
+      {/* 1b. Daily Briefing */}
+      <DailyBriefingWidget />
+
+      {/* 1c. Memory Health */}
+      <MemoryHealthWidget />
 
       {/* 2. Quick Actions */}
       <QuickActionsBar />
