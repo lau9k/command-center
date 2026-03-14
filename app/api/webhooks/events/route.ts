@@ -5,7 +5,8 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 
 const querySchema = z.object({
   source: z.string().optional(),
-  status: z.enum(["success", "error", "all"]).optional().default("all"),
+  status: z.enum(["success", "error", "pending", "all"]).optional().default("all"),
+  event_type: z.string().optional(),
   from: z.string().datetime({ offset: true }).optional(),
   to: z.string().datetime({ offset: true }).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
@@ -23,7 +24,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     );
   }
 
-  const { source, status, from, to, limit, offset } = parsed.data;
+  const { source, status, event_type, from, to, limit, offset } = parsed.data;
   const supabase = createServiceClient();
 
   let query = supabase
@@ -36,10 +37,16 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     query = query.eq("source", source);
   }
 
+  if (event_type) {
+    query = query.eq("event_type", event_type);
+  }
+
   if (status === "success") {
     query = query.gte("status_code", 200).lt("status_code", 300);
   } else if (status === "error") {
     query = query.or("status_code.lt.200,status_code.gte.300");
+  } else if (status === "pending") {
+    query = query.eq("processed", false);
   }
 
   if (from) {
