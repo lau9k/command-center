@@ -46,14 +46,35 @@ export const PATCH = withErrorHandler(async function PATCH(
   const supabase = createServiceClient();
   const body = await request.json();
 
-  const read = body.read;
-  if (typeof read !== "boolean") {
-    return NextResponse.json({ error: "Body must include { read: boolean }" }, { status: 400 });
+  const updates: Record<string, boolean> = {};
+
+  if (typeof body.read === "boolean") {
+    updates.read = body.read;
+  }
+
+  if (typeof body.archived === "boolean" && body.archived) {
+    const { error: delError } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id);
+
+    if (delError) {
+      return NextResponse.json({ error: delError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, archived: true });
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "Body must include { read: boolean } or { archived: boolean }" },
+      { status: 400 }
+    );
   }
 
   const { data, error } = await supabase
     .from("notifications")
-    .update({ read })
+    .update(updates)
     .eq("id", id)
     .select("*")
     .single();
