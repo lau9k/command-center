@@ -2,7 +2,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineSubNav } from "@/components/pipeline/PipelineSubNav";
 import { ConversionFunnel } from "@/components/pipeline/ConversionFunnel";
 import { StageDurationCards } from "@/components/pipeline/StageDurationCards";
-import { Trophy, XCircle, Target, DollarSign } from "lucide-react";
+import { PipelineMetricsGrid } from "@/components/pipeline/PipelineMetricsGrid";
+import { Trophy, XCircle, Target, DollarSign, Zap } from "lucide-react";
 import { KpiCard } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +95,18 @@ export default async function PipelineAnalyticsPage() {
   const wonValue = wonItems.reduce((sum, i) => sum + parseDealValue(i.metadata), 0);
   const lostValue = lostItems.reduce((sum, i) => sum + parseDealValue(i.metadata), 0);
 
-  // Stage durations
+  // Deal velocity: avg days from created_at to updated_at for won deals
+  const wonVelocities = wonItems.map((item) => {
+    const created = new Date(item.created_at).getTime();
+    const updated = new Date(item.updated_at).getTime();
+    return (updated - created) / (1000 * 60 * 60 * 24);
+  });
+  const avgDealVelocity =
+    wonVelocities.length > 0
+      ? Math.round((wonVelocities.reduce((sum, d) => sum + d, 0) / wonVelocities.length) * 10) / 10
+      : 0;
+
+  // Stage durations + metrics grid data
   const now = Date.now();
   const stageDurations = stages.map((stage) => {
     const stageItems = itemsByStage.get(stage.id) ?? [];
@@ -122,20 +134,57 @@ export default async function PipelineAnalyticsPage() {
     };
   });
 
+  const stageMetrics = stages.map((stage) => {
+    const stageItems = itemsByStage.get(stage.id) ?? [];
+    const count = stageItems.length;
+    const totalValue = stageItems.reduce((sum, item) => sum + parseDealValue(item.metadata), 0);
+    const avgValue = count > 0 ? Math.round(totalValue / count) : 0;
+
+    const days = stageItems.map((item) => {
+      const created = new Date(item.created_at).getTime();
+      return (now - created) / (1000 * 60 * 60 * 24);
+    });
+    const avgDays =
+      count > 0
+        ? Math.round((days.reduce((sum, d) => sum + d, 0) / count) * 10) / 10
+        : 0;
+
+    const conversionRate = totalItems > 0 ? Math.round((count / totalItems) * 100) : 0;
+
+    return {
+      stage_id: stage.id,
+      stage_name: stage.name,
+      stage_slug: stage.slug,
+      color: stage.color,
+      sort_order: stage.sort_order,
+      count,
+      total_value: totalValue,
+      avg_value: avgValue,
+      avg_days: avgDays,
+      conversion_rate: conversionRate,
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Pipeline Analytics</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conversion rates, stage durations, and win/loss analysis
+            Deal velocity, conversion rates, and win/loss analysis
           </p>
         </div>
         <PipelineSubNav />
       </div>
 
-      {/* Win/Loss KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <KpiCard
+          label="Deal Velocity"
+          value={`${avgDealVelocity} days`}
+          subtitle="Avg lead to won"
+          icon={<Zap className="size-5" />}
+        />
         <KpiCard
           label="Win Rate"
           value={`${winRate}%`}
@@ -161,6 +210,14 @@ export default async function PipelineAnalyticsPage() {
           subtitle={`${totalItems} deals`}
           icon={<DollarSign className="size-5" />}
         />
+      </div>
+
+      {/* Stage Breakdown */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">
+          Stage Breakdown
+        </h3>
+        <PipelineMetricsGrid data={stageMetrics} />
       </div>
 
       {/* Conversion Funnel */}
