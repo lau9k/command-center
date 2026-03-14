@@ -1,10 +1,12 @@
 "use client";
 
-import { UserPlus, ArrowRightLeft, MessageCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { UserPlus, ArrowRightLeft, MessageCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { communityEventTypeColor } from "@/lib/design-tokens";
+import type { CommunityEvent, CommunityEventType } from "@/lib/types/database";
 
-export type ActivityEventType = "new_member" | "token_transfer" | "social_mention";
+export type ActivityEventType = CommunityEventType;
 
 export interface ActivityEvent {
   id: string;
@@ -25,6 +27,12 @@ const EVENT_BG: Record<ActivityEventType, string> = {
   social_mention: "bg-[#A855F7]/10",
 };
 
+const EVENT_LABEL: Record<ActivityEventType, string> = {
+  new_member: "New Member",
+  token_transfer: "Transfer",
+  social_mention: "Mention",
+};
+
 function formatRelativeTime(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
@@ -39,12 +47,47 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function toActivityEvents(rows: CommunityEvent[]): ActivityEvent[] {
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.event_type,
+    description: r.description ?? r.title,
+    timestamp: r.created_at,
+  }));
+}
+
 interface ActivityFeedProps {
-  events: ActivityEvent[];
+  /** Pre-fetched events from the server (SSR). When provided the component skips its own fetch. */
+  events?: ActivityEvent[];
   className?: string;
 }
 
-export function ActivityFeed({ events, className }: ActivityFeedProps) {
+export function ActivityFeed({ events: serverEvents, className }: ActivityFeedProps) {
+  const [events, setEvents] = useState<ActivityEvent[]>(serverEvents ?? []);
+  const [loading, setLoading] = useState(!serverEvents);
+
+  useEffect(() => {
+    if (serverEvents) return;
+
+    let cancelled = false;
+
+    async function fetchEvents() {
+      try {
+        const res = await fetch("/api/community/events?pageSize=20");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setEvents(toActivityEvents(json.data ?? []));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchEvents();
+    return () => { cancelled = true; };
+  }, [serverEvents]);
+
   return (
     <div
       className={cn(
@@ -56,7 +99,11 @@ export function ActivityFeed({ events, className }: ActivityFeedProps) {
         Activity Feed
       </h3>
 
-      {events.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : events.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No recent activity
         </p>
@@ -87,9 +134,20 @@ export function ActivityFeed({ events, className }: ActivityFeedProps) {
 
                 {/* Content */}
                 <div className={cn("flex-1 pb-4", isLast && "pb-0")}>
-                  <p className="text-sm text-foreground">
-                    {event.description}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-foreground">
+                      {event.description}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        bgClass,
+                        colorClass
+                      )}
+                    >
+                      {EVENT_LABEL[event.type]}
+                    </span>
+                  </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {formatRelativeTime(event.timestamp)}
                   </p>

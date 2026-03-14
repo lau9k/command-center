@@ -674,6 +674,19 @@ export interface WalletPnlMonthly {
 
 export type EmailTemplateCategory = "general" | "outreach" | "follow_up" | "introduction" | "proposal" | "thank_you";
 
+// --- Community Event types ---
+
+export type CommunityEventType = "new_member" | "token_transfer" | "social_mention";
+
+export interface CommunityEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  event_type: CommunityEventType;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
 export interface EmailTemplate {
   id: string;
   user_id: string | null;
