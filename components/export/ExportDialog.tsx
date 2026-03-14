@@ -29,7 +29,8 @@ type EntityType =
   | "tasks"
   | "sponsors"
   | "content_posts"
-  | "pipeline_items";
+  | "pipeline_items"
+  | "resources";
 
 type ExportFormat = "csv" | "pdf";
 
@@ -92,6 +93,15 @@ const ENTITY_COLUMNS: Record<EntityType, ColumnDef[]> = {
     { key: "created_at", label: "Created At" },
     { key: "updated_at", label: "Updated At" },
   ],
+  resources: [
+    { key: "title", label: "Title" },
+    { key: "description", label: "Description" },
+    { key: "file_type", label: "File Type" },
+    { key: "file_url", label: "File URL" },
+    { key: "tags", label: "Tags" },
+    { key: "status", label: "Status" },
+    { key: "created_at", label: "Created At" },
+  ],
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
@@ -100,6 +110,7 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   sponsors: "Sponsors",
   content_posts: "Content Posts",
   pipeline_items: "Pipeline Deals",
+  resources: "Resources",
 };
 
 interface ExportDialogProps {
