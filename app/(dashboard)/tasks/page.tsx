@@ -5,6 +5,7 @@ import type { TaskWithProject } from "@/lib/types/database";
 import { seedTasksIfEmpty } from "@/lib/seed-tasks";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/export/ExportButton";
+import { TasksViewToggle } from "@/components/tasks/tasks-view-toggle";
 import { getQueryClient } from "@/lib/query-client";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,7 @@ export default async function TasksPage() {
       <PageHeader
         title="Tasks"
         description="Manage tasks with priority engine"
-        actions={<ExportButton table="tasks" />}
+        actions={<><TasksViewToggle /><ExportButton table="tasks" /></>}
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <MasterTaskList
