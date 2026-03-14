@@ -83,6 +83,85 @@ const PutSchema = z.object({
   action: z.enum(["dismiss", "welcome_seen"]),
 });
 
+const PostSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("complete"),
+  }),
+  z.object({
+    action: z.literal("create_project"),
+    projectName: z.string().min(1).max(200),
+    projectDescription: z.string().max(500).optional(),
+  }),
+]);
+
+const USER_ID = "00000000-0000-0000-0000-000000000001";
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const parsed = PostSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const supabase = createServiceClient();
+
+    if (parsed.data.action === "complete") {
+      // Mark onboarding as complete in user_preferences
+      const { error } = await supabase.from("user_preferences").upsert(
+        {
+          user_id: USER_ID,
+          onboarding_complete: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
+
+      if (error) {
+        return Response.json({ error: error.message }, { status: 500 });
+      }
+
+      return Response.json({ success: true });
+    }
+
+    if (parsed.data.action === "create_project") {
+      // Get max sort_order for new project
+      const { data: maxOrder } = await supabase
+        .from("projects")
+        .select("sort_order")
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextOrder = (maxOrder?.sort_order ?? 0) + 1;
+
+      const { data: project, error } = await supabase
+        .from("projects")
+        .insert({
+          name: parsed.data.projectName,
+          description: parsed.data.projectDescription ?? null,
+          status: "active",
+          sort_order: nextOrder,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return Response.json({ error: error.message }, { status: 500 });
+      }
+
+      return Response.json({ success: true, project });
+    }
+
+    return Response.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to process onboarding action";
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
