@@ -23,6 +23,7 @@ import {
   Tag,
 } from "lucide-react";
 import { ContactEnrichmentPanel } from "@/components/contacts/ContactEnrichmentPanel";
+import { IntelligencePanel } from "@/components/contacts/intelligence-panel";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { InlineEditField } from "@/components/contacts/InlineEditField";
 import {
@@ -321,6 +322,16 @@ export function ContactDetailPanel({
 
             {/* Contact Enrichment — Personize recall + digest */}
             <ContactEnrichmentPanel
+              contactId={contact.id}
+              contactName={contact.name}
+              contactEmail={contact.email ?? null}
+              open={open}
+            />
+
+            <Separator />
+
+            {/* Contact Intelligence — AI briefing, follow-ups, relationship health */}
+            <IntelligencePanel
               contactId={contact.id}
               contactName={contact.name}
               contactEmail={contact.email ?? null}
