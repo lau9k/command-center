@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { CommandPalette } from "@/components/shared/CommandPalette";
+import { SearchProvider } from "@/components/search/SearchProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { QueryProvider } from "@/lib/providers";
 import "./globals.css";
@@ -40,8 +40,9 @@ export default function RootLayout({
       >
         <QueryProvider>
           <ThemeProvider>
-            {children}
-            <CommandPalette />
+            <SearchProvider>
+              {children}
+            </SearchProvider>
             <Toaster />
           </ThemeProvider>
         </QueryProvider>

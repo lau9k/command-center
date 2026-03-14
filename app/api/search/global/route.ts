@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import type { SearchResult } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 
 const searchParamsSchema = z.object({
   q: z.string().min(2).max(200),
 });
-
-interface GlobalSearchResult {
-  id: string;
-  type: "task" | "contact" | "pipeline" | "content" | "sponsor";
-  title: string;
-  subtitle: string | null;
-  href: string;
-}
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
@@ -29,37 +22,43 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const supabase = createServiceClient();
   const pattern = `%${q}%`;
 
-  const [tasks, contacts, pipeline, content, sponsors] = await Promise.all([
-    supabase
-      .from("tasks")
-      .select("id, project_id, title, status, priority")
-      .ilike("title", pattern)
-      .limit(5),
-    supabase
-      .from("contacts")
-      .select("id, project_id, name, company, email")
-      .or(
-        `name.ilike.${pattern},company.ilike.${pattern},email.ilike.${pattern}`
-      )
-      .limit(5),
-    supabase
-      .from("pipeline_items")
-      .select("id, project_id, title, stage_id")
-      .ilike("title", pattern)
-      .limit(5),
-    supabase
-      .from("content_posts")
-      .select("id, project_id, title, platform, status")
-      .or(`title.ilike.${pattern},caption.ilike.${pattern}`)
-      .limit(5),
-    supabase
-      .from("sponsors")
-      .select("id, name, tier, status, contact_name")
-      .or(`name.ilike.${pattern},contact_name.ilike.${pattern}`)
-      .limit(5),
-  ]);
+  const [tasks, contacts, pipeline, content, sponsors, projects] =
+    await Promise.all([
+      supabase
+        .from("tasks")
+        .select("id, project_id, title, status, priority")
+        .ilike("title", pattern)
+        .limit(5),
+      supabase
+        .from("contacts")
+        .select("id, project_id, name, company, email")
+        .or(
+          `name.ilike.${pattern},company.ilike.${pattern},email.ilike.${pattern}`
+        )
+        .limit(5),
+      supabase
+        .from("pipeline_items")
+        .select("id, project_id, title, stage_id")
+        .ilike("title", pattern)
+        .limit(5),
+      supabase
+        .from("content_posts")
+        .select("id, project_id, title, platform, status")
+        .or(`title.ilike.${pattern},caption.ilike.${pattern}`)
+        .limit(5),
+      supabase
+        .from("sponsors")
+        .select("id, name, tier, status, contact_name")
+        .or(`name.ilike.${pattern},contact_name.ilike.${pattern}`)
+        .limit(5),
+      supabase
+        .from("projects")
+        .select("id, name, status")
+        .ilike("name", pattern)
+        .limit(5),
+    ]);
 
-  const results: GlobalSearchResult[] = [];
+  const results: SearchResult[] = [];
 
   if (tasks.data) {
     for (const t of tasks.data) {
@@ -80,7 +79,21 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         type: "contact",
         title: c.name,
         subtitle: c.company || c.email || null,
-        href: `/projects/${c.project_id}/contacts`,
+        href: c.project_id
+          ? `/projects/${c.project_id}/contacts`
+          : "/contacts",
+      });
+    }
+  }
+
+  if (projects.data) {
+    for (const p of projects.data) {
+      results.push({
+        id: p.id,
+        type: "project",
+        title: p.name,
+        subtitle: p.status || null,
+        href: `/projects/${p.id}`,
       });
     }
   }
@@ -116,7 +129,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         type: "sponsor",
         title: s.name,
         subtitle: [s.tier, s.status].filter(Boolean).join(" · ") || null,
-        href: "/sponsors",
+        href: `/sponsors/${s.id}`,
       });
     }
   }
