@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { SponsorsBoard } from "@/components/sponsors/SponsorsBoard";
 import { SponsorSubNav } from "@/components/sponsors/SponsorSubNav";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { ExportButton } from "@/components/shared/ExportButton";
+import { ExportButton } from "@/components/export/ExportButton";
 
 export const revalidate = 300;
 

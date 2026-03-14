@@ -3,7 +3,7 @@ import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
 import { searchContacts } from "@/lib/personize/actions";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { ExportButton } from "@/components/shared/ExportButton";
+import { ExportButton } from "@/components/export/ExportButton";
 import { ContactsSubNav } from "@/components/contacts/ContactsSubNav";
 
 export const dynamic = "force-dynamic";
