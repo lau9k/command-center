@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { TemplatePreview } from "@/components/templates/TemplatePreview";
 import type { EmailTemplate, EmailTemplateCategory } from "@/lib/types/database";
 
 const CATEGORIES: { value: EmailTemplateCategory; label: string }[] = [
@@ -29,6 +29,16 @@ const CATEGORIES: { value: EmailTemplateCategory; label: string }[] = [
   { value: "introduction", label: "Introduction" },
   { value: "proposal", label: "Proposal" },
   { value: "thank_you", label: "Thank You" },
+];
+
+const TEMPLATE_VARIABLES = [
+  "sponsor_name",
+  "event_name",
+  "tier",
+  "benefits",
+  "contact_name",
+  "company",
+  "date",
 ];
 
 interface FormData {
@@ -51,18 +61,6 @@ function detectVariables(text: string): string[] {
   return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, "")))];
 }
 
-function renderPreview(template: string, variables: string[]): string {
-  let result = template;
-  for (const v of variables) {
-    const regex = new RegExp(`\\{\\{${v}\\}\\}`, "g");
-    result = result.replace(
-      regex,
-      `<span class="rounded bg-sidebar-primary/20 px-1 text-sidebar-primary font-medium">${v}</span>`
-    );
-  }
-  return result;
-}
-
 interface TemplateEditorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -78,7 +76,9 @@ export function TemplateEditor({
 }: TemplateEditorProps) {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("edit");
+  const [activeField, setActiveField] = useState<"subject" | "body">("body");
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const isEditing = !!template;
 
@@ -93,10 +93,36 @@ export function TemplateEditor({
     } else {
       setForm(EMPTY_FORM);
     }
-    setActiveTab("edit");
   }, [template, open]);
 
   const detectedVars = detectVariables(`${form.subject} ${form.body}`);
+
+  const insertVariable = useCallback(
+    (variable: string) => {
+      const insertion = `{{${variable}}}`;
+      const field = activeField;
+      const ref = field === "subject" ? subjectRef.current : bodyRef.current;
+
+      if (ref) {
+        const start = ref.selectionStart ?? ref.value.length;
+        const end = ref.selectionEnd ?? start;
+        const value = ref.value;
+        const newValue = value.slice(0, start) + insertion + value.slice(end);
+
+        setForm((f) => ({ ...f, [field]: newValue }));
+
+        // Restore cursor position after React re-render
+        requestAnimationFrame(() => {
+          const newPos = start + insertion.length;
+          ref.setSelectionRange(newPos, newPos);
+          ref.focus();
+        });
+      } else {
+        setForm((f) => ({ ...f, [field]: f[field] + insertion }));
+      }
+    },
+    [activeField]
+  );
 
   const handleSave = useCallback(async () => {
     if (!form.name.trim()) return;
@@ -124,56 +150,73 @@ export function TemplateEditor({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-y-auto">
+      <SheetContent className="sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{isEditing ? "Edit Template" : "New Template"}</SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Template Name</Label>
-            <Input
-              id="name"
-              placeholder="e.g. Welcome Email"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="name">Template Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g. Welcome Email"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, category: v as EmailTemplateCategory }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value={form.category}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, category: v as EmailTemplateCategory }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Left: Editor */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Insert Variable</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {TEMPLATE_VARIABLES.map((v) => (
+                    <Button
+                      key={v}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => insertVariable(v)}
+                    >
+                      {`{{${v}}}`}
+                    </Button>
+                  ))}
+                </div>
+              </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="edit" className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="subject">Subject Line</Label>
                 <Input
                   id="subject"
-                  placeholder="e.g. Hi {{first_name}}, quick follow-up"
+                  ref={subjectRef}
+                  placeholder="e.g. Hi {{contact_name}}, quick follow-up"
                   value={form.subject}
+                  onFocus={() => setActiveField("subject")}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, subject: e.target.value }))
                   }
@@ -184,9 +227,11 @@ export function TemplateEditor({
                 <Label htmlFor="body">Body</Label>
                 <Textarea
                   id="body"
+                  ref={bodyRef}
                   placeholder="Write your email template here. Use {{variable_name}} for dynamic values."
-                  rows={12}
+                  rows={14}
                   value={form.body}
+                  onFocus={() => setActiveField("body")}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, body: e.target.value }))
                   }
@@ -205,35 +250,14 @@ export function TemplateEditor({
                   </div>
                 </div>
               )}
-            </TabsContent>
+            </div>
 
-            <TabsContent value="preview" className="pt-4">
-              <div className="rounded-lg border border-border bg-background p-4 space-y-3">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    Subject
-                  </p>
-                  <p
-                    className="text-sm font-medium text-foreground"
-                    dangerouslySetInnerHTML={{
-                      __html: renderPreview(form.subject, detectedVars) || "<span class='text-muted-foreground italic'>No subject</span>",
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    Body
-                  </p>
-                  <div
-                    className="whitespace-pre-wrap text-sm text-foreground"
-                    dangerouslySetInnerHTML={{
-                      __html: renderPreview(form.body, detectedVars) || "<span class='text-muted-foreground italic'>No body content</span>",
-                    }}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+            {/* Right: Live Preview */}
+            <div className="space-y-2">
+              <Label>Live Preview</Label>
+              <TemplatePreview subject={form.subject} body={form.body} />
+            </div>
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button
@@ -243,10 +267,7 @@ export function TemplateEditor({
             >
               {saving ? "Saving..." : isEditing ? "Update Template" : "Create Template"}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
           </div>
