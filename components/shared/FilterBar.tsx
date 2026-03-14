@@ -1,16 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import {
-  Plus,
-  X,
-  Save,
-  ChevronDown,
-  Loader2,
-  Trash2,
-  Star,
-} from "lucide-react";
+import { Plus, X, SlidersHorizontal, AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -19,14 +11,16 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { FilterCondition, FilterOperator } from "@/lib/filters";
+import type { FilterCondition, FilterOperator, SavedView } from "@/lib/filters";
 import {
   OPERATOR_LABELS,
   OPERATORS_BY_TYPE,
   filtersToSearchParams,
   filtersFromSearchParams,
 } from "@/lib/filters";
-import type { SavedView } from "@/lib/filters";
+import { useActiveView } from "@/hooks/useActiveView";
+import { SavedViewsDropdown } from "@/components/shared/SavedViewsDropdown";
+import { FilterBuilder } from "@/components/shared/FilterBuilder";
 
 // ── Field definition for a filterable entity ──────────────
 
@@ -254,185 +248,6 @@ function FilterChip({
   );
 }
 
-// ── Saved View Dropdown ───────────────────────────────────
-
-function SavedViewDropdown({
-  entityType,
-  currentFilters,
-  onLoadView,
-}: {
-  entityType: string;
-  currentFilters: FilterCondition[];
-  onLoadView: (view: SavedView) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [views, setViews] = useState<SavedView[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saveName, setSaveName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [showSave, setShowSave] = useState(false);
-  const hasFetched = useRef(false);
-
-  const fetchViews = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/saved-views?entity_type=${encodeURIComponent(entityType)}`);
-      if (res.ok) {
-        const json = await res.json();
-        setViews(json.data ?? []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [entityType]);
-
-  useEffect(() => {
-    if (open && !hasFetched.current) {
-      hasFetched.current = true;
-      fetchViews();
-    }
-  }, [open, fetchViews]);
-
-  async function handleSave() {
-    if (!saveName.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/saved-views", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: saveName.trim(),
-          entity_type: entityType,
-          filters: currentFilters,
-        }),
-      });
-      if (res.ok) {
-        setSaveName("");
-        setShowSave(false);
-        hasFetched.current = false;
-        await fetchViews();
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    await fetch(`/api/saved-views/${id}`, { method: "DELETE" });
-    setViews((v) => v.filter((view) => view.id !== id));
-  }
-
-  async function handleSetDefault(view: SavedView) {
-    const res = await fetch(`/api/saved-views/${view.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_default: !view.is_default }),
-    });
-    if (res.ok) {
-      hasFetched.current = false;
-      await fetchViews();
-    }
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm">
-          <ChevronDown className="size-4" />
-          Views
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
-        <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-          Saved Views
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : views.length === 0 && !showSave ? (
-          <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-            No saved views yet
-          </div>
-        ) : (
-          <div className="max-h-64 overflow-y-auto py-1">
-            {views.map((view) => (
-              <div
-                key={view.id}
-                className="group flex items-center gap-1 px-3 py-2 transition-colors hover:bg-accent"
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    onLoadView(view);
-                    setOpen(false);
-                  }}
-                  className="flex-1 text-left text-sm"
-                >
-                  {view.name}
-                  {view.is_default && (
-                    <Star className="ml-1 inline size-3 fill-current text-yellow-500" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetDefault(view)}
-                  className="rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
-                  title={view.is_default ? "Remove default" : "Set as default"}
-                >
-                  <Star className={cn("size-3", view.is_default ? "fill-current text-yellow-500" : "text-muted-foreground")} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(view.id)}
-                  className="rounded p-1 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
-                >
-                  <Trash2 className="size-3 text-muted-foreground" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="border-t p-2">
-          {showSave ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSave();
-              }}
-              className="flex items-center gap-2"
-            >
-              <Input
-                autoFocus
-                placeholder="View name..."
-                value={saveName}
-                onChange={(e) => setSaveName(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <Button type="submit" size="sm" disabled={saving || !saveName.trim()}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              </Button>
-            </form>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-xs"
-              onClick={() => setShowSave(true)}
-              disabled={currentFilters.length === 0}
-            >
-              <Save className="size-3" />
-              Save current filters as view
-            </Button>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 // ── Main SmartFilterBar ───────────────────────────────────
 
 export function SmartFilterBar({
@@ -445,6 +260,8 @@ export function SmartFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { activeView, hasUnsavedChanges, loadView, clearActiveView, revertToActiveView, setFilters } = useActiveView(filters);
+  const [builderOpen, setBuilderOpen] = useState(false);
 
   // Sync filters from URL on mount
   useEffect(() => {
@@ -468,26 +285,71 @@ export function SmartFilterBar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
+  // Keep useActiveView in sync with external filter changes
+  useEffect(() => {
+    setFilters(filters);
+  }, [filters, setFilters]);
+
   function addFilter(filter: FilterCondition) {
     onFiltersChange([...filters, filter]);
   }
 
   function removeFilter(index: number) {
     onFiltersChange(filters.filter((_, i) => i !== index));
+    if (filters.length <= 1) {
+      clearActiveView();
+    }
   }
 
   function clearAll() {
     onFiltersChange([]);
+    clearActiveView();
   }
 
-  function loadView(view: SavedView) {
+  function handleLoadView(view: SavedView) {
+    loadView(view);
     onFiltersChange(view.filters);
+  }
+
+  function handleRevert() {
+    revertToActiveView();
+    if (activeView) {
+      onFiltersChange(activeView.filters);
+    }
+  }
+
+  async function handleSaveAsView(name: string, viewFilters: FilterCondition[]) {
+    const res = await fetch("/api/saved-views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        entity_type: entityType,
+        filters: viewFilters,
+      }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data) {
+        loadView(json.data);
+        onFiltersChange(json.data.filters);
+      }
+    }
   }
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-wrap items-center gap-2">
         <AddFilterPopover fields={fields} onAdd={addFilter} />
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setBuilderOpen(true)}
+        >
+          <SlidersHorizontal className="size-4" />
+          <span className="hidden sm:inline">Filter Builder</span>
+        </Button>
 
         {filters.length > 0 && (
           <Button
@@ -500,11 +362,31 @@ export function SmartFilterBar({
           </Button>
         )}
 
+        {hasUnsavedChanges && (
+          <div className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1 text-xs text-amber-500">
+              <AlertCircle className="size-3" />
+              <span className="hidden sm:inline">Unsaved changes</span>
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRevert}
+              className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+              title="Revert to saved view"
+            >
+              <RotateCcw className="size-3" />
+            </Button>
+          </div>
+        )}
+
         <div className="ml-auto">
-          <SavedViewDropdown
+          <SavedViewsDropdown
             entityType={entityType}
             currentFilters={filters}
-            onLoadView={loadView}
+            activeView={activeView}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onLoadView={handleLoadView}
           />
         </div>
       </div>
@@ -521,6 +403,16 @@ export function SmartFilterBar({
           ))}
         </div>
       )}
+
+      <FilterBuilder
+        open={builderOpen}
+        onOpenChange={setBuilderOpen}
+        fields={fields}
+        entityType={entityType}
+        initialFilters={filters}
+        onApply={onFiltersChange}
+        onSaveAsView={handleSaveAsView}
+      />
     </div>
   );
 }
