@@ -18,7 +18,7 @@ export default async function OutreachPage() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Sponsors</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Generate bulk email drafts for sponsor outreach
+            Generate personalized email drafts and track outreach status
           </p>
         </div>
         <SponsorSubNav />

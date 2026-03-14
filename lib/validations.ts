@@ -305,6 +305,7 @@ export const createSponsorSchema = z.object({
   company_url: z.string().max(1000).optional().nullable(),
   tier: z.enum(["bronze", "silver", "gold", "platinum", "title"]).optional(),
   status: z.enum(["not_contacted", "contacted", "negotiating", "confirmed", "declined"]).optional(),
+  outreach_status: z.enum(["draft", "sent", "replied", "converted"]).optional(),
   amount: z.number().min(0).optional(),
   currency: z.string().max(10).optional(),
   notes: z.string().max(10000).optional().nullable(),
