@@ -4,7 +4,7 @@ import { MasterTaskList } from "@/components/dashboard/MasterTaskList";
 import type { TaskWithProject } from "@/lib/types/database";
 import { seedTasksIfEmpty } from "@/lib/seed-tasks";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { ExportButton } from "@/components/shared/ExportButton";
+import { ExportButton } from "@/components/export/ExportButton";
 import { getQueryClient } from "@/lib/query-client";
 
 export const dynamic = "force-dynamic";

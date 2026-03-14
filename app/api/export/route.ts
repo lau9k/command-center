@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
-import { generateCSV } from "@/lib/export";
+import { generateCSV, generateFilteredCSV, generatePDFHTML } from "@/lib/export";
 
 const ALLOWED_TABLES = [
   "tasks",
@@ -16,6 +16,29 @@ const ALLOWED_TABLES = [
 const ExportParamsSchema = z.object({
   table: z.enum(ALLOWED_TABLES),
 });
+
+const ExportPostSchema = z.object({
+  entity_type: z.enum(ALLOWED_TABLES),
+  format: z.enum(["csv", "pdf"]),
+  columns: z.array(z.string()).min(1),
+  date_range: z
+    .object({
+      from: z.string().optional(),
+      to: z.string().optional(),
+    })
+    .optional(),
+});
+
+const ENTITY_LABELS: Record<string, string> = {
+  contacts: "Contacts",
+  tasks: "Tasks",
+  sponsors: "Sponsors",
+  content_posts: "Content Posts",
+  pipeline_items: "Pipeline Deals",
+  transactions: "Transactions",
+  debts: "Debts",
+  projects: "Projects",
+};
 
 export async function GET(request: Request) {
   try {
@@ -55,6 +78,70 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
+  } catch {
+    return Response.json({ error: "Export failed" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const parsed = ExportPostSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return Response.json(
+        { error: parsed.error.issues.map((e) => e.message).join(", ") },
+        { status: 400 }
+      );
+    }
+
+    const { entity_type, format, columns, date_range } = parsed.data;
+    const supabase = createServiceClient();
+
+    let query = supabase
+      .from(entity_type)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10000);
+
+    if (date_range?.from) {
+      query = query.gte("created_at", `${date_range.from}T00:00:00`);
+    }
+    if (date_range?.to) {
+      query = query.lte("created_at", `${date_range.to}T23:59:59`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data || data.length === 0) {
+      return Response.json({ error: "No data to export" }, { status: 404 });
+    }
+
+    const rows = data as Record<string, unknown>[];
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const label = ENTITY_LABELS[entity_type] ?? entity_type;
+
+    if (format === "pdf") {
+      const html = generatePDFHTML(rows, columns, `${label} Export`);
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Disposition": `inline; filename="${entity_type}-export-${dateStr}.html"`,
+        },
+      });
+    }
+
+    const csv = generateFilteredCSV(rows, columns);
+    return new Response(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${entity_type}-export-${dateStr}.csv"`,
       },
     });
   } catch {
