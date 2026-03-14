@@ -1,4 +1,4 @@
-import { addDays, addWeeks, addMonths } from "date-fns";
+import { addDays, addWeeks, addMonths, isWeekend, nextMonday } from "date-fns";
 
 interface TaskRow {
   id: string;
@@ -41,6 +41,10 @@ function computeNextDueDate(
       return addDays(base, 1).toISOString();
     case "weekly":
       return addWeeks(base, 1).toISOString();
+    case "weekdays": {
+      const next = addDays(base, 1);
+      return isWeekend(next) ? nextMonday(next).toISOString() : next.toISOString();
+    }
     case "monthly":
       return addMonths(base, 1).toISOString();
     default:
@@ -73,4 +77,13 @@ export function generateNextOccurrence(template: TaskRow): NewTaskInsert {
     recurrence_parent_id: templateId,
     is_recurring_template: false,
   };
+}
+
+/** Calculate the next run date from a given date and recurrence rule (for display purposes) */
+export function getNextRunDate(
+  lastDate: string | null,
+  rule: string | null
+): string | null {
+  if (!rule) return null;
+  return computeNextDueDate(lastDate, rule);
 }
