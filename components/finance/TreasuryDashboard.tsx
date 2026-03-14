@@ -14,11 +14,16 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { KpiCard, DataTable } from "@/components/ui";
 import type { ColumnDef } from "@/components/ui";
-import type { CryptoBalance } from "@/lib/types/database";
+import type { CryptoBalance, BalanceSnapshot } from "@/lib/types/database";
+import { WalletAggregationCard } from "@/components/finance/WalletAggregationCard";
 
 // --- Helpers ---
 
@@ -62,6 +67,20 @@ interface HoldingRow {
   wallet: string;
 }
 
+type AssetClass = "cash" | "crypto" | "investments";
+
+interface WalletGroupData {
+  assetClass: AssetClass;
+  wallets: {
+    id: string;
+    name: string;
+    symbol: string;
+    balance: number;
+    valueCad: number;
+  }[];
+  totalCad: number;
+}
+
 // --- Chart colors ---
 
 const STRUCTURE_COLORS: Record<string, string> = {
@@ -71,6 +90,15 @@ const STRUCTURE_COLORS: Record<string, string> = {
 };
 
 const PIE_COLORS = ["#8B5CF6", "#22C55E", "#3B82F6", "#EAB308", "#EC4899"];
+
+// --- Asset classification ---
+
+function classifyAsset(symbol: string): AssetClass {
+  const stablecoins = ["USDC", "USDT", "DAI", "BUSD"];
+  if (stablecoins.includes(symbol)) return "cash";
+  if (["BTC", "ETH", "SOL", "MEEK"].includes(symbol)) return "crypto";
+  return "investments";
+}
 
 // --- Tooltip ---
 
@@ -89,6 +117,24 @@ function ChartTooltip({
           {p.name}: {formatCurrencyFull(p.value)}
         </p>
       ))}
+    </div>
+  );
+}
+
+function SparklineTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { value: number; payload: { label: string } }[];
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-lg">
+      <p className="text-muted-foreground">{payload[0].payload.label}</p>
+      <p className="font-medium text-foreground">
+        {formatCurrency(payload[0].value)}
+      </p>
     </div>
   );
 }
@@ -210,9 +256,10 @@ const COLUMNS: ColumnDef<HoldingRow>[] = [
 
 interface TreasuryDashboardProps {
   holdings: CryptoBalance[];
+  snapshots: BalanceSnapshot[];
 }
 
-export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
+export function TreasuryDashboard({ holdings, snapshots }: TreasuryDashboardProps) {
   const [prices, setPrices] = useState<Prices>({});
   const [walletFilter, setWalletFilter] = useState<string>("all");
 
@@ -284,6 +331,60 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
     [rows]
   );
 
+  // Wallet groups for aggregation card
+  const walletGroups: WalletGroupData[] = useMemo(() => {
+    const groupMap = new Map<AssetClass, WalletGroupData>();
+
+    for (const r of rows) {
+      const assetClass = classifyAsset(r.symbol);
+      if (!groupMap.has(assetClass)) {
+        groupMap.set(assetClass, { assetClass, wallets: [], totalCad: 0 });
+      }
+      const group = groupMap.get(assetClass)!;
+      group.wallets.push({
+        id: r.id,
+        name: r.name,
+        symbol: r.symbol,
+        balance: r.liquid + r.locked,
+        valueCad: r.market_value_cad,
+      });
+      group.totalCad += r.market_value_cad;
+    }
+
+    return Array.from(groupMap.values());
+  }, [rows]);
+
+  // Sparkline data from balance snapshots (chronological)
+  const sparklineData = useMemo(() => {
+    const sorted = [...snapshots]
+      .sort(
+        (a, b) =>
+          new Date(a.snapshot_date).getTime() -
+          new Date(b.snapshot_date).getTime()
+      )
+      .slice(-30);
+
+    return sorted.map((s) => ({
+      date: s.snapshot_date,
+      label: new Date(s.snapshot_date + "T00:00:00").toLocaleDateString(
+        "en-CA",
+        { month: "short", day: "numeric" }
+      ),
+      netWorth: Number(s.net_worth ?? 0),
+    }));
+  }, [snapshots]);
+
+  // Net worth trend delta
+  const netWorthDelta = useMemo(() => {
+    if (sparklineData.length < 2) return null;
+    const first = sparklineData[0].netWorth;
+    const last = sparklineData[sparklineData.length - 1].netWorth;
+    if (first === 0) return null;
+    const change = last - first;
+    const pct = Math.round((change / Math.abs(first)) * 100);
+    return { change, pct };
+  }, [sparklineData]);
+
   // Structure donut data
   const structureData = useMemo(() => {
     const groups: Record<string, number> = {};
@@ -326,8 +427,112 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Net Worth Headline + Sparkline */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="rounded-lg border border-border bg-card p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Net Worth
+          </p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            {formatCurrency(totalMarketValue)}
+          </p>
+          {netWorthDelta && (
+            <p
+              className={cn(
+                "mt-1 text-sm font-medium",
+                netWorthDelta.change >= 0
+                  ? "text-[#22C55E]"
+                  : "text-[#EF4444]"
+              )}
+            >
+              {netWorthDelta.change >= 0 ? "+" : ""}
+              {formatCurrency(netWorthDelta.change)} ({netWorthDelta.pct}%)
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                30d
+              </span>
+            </p>
+          )}
+          {/* Asset distribution */}
+          {walletGroups.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {walletGroups.map((g) => {
+                const pct =
+                  totalMarketValue > 0
+                    ? Math.round((g.totalCad / totalMarketValue) * 100)
+                    : 0;
+                const colors: Record<AssetClass, string> = {
+                  cash: "#22C55E",
+                  crypto: "#8B5CF6",
+                  investments: "#3B82F6",
+                };
+                const labels: Record<AssetClass, string> = {
+                  cash: "Cash",
+                  crypto: "Crypto",
+                  investments: "Investments",
+                };
+                return (
+                  <div key={g.assetClass} className="flex items-center gap-2">
+                    <div
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: colors[g.assetClass] }}
+                    />
+                    <span className="flex-1 text-xs text-muted-foreground">
+                      {labels[g.assetClass]}
+                    </span>
+                    <span className="text-xs font-medium text-foreground">
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 30-day sparkline */}
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 text-sm font-semibold text-foreground">
+            30-Day Net Worth Trend
+          </h3>
+          {sparklineData.length > 1 ? (
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={sparklineData}>
+                <defs>
+                  <linearGradient id="nwGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Tooltip content={<SparklineTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="netWorth"
+                  stroke="#8B5CF6"
+                  strokeWidth={2}
+                  fill="url(#nwGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[160px] items-center justify-center">
+              <p className="text-sm text-muted-foreground">
+                Not enough snapshot data for trend visualization
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Wallet filter */}
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-background p-1">
         {wallets.map((w) => (
           <button
             key={w}
@@ -378,8 +583,13 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
         />
       </div>
 
-      {/* Holdings table + Structure donut */}
+      {/* Wallet Aggregation + Holdings table + Structure donut */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* Wallet Aggregation (1/3) */}
+        <div>
+          <WalletAggregationCard walletGroups={walletGroups} />
+        </div>
+
         {/* Holdings table (2/3) */}
         <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
           <h3 className="mb-4 text-sm font-semibold text-foreground">
@@ -387,8 +597,10 @@ export function TreasuryDashboard({ holdings }: TreasuryDashboardProps) {
           </h3>
           <DataTable columns={COLUMNS} data={rows} pageSize={10} />
         </div>
+      </div>
 
-        {/* Structure donut (1/3) */}
+      {/* Structure donut */}
+      <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-5">
           <h3 className="mb-4 text-sm font-semibold text-foreground">
             Structure

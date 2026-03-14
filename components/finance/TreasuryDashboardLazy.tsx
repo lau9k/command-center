@@ -5,7 +5,7 @@ import {
   PageSkeleton,
   KPIStripSkeleton,
 } from "@/components/dashboard/LoadingSkeleton";
-import type { CryptoBalance } from "@/lib/types/database";
+import type { CryptoBalance, BalanceSnapshot } from "@/lib/types/database";
 
 const TreasuryDashboard = dynamic(
   () =>
@@ -24,6 +24,7 @@ const TreasuryDashboard = dynamic(
 
 interface Props {
   holdings: CryptoBalance[];
+  snapshots: BalanceSnapshot[];
 }
 
 export function TreasuryDashboardLazy(props: Props) {
