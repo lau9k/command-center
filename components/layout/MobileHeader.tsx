@@ -23,7 +23,7 @@ export function MobileHeader({ email, unreadCount, initialNotifications = [] }: 
         variant="ghost"
         size="icon"
         onClick={openMobileSidebar}
-        className="md:hidden"
+        className="min-h-[44px] min-w-[44px] md:hidden"
       >
         <Menu className="h-5 w-5" />
         <span className="sr-only">Open menu</span>
@@ -31,11 +31,12 @@ export function MobileHeader({ email, unreadCount, initialNotifications = [] }: 
 
       <h1 className="text-lg font-semibold md:hidden">Command Center</h1>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
           onClick={openSearch}
+          className="min-h-[44px] min-w-[44px]"
           aria-label="Open search"
         >
           <Search className="h-5 w-5" />
