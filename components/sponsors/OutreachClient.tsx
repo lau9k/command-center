@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
 import type { Sponsor, SponsorStatus, SponsorOutreachStatus } from "@/lib/types/database";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { BulkOutreachForm } from "@/components/sponsors/BulkOutreachForm";
 import { BulkOutreachPreview } from "@/components/sponsors/BulkOutreachPreview";
 import { OutreachEmailGenerator } from "@/components/sponsors/OutreachEmailGenerator";
 import type { OutreachDraft } from "@/components/sponsors/OutreachDraftPreview";
+import { OutreachTaskRow } from "@/components/outreach-task-row";
 
 const STATUS_OPTIONS: { value: SponsorStatus | "all"; label: string }[] = [
   { value: "all", label: "All Stages" },
@@ -70,6 +70,7 @@ export function OutreachClient({ sponsors: initialSponsors }: OutreachClientProp
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<OutreachDraft[]>([]);
   const [composeSponsorId, setComposeSponsorId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filteredSponsors = useMemo(() => {
     let result = sponsors;
@@ -147,16 +148,6 @@ export function OutreachClient({ sponsors: initialSponsors }: OutreachClientProp
       .join(" ");
   }
 
-  const ROW_HEIGHT = 48;
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const virtualizer = useVirtualizer({
-    count: filteredSponsors.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
-  });
-
   return (
     <div className="space-y-6">
       {/* Bulk Outreach Form */}
@@ -212,7 +203,6 @@ export function OutreachClient({ sponsors: initialSponsors }: OutreachClientProp
 
       {/* Sponsors Table */}
       <div
-        ref={scrollRef}
         className="rounded-lg border border-border overflow-y-auto"
         style={{ maxHeight: "calc(100vh - 360px)" }}
       >
@@ -259,104 +249,26 @@ export function OutreachClient({ sponsors: initialSponsors }: OutreachClientProp
               </tr>
             ) : (
               <>
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      style={{ height: virtualizer.getVirtualItems()[0].start, padding: 0, border: "none" }}
-                    />
-                  </tr>
-                )}
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                  const sponsor = filteredSponsors[virtualRow.index];
-                  const isComposing = composeSponsorId === sponsor.id;
-                  return (
-                    <tr
-                      key={sponsor.id}
-                      data-index={virtualRow.index}
-                      ref={virtualizer.measureElement}
-                      className={`border-b border-border/50 transition-colors hover:bg-muted/30 ${
-                        isComposing ? "bg-muted/40" : ""
-                      }`}
-                    >
-                      <td className="w-10 px-3 py-3">
-                        <Checkbox
-                          checked={selectedIds.has(sponsor.id)}
-                          onCheckedChange={() => toggleOne(sponsor.id)}
-                          aria-label={`Select ${sponsor.name}`}
-                        />
-                      </td>
-                      <td className="px-3 py-3 font-medium text-foreground">
-                        {sponsor.name}
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
-                        {sponsor.contact_name ?? "—"}
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
-                        {sponsor.contact_email ?? "—"}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${TIER_COLORS[sponsor.tier] ?? ""}`}
-                        >
-                          {sponsor.tier}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLORS[sponsor.status] ?? ""}`}
-                        >
-                          {formatStatus(sponsor.status)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${OUTREACH_STATUS_COLORS[sponsor.outreach_status] ?? "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300"}`}
-                        >
-                          {formatStatus(sponsor.outreach_status ?? "draft")}
-                        </span>
-                      </td>
-                      <td className="w-10 px-3 py-3">
-                        <button
-                          onClick={() =>
-                            setComposeSponsorId(isComposing ? null : sponsor.id)
-                          }
-                          className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
-                          title={isComposing ? "Close compose" : "Compose email"}
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                            <path d="m15 5 4 4" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      style={{
-                        height:
-                          virtualizer.getTotalSize() -
-                          (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                        padding: 0,
-                        border: "none",
-                      }}
-                    />
-                  </tr>
-                )}
+                {filteredSponsors.map((sponsor) => (
+                  <OutreachTaskRow
+                    key={sponsor.id}
+                    sponsor={sponsor}
+                    isSelected={selectedIds.has(sponsor.id)}
+                    isExpanded={expandedId === sponsor.id}
+                    onToggleSelect={() => toggleOne(sponsor.id)}
+                    onToggleExpand={() =>
+                      setExpandedId(expandedId === sponsor.id ? null : sponsor.id)
+                    }
+                    onStatusChange={handleStatusChange}
+                    tierClassName={TIER_COLORS[sponsor.tier] ?? ""}
+                    statusClassName={STATUS_COLORS[sponsor.status] ?? ""}
+                    outreachStatusClassName={
+                      OUTREACH_STATUS_COLORS[sponsor.outreach_status] ??
+                      "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300"
+                    }
+                    formatStatus={formatStatus}
+                  />
+                ))}
               </>
             )}
           </tbody>
