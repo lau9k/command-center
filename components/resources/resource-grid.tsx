@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { toast } from "sonner";
 import {
   Plus,
   FileText,
@@ -15,23 +14,7 @@ import { ResourceDrawer } from "@/components/resources/resource-drawer";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AddResourceDialog } from "@/components/add-resource-dialog";
 
 interface ResourceGridProps {
   initialResources: Resource[];
@@ -43,7 +26,6 @@ export function ResourceGrid({ initialResources, projects }: ResourceGridProps) 
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [formOpen, setFormOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [filters, setFilters] = useState<ResourceFilter>({
     search: "",
     fileType: "all",
@@ -51,12 +33,6 @@ export function ResourceGrid({ initialResources, projects }: ResourceGridProps) 
     sort: "newest",
   });
 
-  // Form state
-  const [formTitle, setFormTitle] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formFileUrl, setFormFileUrl] = useState("");
-  const [formFileType, setFormFileType] = useState("other");
-  const [formProjectId, setFormProjectId] = useState("none");
 
   const filteredResources = useMemo(() => {
     let result = resources;
@@ -126,41 +102,9 @@ export function ResourceGrid({ initialResources, projects }: ResourceGridProps) 
     setSelectedResource(null);
   }, []);
 
-  const resetForm = useCallback(() => {
-    setFormTitle("");
-    setFormDescription("");
-    setFormFileUrl("");
-    setFormFileType("other");
-    setFormProjectId("none");
+  const handleResourceCreated = useCallback((resource: Resource) => {
+    setResources((prev) => [resource, ...prev]);
   }, []);
-
-  const handleCreate = useCallback(async () => {
-    if (!formTitle.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: formTitle.trim(),
-          description: formDescription.trim() || null,
-          file_url: formFileUrl.trim() || null,
-          file_type: formFileType,
-          project_id: formProjectId === "none" ? null : formProjectId,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to create resource");
-      const { data } = await res.json();
-      setResources((prev) => [data, ...prev]);
-      setFormOpen(false);
-      resetForm();
-      toast.success("Resource created");
-    } catch {
-      toast.error("Failed to create resource");
-    } finally {
-      setCreating(false);
-    }
-  }, [formTitle, formDescription, formFileUrl, formFileType, formProjectId, resetForm]);
 
   return (
     <div className="space-y-6">
@@ -252,86 +196,12 @@ export function ResourceGrid({ initialResources, projects }: ResourceGridProps) 
       />
 
       {/* Create Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Resource</DialogTitle>
-            <DialogDescription>Add a new document or file to your library.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Title</label>
-              <Input
-                placeholder="Resource title"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Description</label>
-              <Textarea
-                placeholder="Optional description"
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">File URL</label>
-              <Input
-                placeholder="https://..."
-                value={formFileUrl}
-                onChange={(e) => setFormFileUrl(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">File Type</label>
-                <Select value={formFileType} onValueChange={setFormFileType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="docx">DOCX</SelectItem>
-                    <SelectItem value="xlsx">XLSX</SelectItem>
-                    <SelectItem value="md">Markdown</SelectItem>
-                    <SelectItem value="pptx">PPTX</SelectItem>
-                    <SelectItem value="png">PNG</SelectItem>
-                    <SelectItem value="jpg">JPG</SelectItem>
-                    <SelectItem value="csv">CSV</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Project</label>
-                <Select value={formProjectId} onValueChange={setFormProjectId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No project</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={creating}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={creating || !formTitle.trim()}>
-              {creating ? "Creating..." : "Create"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddResourceDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        projects={projects}
+        onResourceCreated={handleResourceCreated}
+      />
     </div>
   );
 }
