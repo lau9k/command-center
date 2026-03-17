@@ -445,15 +445,15 @@ export function MasterTaskList({
         <SharedEmptyState
           icon={<CheckSquare className="size-12" />}
           title="No tasks yet"
-          description="Create or import tasks to organize your work across projects."
-          action={{ label: "Create Task", onClick: handleOpenCreate }}
+          description="Create your first task to start tracking work across projects."
+          action={{ label: "+ Add Task", onClick: handleOpenCreate }}
         />
       ) : sorted.length === 0 ? (
         <EmptyState
           icon={hasFilters ? <ListFilter /> : <CheckSquare />}
-          title={hasFilters ? "No tasks match the current filters" : "No tasks yet"}
-          description={hasFilters ? "Try adjusting your filters." : "Create your first task to get started."}
-          action={!hasFilters ? { label: "Create Task", onClick: handleOpenCreate } : undefined}
+          title={hasFilters ? "No results match your filters" : "No tasks yet"}
+          description={hasFilters ? "Try adjusting or clearing your filters to see tasks." : "Create your first task to start tracking work across projects."}
+          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
         />
       ) : (
         <div className="space-y-2">
