@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { usePathname } from "next/navigation";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./SidebarNav";
 import type { Project } from "@/lib/types/project";
@@ -12,8 +13,42 @@ interface ResponsiveSidebarProps {
   hasMeekWallet?: boolean;
 }
 
+const SWIPE_THRESHOLD = 80;
+
 export function ResponsiveSidebar({ projects, hasMeekWallet }: ResponsiveSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const touchStartX = useRef<number | null>(null);
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll when sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    if (deltaX < -SWIPE_THRESHOLD) {
+      setMobileOpen(false);
+    }
+    touchStartX.current = null;
+  }, []);
 
   return (
     <>
@@ -27,14 +62,18 @@ export function ResponsiveSidebar({ projects, hasMeekWallet }: ResponsiveSidebar
         <SidebarNav projects={projects} hasMeekWallet={hasMeekWallet} collapsed />
       </aside>
 
-      {/* Mobile: hamburger overlay */}
+      {/* Mobile: overlay backdrop */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
+
+      {/* Mobile: slide-in sidebar with swipe-to-dismiss */}
       <aside
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 border-r bg-sidebar text-sidebar-foreground transition-transform duration-200 ease-in-out md:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -45,7 +84,7 @@ export function ResponsiveSidebar({ projects, hasMeekWallet }: ResponsiveSidebar
             variant="ghost"
             size="icon"
             onClick={() => setMobileOpen(false)}
-            className="text-sidebar-foreground"
+            className="min-h-[44px] min-w-[44px] text-sidebar-foreground"
           >
             <X className="h-5 w-5" />
             <span className="sr-only">Close sidebar</span>

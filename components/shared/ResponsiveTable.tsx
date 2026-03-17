@@ -58,13 +58,13 @@ function ResponsiveTable<T>({
   }
 
   return (
-    <div className={cn(className)}>
+    <div className={cn("max-w-full overflow-hidden", className)}>
       {/* Desktop/tablet: scrollable table */}
       <div className={cn(
         "overflow-hidden rounded-lg border border-border",
         mobileMode === "card" ? "hidden md:block" : "block"
       )}>
-        <div className="overflow-x-auto">
+        <div className="-mx-px overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-background">
@@ -110,7 +110,7 @@ function ResponsiveTable<T>({
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
                 "rounded-lg border border-border bg-card p-4",
-                onRowClick && "cursor-pointer active:bg-accent"
+                onRowClick && "min-h-[44px] cursor-pointer active:bg-accent"
               )}
             >
               {titleCol && (
