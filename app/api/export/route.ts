@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
-import { generateCSV, generateFilteredCSV, generatePDFHTML } from "@/lib/export";
+import { generateCSV as generateRawCSV, generateFilteredCSV, generatePDFHTML } from "@/lib/export";
+import { generateCSV as generateFormattedCSV } from "@/lib/csv-export";
+import { EXPORT_COLUMNS, MODULE_TABLES, type ExportModule } from "@/components/shared/export-configs";
+import { applyFilters, type FilterCondition } from "@/lib/filters";
 
 const ALLOWED_TABLES = [
   "tasks",
@@ -13,8 +16,22 @@ const ALLOWED_TABLES = [
   "projects",
 ] as const;
 
+const ALLOWED_MODULES = ["tasks", "contacts", "pipeline", "finance"] as const;
+
 const ExportParamsSchema = z.object({
   table: z.enum(ALLOWED_TABLES),
+});
+
+const ModuleExportSchema = z.object({
+  module: z.enum(ALLOWED_MODULES),
+});
+
+const FilterConditionSchema = z.object({
+  field: z.string(),
+  operator: z.enum([
+    "eq", "neq", "gt", "gte", "lt", "lte", "ilike", "in", "is_null", "is_not_null",
+  ]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()]),
 });
 
 const ExportPostSchema = z.object({
@@ -43,6 +60,14 @@ const ENTITY_LABELS: Record<string, string> = {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Module-based export (new): /api/export?module=tasks&filters=[...]
+    const moduleParam = searchParams.get("module");
+    if (moduleParam) {
+      return handleModuleExport(moduleParam, searchParams.get("filters"));
+    }
+
+    // Legacy table export: /api/export?table=tasks
     const parsed = ExportParamsSchema.safeParse({
       table: searchParams.get("table"),
     });
@@ -71,7 +96,7 @@ export async function GET(request: Request) {
       return Response.json({ error: "No data to export" }, { status: 404 });
     }
 
-    const csv = generateCSV(data as Record<string, unknown>[]);
+    const csv = generateRawCSV(data as Record<string, unknown>[]);
     const filename = `${table}-export-${new Date().toISOString().slice(0, 10)}.csv`;
 
     return new Response(csv, {
@@ -83,6 +108,73 @@ export async function GET(request: Request) {
   } catch {
     return Response.json({ error: "Export failed" }, { status: 500 });
   }
+}
+
+async function handleModuleExport(
+  moduleParam: string,
+  filtersParam: string | null
+) {
+  const parsed = ModuleExportSchema.safeParse({ module: moduleParam });
+  if (!parsed.success) {
+    return Response.json(
+      { error: `Invalid module. Allowed: ${ALLOWED_MODULES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const mod = parsed.data.module as ExportModule;
+  const table = MODULE_TABLES[mod];
+  const columns = EXPORT_COLUMNS[mod];
+
+  // Parse and validate filters
+  let filters: FilterCondition[] = [];
+  if (filtersParam) {
+    try {
+      const raw: unknown = JSON.parse(filtersParam);
+      if (Array.isArray(raw)) {
+        const result = z.array(FilterConditionSchema).safeParse(raw);
+        if (result.success) {
+          filters = result.data as FilterCondition[];
+        }
+      }
+    } catch {
+      // Ignore invalid filter JSON — export without filters
+    }
+  }
+
+  const supabase = createServiceClient();
+  const selectFields = columns.map((c) => c.key).join(",");
+
+  let query = supabase
+    .from(table)
+    .select(selectFields)
+    .order("created_at", { ascending: false })
+    .limit(10000);
+
+  if (filters.length > 0) {
+    query = applyFilters(query, filters);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!data || data.length === 0) {
+    return Response.json({ error: "No data to export" }, { status: 404 });
+  }
+
+  const csv = generateFormattedCSV(columns, data as unknown as Record<string, unknown>[]);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `${mod}-export-${dateStr}.csv`;
+
+  return new Response(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
 }
 
 export async function POST(request: Request) {
