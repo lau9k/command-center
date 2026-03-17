@@ -24,13 +24,15 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#0A0A0A",
-          color: "#F5F5F5",
+          backgroundColor: "var(--background, #0A0A0A)",
+          color: "var(--foreground, #F5F5F5)",
           fontFamily:
             'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
-        <div style={{ textAlign: "center", padding: "48px", maxWidth: "480px" }}>
+        <div
+          style={{ textAlign: "center", padding: "48px", maxWidth: "480px" }}
+        >
           <div
             style={{
               width: "48px",
@@ -73,12 +75,11 @@ export default function GlobalError({
             style={{
               fontSize: "14px",
               lineHeight: 1.5,
-              color: "#A0A0A0",
+              color: "var(--muted-foreground, #A0A0A0)",
               margin: "0 0 32px",
             }}
           >
-            An unexpected error occurred. The issue has been reported and
-            we&apos;re looking into it.
+            An unexpected error occurred. Try refreshing the page.
           </p>
           <div
             style={{
@@ -96,17 +97,13 @@ export default function GlobalError({
                 fontWeight: 500,
                 borderRadius: "8px",
                 border: "none",
-                backgroundColor: "#F7C948",
-                color: "#000000",
+                backgroundColor: "var(--primary, #F5F5F5)",
+                color: "var(--primary-foreground, #0A0A0A)",
                 cursor: "pointer",
-                transition: "background-color 150ms",
+                transition: "opacity 150ms",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = "#e5b83d")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = "#F7C948")
-              }
+              onMouseOver={(e) => (e.currentTarget.style.opacity = "0.9")}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
             >
               Try Again
             </button>
@@ -117,19 +114,15 @@ export default function GlobalError({
                 fontSize: "14px",
                 fontWeight: 500,
                 borderRadius: "8px",
-                border: "1px solid #2A2A2A",
-                backgroundColor: "#141414",
-                color: "#F5F5F5",
+                border: "1px solid var(--border, #2A2A2A)",
+                backgroundColor: "var(--card, #141414)",
+                color: "var(--foreground, #F5F5F5)",
                 cursor: "pointer",
                 textDecoration: "none",
-                transition: "background-color 150ms",
+                transition: "opacity 150ms",
               }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = "#1E1E1E")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = "#141414")
-              }
+              onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
             >
               Go Home
             </a>

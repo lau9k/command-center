@@ -1,8 +1,7 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect, useState } from "react";
-import { AlertTriangle, RotateCcw, Home, MessageSquare } from "lucide-react";
+import { useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardError({
@@ -12,61 +11,37 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const [feedbackSent, setFeedbackSent] = useState(false);
-
   useEffect(() => {
-    Sentry.captureException(error, {
-      tags: {
-        page: "dashboard",
-        module: "dashboard",
-      },
+    import("@sentry/nextjs").then((Sentry) => {
+      Sentry.captureException(error);
     });
   }, [error]);
 
-  function handleReportIssue() {
-    const eventId = Sentry.lastEventId();
-    if (eventId) {
-      Sentry.showReportDialog({ eventId });
-    }
-    setFeedbackSent(true);
-  }
-
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/20">
-          <AlertTriangle className="h-6 w-6 text-destructive" />
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/20 text-destructive">
+          <AlertTriangle className="h-6 w-6" />
         </div>
-        <h2 className="mb-2 text-lg font-semibold text-foreground">
+        <h2 className="text-xl font-semibold text-foreground">
           Something went wrong
         </h2>
-        <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
-          This section encountered an error. Your sidebar and other dashboard
-          pages are unaffected.
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          An unexpected error occurred. Try refreshing the page.
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="mt-8 flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 rounded-md bg-[#F7C948] px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-[#e5b83d]"
+            className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <RotateCcw className="h-4 w-4" />
             Try Again
           </button>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
+            className="rounded-lg border border-border bg-card px-6 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-card-hover"
           >
-            <Home className="h-4 w-4" />
             Go Home
           </Link>
-          <button
-            onClick={handleReportIssue}
-            disabled={feedbackSent}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
-          >
-            <MessageSquare className="h-4 w-4" />
-            {feedbackSent ? "Reported" : "Report"}
-          </button>
         </div>
       </div>
     </div>
