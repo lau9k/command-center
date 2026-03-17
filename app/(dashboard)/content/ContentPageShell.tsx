@@ -11,7 +11,7 @@ import { BufferCalendar } from "@/components/content/BufferCalendar";
 import { ContentBoard } from "@/components/dashboard/ContentBoard";
 import { ContentForm } from "@/components/dashboard/ContentForm";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
-import { ModuleEmptyState } from "@/components/dashboard/ModuleEmptyState";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SeedContentButton } from "@/components/content/SeedButton";
 import type { ContentPost, Project } from "@/lib/types/database";
 
@@ -200,7 +200,13 @@ export function ContentPageShell() {
 
       {posts.length === 0 ? (
         <div className="space-y-4">
-          <ModuleEmptyState module="content" />
+          <EmptyState
+            icon={<Calendar />}
+            title="No content scheduled"
+            description="Plan your next post across LinkedIn, Twitter, and Telegram."
+            actionLabel="+ Create Post"
+            actionHref="/content/editor"
+          />
           <div className="flex justify-center">
             <SeedContentButton />
           </div>

@@ -344,8 +344,9 @@ export function PipelineBoard({ stages, items: initialItems, projectId }: Pipeli
     return (
       <SharedEmptyState
         icon={<DollarSign className="size-12" />}
-        title="No deals yet"
-        description="Set up pipeline stages and create your first deal to start tracking opportunities."
+        title="No deals in pipeline"
+        description="Add your first deal to track sales progress."
+        action={{ label: "+ Add Deal", onClick: () => setShowAddDeal(true) }}
       />
     );
   }

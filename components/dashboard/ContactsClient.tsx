@@ -29,6 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ListFilter } from "lucide-react";
 
 const TAG_OPTIONS = ["Personize", "Hackathon", "MEEK", "Personal"] as const;
 
@@ -264,9 +266,9 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
         </div>
         <SharedEmptyState
           icon={<Users className="size-12" />}
-          title="No contacts yet"
-          description="Import your contact list to start tracking relationships, scores, and engagement."
-          action={{ label: "New Contact", onClick: openNewForm }}
+          title="No contacts imported"
+          description="Import your LinkedIn connections to start building relationships."
+          action={{ label: "Import CSV", href: "/import?module=contacts" }}
         />
         <ContactForm
           open={formOpen}
@@ -348,10 +350,20 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       </div>
 
       {/* Contacts Table */}
-      <ContactsTable
-        contacts={filteredContacts}
-        onSelectContact={setSelectedContact}
-      />
+      {filteredContacts.length === 0 ? (
+        <EmptyState
+          icon={<ListFilter />}
+          title="No results match your filters"
+          description="Try adjusting your search or filter criteria."
+          actionLabel="Clear filters"
+          onAction={() => { setSearch(""); setTagFilter("all"); }}
+        />
+      ) : (
+        <ContactsTable
+          contacts={filteredContacts}
+          onSelectContact={setSelectedContact}
+        />
+      )}
 
       {/* Pagination Controls */}
       {pagination && !isSemanticSearch && (

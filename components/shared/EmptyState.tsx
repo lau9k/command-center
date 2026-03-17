@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateAction {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  href?: string;
 }
 
 interface SharedEmptyStateProps {
@@ -23,9 +25,15 @@ export function SharedEmptyState({ icon, title, description, action }: SharedEmp
         <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
       </div>
       {action && (
-        <Button onClick={action.onClick} className="mt-2">
-          {action.label}
-        </Button>
+        action.href ? (
+          <Button asChild className="mt-2">
+            <Link href={action.href}>{action.label}</Link>
+          </Button>
+        ) : action.onClick ? (
+          <Button onClick={action.onClick} className="mt-2">
+            {action.label}
+          </Button>
+        ) : null
       )}
     </div>
   );

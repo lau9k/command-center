@@ -10,9 +10,9 @@ export function FinanceEmptyState() {
   return (
     <EmptyState
       icon={<Wallet />}
-      title="No wallet data yet"
-      description="Connect a bank account above or add transactions to start tracking your finances."
-      actionLabel="Add Wallet"
+      title="No wallets configured"
+      description="Add a wallet to start tracking your finances."
+      actionLabel="+ Add Wallet"
       onAction={() => router.push("/settings")}
     />
   );
