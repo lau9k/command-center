@@ -4,74 +4,64 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import {
-  CheckSquare,
   Clock,
-  DollarSign,
-  FileText,
+  Compass,
   FolderOpen,
-  Layers,
-  LayoutDashboard,
   Loader2,
   Plus,
   Search,
-  Settings,
-  Upload,
-  Users,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  navigationRegistry,
+  filterRegistry,
+  type CommandRegistryItem,
+} from "@/lib/command-registry";
+import {
+  QuickCreateMenu,
+  QuickCreateForm,
+} from "@/components/command-palette/quick-create-actions";
+import {
+  SearchResults,
+  type SearchResultItem,
+} from "@/components/command-palette/search-results";
+
+// ── Constants ────────────────────────────────────────────
 
 const RECENT_PAGES_KEY = "command-palette-recent-pages";
 const MAX_RECENT = 10;
+
+type IntentTab = "navigate" | "create" | "search" | "recent";
+type CreateType = "task" | "contact" | "pipeline";
 
 interface RecentPage {
   label: string;
   href: string;
 }
 
-interface SearchResult {
-  id: string;
-  type: "contact" | "pipeline" | "content" | "task";
-  title: string;
-  subtitle: string | null;
-  href: string;
-}
-
-const staticRoutes = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Master Tasks", href: "/tasks", icon: CheckSquare },
-  { label: "Import", href: "/admin/import", icon: Upload },
-  { label: "Finance", href: "/finance", icon: DollarSign },
-  { label: "Content", href: "/content", icon: FileText },
-  { label: "Settings", href: "/settings", icon: Settings },
+const tabs: Array<{ id: IntentTab; label: string; icon: typeof Compass }> = [
+  { id: "navigate", label: "Navigate", icon: Compass },
+  { id: "create", label: "Create", icon: Plus },
+  { id: "search", label: "Search", icon: Search },
+  { id: "recent", label: "Recent", icon: Clock },
 ];
 
 const projectWorkspaces = [
-  { label: "Personize", id: "personize" },
-  { label: "MEEK", id: "meek" },
-  { label: "Hackathons", id: "hackathons" },
-  { label: "Infrastructure", id: "infrastructure" },
-  { label: "Eventium", id: "eventium" },
-  { label: "Telco", id: "telco" },
+  { id: "personize", name: "Personize" },
+  { id: "meek", name: "MEEK" },
+  { id: "hackathons", name: "Hackathons" },
+  { id: "infrastructure", name: "Infrastructure" },
+  { id: "eventium", name: "Eventium" },
+  { id: "telco", name: "Telco" },
 ];
-
-const typeIcons = {
-  contact: Users,
-  pipeline: Layers,
-  content: FileText,
-  task: CheckSquare,
-} as const;
-
-const typeLabels = {
-  contact: "Contacts",
-  pipeline: "Pipeline",
-  content: "Content",
-  task: "Tasks",
-} as const;
 
 const groupHeadingClass =
   "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[#666]";
 
 const itemClass =
   "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground aria-selected:bg-accent aria-selected:text-foreground";
+
+// ── Recent pages helpers ─────────────────────────────────
 
 function getRecentPages(): RecentPage[] {
   if (typeof window === "undefined") return [];
@@ -92,15 +82,20 @@ function addRecentPage(page: RecentPage) {
   );
 }
 
+// ── Component ────────────────────────────────────────────
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [openCount, setOpenCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<IntentTab>("navigate");
   const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [createType, setCreateType] = useState<CreateType | null>(null);
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
+  // Keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -111,7 +106,6 @@ export function CommandPalette() {
         });
       }
     };
-
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -122,14 +116,16 @@ export function CommandPalette() {
       setQuery("");
       setSearchResults([]);
       setIsSearching(false);
+      setActiveTab("navigate");
+      setCreateType(null);
     }
   }, [open]);
 
-  // Debounced search
+  // Debounced search when on search tab
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (query.length < 2) {
+    if (activeTab !== "search" || query.length < 2) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -146,7 +142,7 @@ export function CommandPalette() {
           setSearchResults(data.results);
         }
       } catch {
-        // Silently fail — results stay empty
+        // Silently fail
       } finally {
         setIsSearching(false);
       }
@@ -155,7 +151,7 @@ export function CommandPalette() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, activeTab]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const recentPages = useMemo(() => getRecentPages(), [openCount]);
@@ -169,18 +165,28 @@ export function CommandPalette() {
     [router]
   );
 
-  // Group search results by type
-  const groupedResults = useMemo(() => {
-    const groups: Partial<Record<SearchResult["type"], SearchResult[]>> = {};
-    for (const result of searchResults) {
-      if (!groups[result.type]) groups[result.type] = [];
-      groups[result.type]!.push(result);
-    }
-    return groups;
-  }, [searchResults]);
+  // Filtered nav items for navigate tab
+  const filteredNavItems = useMemo(
+    () => filterRegistry(navigationRegistry, query),
+    [query]
+  );
 
-  const hasSearchResults = searchResults.length > 0;
-  const isActiveSearch = query.length >= 2;
+  const filteredProjectItems = useMemo(() => {
+    if (!query.trim()) return projectWorkspaces;
+    const q = query.toLowerCase();
+    return projectWorkspaces.filter((p) =>
+      p.name.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  // Filtered recent pages
+  const filteredRecent = useMemo(() => {
+    if (!query.trim()) return recentPages;
+    const q = query.toLowerCase();
+    return recentPages.filter((p) => p.label.toLowerCase().includes(q));
+  }, [query, recentPages]);
+
+  const isActiveSearch = activeTab === "search" && query.length >= 2;
 
   if (!open) return null;
 
@@ -194,143 +200,163 @@ export function CommandPalette() {
         <Command
           className="rounded-xl border border-border bg-card text-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
           loop
-          shouldFilter={!isActiveSearch}
+          shouldFilter={activeTab === "navigate" || activeTab === "recent"}
         >
-          <div className="flex items-center border-b border-border px-4">
-            {isSearching ? (
-              <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-[#888]" />
-            ) : (
-              <Search className="mr-2 h-4 w-4 shrink-0 text-[#888]" />
-            )}
-            <Command.Input
-              placeholder="Search contacts, tasks, pipeline, content..."
-              className="flex h-12 w-full bg-transparent text-sm text-foreground placeholder:text-[#666] outline-none"
-              value={query}
-              onValueChange={setQuery}
-            />
+          {/* Tab bar */}
+          <div className="flex border-b border-border">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setQuery("");
+                  setSearchResults([]);
+                  setCreateType(null);
+                }}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                  activeTab === tab.id
+                    ? "border-b-2 border-primary text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <tab.icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            ))}
           </div>
+
+          {/* Search input — hidden on create tab when a form is open */}
+          {!(activeTab === "create" && createType) && (
+            <div className="flex items-center border-b border-border px-4">
+              {isSearching ? (
+                <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin text-[#888]" />
+              ) : (
+                <Search className="mr-2 h-4 w-4 shrink-0 text-[#888]" />
+              )}
+              <Command.Input
+                placeholder={
+                  activeTab === "search"
+                    ? "Search across all modules..."
+                    : activeTab === "create"
+                      ? "Filter create actions..."
+                      : activeTab === "recent"
+                        ? "Filter recent pages..."
+                        : "Go to page..."
+                }
+                className="flex h-12 w-full bg-transparent text-sm text-foreground placeholder:text-[#666] outline-none"
+                value={query}
+                onValueChange={setQuery}
+              />
+            </div>
+          )}
+
           <Command.List className="max-h-[320px] overflow-y-auto p-2">
             <Command.Empty className="py-6 text-center text-sm text-[#666]">
-              {isActiveSearch
+              {activeTab === "search" && isActiveSearch
                 ? "No results found."
-                : "Start typing to search across all entities."}
+                : activeTab === "search"
+                  ? "Start typing to search across all modules."
+                  : activeTab === "recent" && recentPages.length === 0
+                    ? "No recent pages yet."
+                    : "No matches found."}
             </Command.Empty>
 
-            {/* Search results — shown when actively searching */}
-            {isActiveSearch &&
-              hasSearchResults &&
-              (
-                Object.entries(groupedResults) as [
-                  SearchResult["type"],
-                  SearchResult[],
-                ][]
-              ).map(([type, results]) => {
-                const Icon = typeIcons[type];
-                return (
+            {/* ── Navigate tab ─────────────────── */}
+            {activeTab === "navigate" && (
+              <>
+                <Command.Group
+                  heading="Modules"
+                  className={groupHeadingClass}
+                >
+                  {filteredNavItems
+                    .filter((item) => item.section === "module")
+                    .map((item) => (
+                      <Command.Item
+                        key={item.id}
+                        value={`${item.label} ${item.keywords.join(" ")}`}
+                        onSelect={() => navigateTo(item.href, item.label)}
+                        className={itemClass}
+                      >
+                        <item.icon className="h-4 w-4 text-[#888]" />
+                        {item.label}
+                      </Command.Item>
+                    ))}
+                </Command.Group>
+
+                {filteredProjectItems.length > 0 && (
                   <Command.Group
-                    key={type}
-                    heading={typeLabels[type]}
+                    heading="Projects"
                     className={groupHeadingClass}
                   >
-                    {results.map((result) => (
+                    {filteredProjectItems.map((project) => (
                       <Command.Item
-                        key={`search-${result.id}`}
-                        value={`search ${result.type} ${result.title} ${result.subtitle ?? ""}`}
+                        key={project.id}
+                        value={`${project.name} project workspace`}
                         onSelect={() =>
-                          navigateTo(result.href, result.title)
+                          navigateTo(
+                            `/projects/${project.id}`,
+                            `${project.name} Workspace`
+                          )
                         }
                         className={itemClass}
                       >
-                        <Icon className="h-4 w-4 shrink-0 text-[#888]" />
-                        <div className="flex min-w-0 flex-1 items-baseline gap-2">
-                          <span className="truncate">{result.title}</span>
-                          {result.subtitle && (
-                            <span className="truncate text-xs text-[#666]">
-                              {result.subtitle}
-                            </span>
-                          )}
-                        </div>
-                      </Command.Item>
-                    ))}
-                  </Command.Group>
-                );
-              })}
-
-            {/* Default groups — shown when NOT actively searching */}
-            {!isActiveSearch && (
-              <>
-                {recentPages.length > 0 && (
-                  <Command.Group
-                    heading="Recent"
-                    className={groupHeadingClass}
-                  >
-                    {recentPages.map((page) => (
-                      <Command.Item
-                        key={`recent-${page.href}`}
-                        value={`recent ${page.label}`}
-                        onSelect={() => navigateTo(page.href, page.label)}
-                        className={itemClass}
-                      >
-                        <Clock className="h-4 w-4 text-[#888]" />
-                        {page.label}
+                        <FolderOpen className="h-4 w-4 text-[#888]" />
+                        {project.name} Workspace
                       </Command.Item>
                     ))}
                   </Command.Group>
                 )}
+              </>
+            )}
 
-                <Command.Group
-                  heading="Navigation"
-                  className={groupHeadingClass}
-                >
-                  {staticRoutes.map((route) => (
-                    <Command.Item
-                      key={route.href}
-                      value={route.label}
-                      onSelect={() => navigateTo(route.href, route.label)}
-                      className={itemClass}
-                    >
-                      <route.icon className="h-4 w-4 text-[#888]" />
-                      {route.label}
-                    </Command.Item>
-                  ))}
-                  {projectWorkspaces.map((project) => (
-                    <Command.Item
-                      key={project.id}
-                      value={`${project.label} project workspace`}
-                      onSelect={() =>
-                        navigateTo(
-                          `/projects/${project.id}`,
-                          `${project.label} Workspace`
-                        )
-                      }
-                      className={itemClass}
-                    >
-                      <FolderOpen className="h-4 w-4 text-[#888]" />
-                      {project.label} Workspace
-                    </Command.Item>
-                  ))}
-                </Command.Group>
+            {/* ── Create tab ───────────────────── */}
+            {activeTab === "create" && !createType && (
+              <QuickCreateMenu onSelect={setCreateType} />
+            )}
 
-                <Command.Group
-                  heading="Create"
-                  className={groupHeadingClass}
-                >
+            {/* ── Search tab ───────────────────── */}
+            {activeTab === "search" && isActiveSearch && (
+              <SearchResults
+                results={searchResults}
+                onSelect={navigateTo}
+              />
+            )}
+
+            {/* ── Recent tab ───────────────────── */}
+            {activeTab === "recent" && filteredRecent.length > 0 && (
+              <Command.Group
+                heading="Recent Pages"
+                className={groupHeadingClass}
+              >
+                {filteredRecent.map((page) => (
                   <Command.Item
-                    value="Create Task"
-                    onSelect={() => {
-                      setOpen(false);
-                      router.push("/tasks?create=true");
-                    }}
+                    key={`recent-${page.href}`}
+                    value={`recent ${page.label}`}
+                    onSelect={() => navigateTo(page.href, page.label)}
                     className={itemClass}
                   >
-                    <Plus className="h-4 w-4 text-[#888]" />
-                    Create Task
+                    <Clock className="h-4 w-4 text-[#888]" />
+                    {page.label}
                   </Command.Item>
-                </Command.Group>
-              </>
+                ))}
+              </Command.Group>
             )}
           </Command.List>
 
+          {/* Create form — rendered outside Command.List to avoid cmdk filtering */}
+          {activeTab === "create" && createType && (
+            <div className="border-t border-border">
+              <QuickCreateForm
+                type={createType}
+                onBack={() => setCreateType(null)}
+                onCreated={() => setOpen(false)}
+              />
+            </div>
+          )}
+
+          {/* Footer */}
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-[#666]">
             <div className="flex gap-3">
               <span>
