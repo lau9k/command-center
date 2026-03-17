@@ -29,6 +29,9 @@ export const createTaskSchema = z.object({
   assignee: z.string().max(200).optional().nullable(),
   recurrence_rule: z.enum(["daily", "weekly", "monthly"]).optional().nullable(),
   is_recurring_template: z.boolean().optional(),
+  contact_id: z.string().uuid().optional().nullable(),
+  task_type: z.enum(["general", "outreach", "follow-up", "meeting-prep"]).optional(),
+  external_url: z.string().url().max(2000).optional().nullable(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();

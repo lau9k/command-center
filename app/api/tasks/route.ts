@@ -11,10 +11,11 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const priority = searchParams.get("priority");
   const status = searchParams.get("status");
   const search = searchParams.get("search");
+  const type = searchParams.get("type");
 
   let query = supabase
     .from("tasks")
-    .select("*, projects(id, name, color)")
+    .select("*, projects(id, name, color), contacts(name, company, linkedin_url)")
     .order("priority", { ascending: true })
     .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -32,6 +33,10 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
   if (search) {
     query = query.ilike("title", `%${search}%`);
+  }
+
+  if (type) {
+    query = query.eq("task_type", type);
   }
 
   const { data, error } = await query;
@@ -55,7 +60,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("tasks")
     .insert(parsed.data)
-    .select("*, projects(id, name, color)")
+    .select("*, projects(id, name, color), contacts(name, company, linkedin_url)")
     .single();
 
   if (error) {

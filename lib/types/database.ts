@@ -74,6 +74,8 @@ export interface Project {
   updated_at: string;
 }
 
+export type TaskType = "general" | "outreach" | "follow-up" | "meeting-prep";
+
 export interface Task {
   id: string;
   project_id: string | null;
@@ -88,12 +90,22 @@ export interface Task {
   recurrence_rule: string | null;
   recurrence_parent_id: string | null;
   is_recurring_template: boolean;
+  contact_id?: string | null;
+  task_type?: TaskType;
+  external_url?: string | null;
   created_at: string;
   updated_at: string;
 }
 
+export interface TaskContact {
+  name: string;
+  company: string | null;
+  linkedin_url: string | null;
+}
+
 export interface TaskWithProject extends Task {
   projects: Pick<Project, "id" | "name" | "color"> | null;
+  contacts: TaskContact | null;
 }
 
 export interface Contact {
