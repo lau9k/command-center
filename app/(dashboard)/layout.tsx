@@ -1,9 +1,6 @@
 import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileHeader } from "@/components/layout/MobileHeader";
-import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
-import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
-import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/lib/types/project";
@@ -63,8 +60,7 @@ export default async function DashboardLayout({
 
   return (
     <AuthProvider>
-      <OnboardingGate>
-        <div className="flex h-screen">
+      <div className="flex h-screen">
           <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {/* Mobile header: hamburger + bell + avatar (visible < lg) */}
@@ -76,7 +72,6 @@ export default async function DashboardLayout({
             <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
           </div>
         </div>
-      </OnboardingGate>
     </AuthProvider>
   );
 }
