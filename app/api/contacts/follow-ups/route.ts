@@ -59,7 +59,6 @@ export async function GET() {
   const { data: contacts, error } = await supabase
     .from("contacts")
     .select("id, name, email, company, score, status, last_contact_date")
-    .is("deleted_at", null)
     .is("merged_into_id", null)
     .in("status", ["active", "lead", "customer"])
     .order("last_contact_date", { ascending: true, nullsFirst: true });

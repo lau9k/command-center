@@ -122,7 +122,6 @@ export interface Contact {
   score: number;
   notes: string | null;
   last_contact_date: string | null;
-  deleted_at: string | null;
   merged_into_id: string | null;
   created_at: string;
   updated_at: string;

@@ -104,7 +104,6 @@ export interface PersonizeContact {
   notes: string | null;
   project_id: string;
   last_contact_date: string | null;
-  deleted_at: string | null;
   merged_into_id: string | null;
   created_at: string;
   updated_at: string;
