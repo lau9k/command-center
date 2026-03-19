@@ -49,7 +49,6 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   let supabaseQuery = supabase
     .from("contacts")
     .select("*")
-    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
 
   if (tag) {

@@ -20,7 +20,7 @@ const mergeSchema = z.object({
  * Merges contact B (loser) into contact A (winner).
  * - Applies any field overrides to the winner
  * - Reassigns all FKs (conversations) from loser to winner
- * - Soft-deletes the loser with deleted_at + merged_into_id
+ * - Marks the loser with merged_into_id
  * - Logs to activity_log
  */
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
@@ -47,8 +47,8 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 
   // Fetch both contacts
   const [winnerRes, loserRes] = await Promise.all([
-    supabase.from("contacts").select("*").eq("id", winnerId).is("deleted_at", null).single(),
-    supabase.from("contacts").select("*").eq("id", loserId).is("deleted_at", null).single(),
+    supabase.from("contacts").select("*").eq("id", winnerId).single(),
+    supabase.from("contacts").select("*").eq("id", loserId).single(),
   ]);
 
   if (winnerRes.error || !winnerRes.data) {
@@ -124,18 +124,17 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     console.error("[merge] Failed to reassign conversations:", convError.message);
   }
 
-  // 3. Soft-delete the loser
-  const { error: softDeleteError } = await supabase
+  // 3. Mark the loser as merged
+  const { error: mergeMarkError } = await supabase
     .from("contacts")
     .update({
-      deleted_at: new Date().toISOString(),
       merged_into_id: winnerId,
     })
     .eq("id", loserId);
 
-  if (softDeleteError) {
+  if (mergeMarkError) {
     return NextResponse.json(
-      { error: `Failed to soft-delete loser: ${softDeleteError.message}` },
+      { error: `Failed to mark loser as merged: ${mergeMarkError.message}` },
       { status: 500 }
     );
   }

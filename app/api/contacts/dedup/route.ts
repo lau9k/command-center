@@ -67,7 +67,6 @@ export const GET = withErrorHandler(async function GET() {
   const { data: contacts, error } = await supabase
     .from("contacts")
     .select("id, name, email, phone, company, role, source, status, tags, score, notes, last_contact_date, created_at, updated_at")
-    .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
   if (error) {
