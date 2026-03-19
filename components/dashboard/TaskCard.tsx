@@ -1,9 +1,16 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Pencil, Trash2 } from "lucide-react";
+import { CalendarIcon, Pencil, Trash2, Copy, Check, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PriorityBadge } from "./PriorityBadge";
 import { ProjectBadge } from "./ProjectBadge";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
@@ -47,6 +54,25 @@ export function TaskCard({
   onClick,
 }: TaskCardProps) {
   const isDone = task.status === "done";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    if (!task.description) return;
+    try {
+      await navigator.clipboard.writeText(task.description);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = task.description;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [task.description]);
 
   function handleCheckedChange(checked: boolean | "indeterminate") {
     if (checked === "indeterminate") return;
@@ -129,25 +155,79 @@ export function TaskCard({
       </div>
 
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onEdit(task)}
-          aria-label="Edit task"
-        >
-          <Pencil />
-        </Button>
+      <TooltipProvider>
+        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+          {task.description && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={handleCopy}
+                  aria-label={copied ? "Copied!" : "Copy message"}
+                >
+                  {copied ? (
+                    <Check className="text-green-600 dark:text-green-400" />
+                  ) : (
+                    <Copy />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{copied ? "Copied!" : "Copy message"}</TooltipContent>
+            </Tooltip>
+          )}
 
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onDelete(task)}
-          aria-label="Delete task"
-        >
-          <Trash2 className="text-destructive" />
-        </Button>
-      </div>
+          {task.external_url && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  asChild
+                >
+                  <a
+                    href={task.external_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open LinkedIn"
+                  >
+                    <ExternalLink />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Open LinkedIn</TooltipContent>
+            </Tooltip>
+          )}
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onEdit(task)}
+                aria-label="Edit task"
+              >
+                <Pencil />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onDelete(task)}
+                aria-label="Delete task"
+              >
+                <Trash2 className="text-destructive" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete</TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     </div>
   );
 }
