@@ -36,12 +36,23 @@ export default async function OutreachPage() {
   const today = new Date().toISOString().slice(0, 10);
   const totalOutreach = outreachTasks.length;
   const sentToday = outreachTasks.filter(
-    (t) => t.status === "done" && t.updated_at.slice(0, 10) === today
+    (t) =>
+      (t.outreach_status === "sent" || t.outreach_status === "replied") &&
+      t.sent_at?.slice(0, 10) === today
   ).length;
-  const totalDone = outreachTasks.filter((t) => t.status === "done").length;
+  const totalReplied = outreachTasks.filter(
+    (t) => t.outreach_status === "replied"
+  ).length;
+  const totalSentOrReplied = outreachTasks.filter(
+    (t) => t.outreach_status === "sent" || t.outreach_status === "replied"
+  ).length;
   const responseRate =
-    totalOutreach > 0 ? Math.round((totalDone / totalOutreach) * 100) : 0;
-  const remaining = totalOutreach - totalDone;
+    totalSentOrReplied > 0
+      ? Math.round((totalReplied / totalSentOrReplied) * 100)
+      : 0;
+  const remaining = outreachTasks.filter(
+    (t) => !t.outreach_status || t.outreach_status === "queued"
+  ).length;
 
   return (
     <div className="space-y-6">

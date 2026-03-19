@@ -32,9 +32,20 @@ export const createTaskSchema = z.object({
   contact_id: z.string().uuid().optional().nullable(),
   task_type: z.enum(["general", "outreach", "follow-up", "meeting-prep"]).optional(),
   external_url: z.string().url().max(2000).optional().nullable(),
+  outreach_status: z.enum(["queued", "sent", "replied", "no_response", "skipped"]).optional(),
+  sent_at: z.string().datetime().optional().nullable(),
+  response_notes: z.string().max(10000).optional().nullable(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
+
+// ── Batch Outreach Status ────────────────────────────────
+
+export const batchOutreachStatusSchema = z.object({
+  taskIds: z.array(z.string().uuid()).min(1, "At least one task ID is required"),
+  outreach_status: z.enum(["queued", "sent", "replied", "no_response", "skipped"]),
+  sent_at: z.string().datetime().optional().nullable(),
+});
 
 // ── Content Posts ─────────────────────────────────────────
 

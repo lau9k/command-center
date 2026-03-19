@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -40,6 +40,7 @@ import type {
   TaskWithProject,
   TaskStatus,
   TaskPriority,
+  TaskOutreachStatus,
 } from "@/lib/types/database";
 
 /* ─── helpers ─── */
@@ -61,6 +62,40 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
   medium: "bg-yellow-500/10 text-yellow-500",
   low: "bg-green-500/10 text-green-500",
 };
+
+const OUTREACH_STATUS_CONFIG: Record<
+  TaskOutreachStatus,
+  { label: string; className: string }
+> = {
+  queued: {
+    label: "Queued",
+    className: "bg-gray-500/10 text-gray-500 dark:bg-gray-400/10 dark:text-gray-400",
+  },
+  sent: {
+    label: "Sent",
+    className: "bg-blue-500/10 text-blue-500",
+  },
+  replied: {
+    label: "Replied",
+    className: "bg-green-500/10 text-green-500",
+  },
+  no_response: {
+    label: "No Response",
+    className: "bg-amber-500/10 text-amber-500",
+  },
+  skipped: {
+    label: "Skipped",
+    className: "bg-slate-500/10 text-slate-500",
+  },
+};
+
+const OUTREACH_STATUSES: TaskOutreachStatus[] = [
+  "queued",
+  "sent",
+  "replied",
+  "no_response",
+  "skipped",
+];
 
 const ALL_VALUE = "__all__";
 
@@ -98,9 +133,63 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
   );
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>(ALL_VALUE);
+  const [filterOutreachStatus, setFilterOutreachStatus] = useState<string>(ALL_VALUE);
   const [filterTag, setFilterTag] = useState<string>(ALL_VALUE);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  /* ─── outreach status counts ─── */
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { [ALL_VALUE]: outreachTasks.length };
+    for (const s of OUTREACH_STATUSES) {
+      counts[s] = 0;
+    }
+    for (const t of outreachTasks) {
+      const os = t.outreach_status ?? "queued";
+      counts[os] = (counts[os] ?? 0) + 1;
+    }
+    return counts;
+  }, [outreachTasks]);
+
+  /* ─── handlers ─── */
+
+  const handleUpdateOutreachStatus = useCallback(
+    async (task: TaskWithProject, outreachStatus: TaskOutreachStatus) => {
+      const previous = queryClient.getQueryData<TaskWithProject[]>([
+        "tasks",
+        "list",
+      ]);
+
+      const sentAt =
+        outreachStatus === "sent" ? new Date().toISOString() : task.sent_at;
+
+      queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+        old?.map((t) =>
+          t.id === task.id
+            ? { ...t, outreach_status: outreachStatus, sent_at: sentAt }
+            : t
+        )
+      );
+
+      try {
+        const res = await fetch(`/api/tasks/${task.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            outreach_status: outreachStatus,
+            ...(outreachStatus === "sent" ? { sent_at: sentAt } : {}),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to update");
+        toast.success(`Marked as ${OUTREACH_STATUS_CONFIG[outreachStatus].label}`);
+      } catch {
+        queryClient.setQueryData(["tasks", "list"], previous);
+        toast.error("Failed to update outreach status");
+      }
+    },
+    [queryClient]
+  );
 
   const handleToggleDone = useCallback(
     async (task: TaskWithProject) => {
@@ -159,11 +248,73 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
     [queryClient]
   );
 
+  const handleBatchStatus = useCallback(
+    async (outreachStatus: TaskOutreachStatus) => {
+      if (selectedIds.size === 0) return;
+
+      const taskIds = Array.from(selectedIds);
+      const previous = queryClient.getQueryData<TaskWithProject[]>([
+        "tasks",
+        "list",
+      ]);
+
+      const sentAt =
+        outreachStatus === "sent" ? new Date().toISOString() : undefined;
+
+      queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+        old?.map((t) =>
+          selectedIds.has(t.id)
+            ? {
+                ...t,
+                outreach_status: outreachStatus,
+                ...(sentAt ? { sent_at: sentAt } : {}),
+              }
+            : t
+        )
+      );
+
+      try {
+        const res = await fetch("/api/tasks/batch-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskIds,
+            outreach_status: outreachStatus,
+            ...(sentAt ? { sent_at: sentAt } : {}),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to update");
+        toast.success(
+          `Updated ${taskIds.length} task${taskIds.length > 1 ? "s" : ""} to ${OUTREACH_STATUS_CONFIG[outreachStatus].label}`
+        );
+        setSelectedIds(new Set());
+      } catch {
+        queryClient.setQueryData(["tasks", "list"], previous);
+        toast.error("Failed to batch update");
+      }
+    },
+    [queryClient, selectedIds]
+  );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
   /* ─── filtering & sorting ─── */
 
   const filtered = outreachTasks.filter((t) => {
-    if (filterStatus === "todo" && t.status === "done") return false;
-    if (filterStatus === "done" && t.status !== "done") return false;
+    if (filterOutreachStatus !== ALL_VALUE) {
+      const taskOs = t.outreach_status ?? "queued";
+      if (taskOs !== filterOutreachStatus) return false;
+    }
     if (
       filterTag !== ALL_VALUE &&
       !t.tags?.some((tag) => tag.toLowerCase() === filterTag)
@@ -185,6 +336,17 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
     if (pDiff !== 0) return pDiff;
     return a.created_at.localeCompare(b.created_at);
   });
+
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((t) => selectedIds.has(t.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sorted.map((t) => t.id)));
+    }
+  }, [allVisibleSelected, sorted]);
 
   /* ─── tag options ─── */
 
@@ -232,14 +394,19 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
           />
         </div>
 
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
+        <Select value={filterOutreachStatus} onValueChange={setFilterOutreachStatus}>
           <SelectTrigger size="sm">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_VALUE}>All Status</SelectItem>
-            <SelectItem value="todo">Pending</SelectItem>
-            <SelectItem value="done">Sent</SelectItem>
+            <SelectItem value={ALL_VALUE}>
+              All Status ({statusCounts[ALL_VALUE]})
+            </SelectItem>
+            {OUTREACH_STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {OUTREACH_STATUS_CONFIG[s].label} ({statusCounts[s]})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -258,6 +425,35 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
         </Select>
       </div>
 
+      {/* Batch Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            {OUTREACH_STATUSES.map((s) => (
+              <Button
+                key={s}
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchStatus(s)}
+              >
+                {OUTREACH_STATUS_CONFIG[s].label}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto"
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       {sorted.length === 0 ? (
         <SharedEmptyState
@@ -274,13 +470,22 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="w-10 px-3 py-2.5" />
+                <th className="w-10 px-3 py-2.5">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all visible tasks"
+                  />
+                </th>
                 <th className="w-8 px-1 py-2.5" />
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                   Contact Name
                 </th>
                 <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
                   Company
+                </th>
+                <th className="px-3 py-2.5 text-left font-medium text-muted-foreground">
+                  Status
                 </th>
                 <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground md:table-cell">
                   Message Preview
@@ -311,6 +516,7 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
                     task={task}
                     isDone={isDone}
                     isExpanded={isExpanded}
+                    isSelected={selectedIds.has(task.id)}
                     linkedInUrl={linkedInUrl}
                     messagePreview={task.description ?? ""}
                     onToggleDone={() => handleToggleDone(task)}
@@ -318,6 +524,10 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
                       setExpandedId(isExpanded ? null : task.id)
                     }
                     onDelete={() => handleDelete(task)}
+                    onToggleSelect={() => toggleSelect(task.id)}
+                    onUpdateOutreachStatus={(s) =>
+                      handleUpdateOutreachStatus(task, s)
+                    }
                   />
                 );
               })}
@@ -329,33 +539,60 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
   );
 }
 
+/* ─── status badge ─── */
+
+function OutreachStatusBadge({
+  status,
+}: {
+  status: TaskOutreachStatus;
+}) {
+  const config = OUTREACH_STATUS_CONFIG[status];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        config.className
+      )}
+    >
+      {config.label}
+    </span>
+  );
+}
+
 /* ─── row component ─── */
 
 interface OutreachRowProps {
   task: TaskWithProject;
   isDone: boolean;
   isExpanded: boolean;
+  isSelected: boolean;
   linkedInUrl: string | null;
   messagePreview: string;
   onToggleDone: () => void;
   onToggleExpand: () => void;
   onDelete: () => void;
+  onToggleSelect: () => void;
+  onUpdateOutreachStatus: (status: TaskOutreachStatus) => void;
 }
 
 function OutreachRow({
   task,
   isDone,
   isExpanded,
+  isSelected,
   linkedInUrl,
   messagePreview,
   onToggleDone,
   onToggleExpand,
   onDelete,
+  onToggleSelect,
+  onUpdateOutreachStatus,
 }: OutreachRowProps) {
   const [copied, setCopied] = useState(false);
   const nonOutreachTags = (task.tags ?? []).filter(
     (tag) => tag.toLowerCase() !== "outreach"
   );
+  const outreachStatus: TaskOutreachStatus = task.outreach_status ?? "queued";
 
   const handleCopy = useCallback(async () => {
     const text = task.description;
@@ -376,20 +613,28 @@ function OutreachRow({
     setTimeout(() => setCopied(false), 2000);
   }, [task.description]);
 
+  const handleCopyAndMarkSent = useCallback(async () => {
+    await handleCopy();
+    if (outreachStatus === "queued") {
+      onUpdateOutreachStatus("sent");
+    }
+  }, [handleCopy, outreachStatus, onUpdateOutreachStatus]);
+
   return (
     <>
       <tr
         className={cn(
           "border-b border-border transition-colors hover:bg-muted/30 cursor-pointer",
-          isDone && "opacity-60"
+          isDone && "opacity-60",
+          isSelected && "bg-primary/5"
         )}
         onClick={onToggleExpand}
       >
         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
           <Checkbox
-            checked={isDone}
-            onCheckedChange={onToggleDone}
-            aria-label={`Mark "${task.title}" as ${isDone ? "pending" : "sent"}`}
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            aria-label={`Select "${task.title}"`}
           />
         </td>
         <td className="px-1 py-2.5 text-muted-foreground">
@@ -409,6 +654,9 @@ function OutreachRow({
         </td>
         <td className="px-3 py-2.5 text-muted-foreground">
           {task.assignee ?? "—"}
+        </td>
+        <td className="px-3 py-2.5">
+          <OutreachStatusBadge status={outreachStatus} />
         </td>
         <td className="hidden max-w-xs truncate px-3 py-2.5 text-muted-foreground md:table-cell">
           {messagePreview || "—"}
@@ -480,6 +728,23 @@ function OutreachRow({
                 </Tooltip>
               )}
 
+              {copied && outreachStatus === "queued" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => onUpdateOutreachStatus("sent")}
+                      aria-label="Mark as Sent"
+                      className="text-blue-500 hover:text-blue-600"
+                    >
+                      <Send className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Mark as Sent</TooltipContent>
+                </Tooltip>
+              )}
+
               {(linkedInUrl ?? task.external_url) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -531,7 +796,7 @@ function OutreachRow({
       </tr>
       {isExpanded && (
         <tr className="border-b border-border bg-muted/20">
-          <td colSpan={9} className="px-6 py-4">
+          <td colSpan={10} className="px-6 py-4">
             <div className="space-y-3">
               {messagePreview && (
                 <>
@@ -548,6 +813,29 @@ function OutreachRow({
                   </div>
                 </>
               )}
+
+              {/* Outreach status selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Outreach Status:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {OUTREACH_STATUSES.map((s) => (
+                    <Button
+                      key={s}
+                      variant={outreachStatus === s ? "default" : "outline"}
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateOutreachStatus(s);
+                      }}
+                    >
+                      {OUTREACH_STATUS_CONFIG[s].label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-2">
                 {linkedInUrl && (
                   <Button size="sm" className="gap-1.5" asChild>
@@ -561,19 +849,35 @@ function OutreachRow({
                     </a>
                   </Button>
                 )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={isDone}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleDone();
-                  }}
-                >
-                  <Send className="size-3.5" />
-                  Mark as Sent
-                </Button>
+                {outreachStatus === "queued" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyAndMarkSent();
+                    }}
+                  >
+                    <Send className="size-3.5" />
+                    Copy & Mark as Sent
+                  </Button>
+                )}
+                {outreachStatus !== "queued" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={isDone}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleDone();
+                    }}
+                  >
+                    <Check className="size-3.5" />
+                    Mark as Done
+                  </Button>
+                )}
               </div>
             </div>
           </td>

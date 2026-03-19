@@ -75,6 +75,7 @@ export interface Project {
 }
 
 export type TaskType = "general" | "outreach" | "follow-up" | "meeting-prep";
+export type TaskOutreachStatus = "queued" | "sent" | "replied" | "no_response" | "skipped";
 
 export interface Task {
   id: string;
@@ -93,6 +94,9 @@ export interface Task {
   contact_id?: string | null;
   task_type?: TaskType;
   external_url?: string | null;
+  outreach_status?: TaskOutreachStatus;
+  sent_at?: string | null;
+  response_notes?: string | null;
   created_at: string;
   updated_at: string;
 }
