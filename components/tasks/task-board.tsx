@@ -14,6 +14,7 @@ import type {
 import { format } from "date-fns";
 import { CalendarIcon, Tag, User, FileText } from "lucide-react";
 import { sanitizeText } from "@/lib/sanitize";
+import { TaskActionButtons } from "./TaskActionButtons";
 
 const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
   { status: "todo", label: "To Do", color: "#3B82F6" },
@@ -32,6 +33,9 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
 function DrawerContent({ task }: { task: TaskWithProject }) {
   return (
     <div className="flex flex-col gap-5">
+      {/* Action Buttons */}
+      <TaskActionButtons task={task} />
+
       {/* Status */}
       <div>
         <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
