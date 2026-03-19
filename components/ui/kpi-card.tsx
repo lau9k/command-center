@@ -11,6 +11,7 @@ interface KpiCardProps extends React.ComponentProps<"div"> {
   deltaDirection?: "up" | "down"
   icon?: React.ReactNode
   sparkline?: React.ReactNode
+  accentColor?: string
   onClick?: React.MouseEventHandler<HTMLDivElement>
 }
 
@@ -22,6 +23,7 @@ function KpiCard({
   deltaDirection,
   icon,
   sparkline,
+  accentColor,
   onClick,
   className,
   ...props
@@ -33,23 +35,22 @@ function KpiCard({
       className={cn(
         "flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-all duration-150 hover:border-ring/50 hover:shadow-sm",
         onClick && "cursor-pointer hover:bg-card-hover hover:shadow-md",
+        accentColor && "border-l-4",
         className
       )}
+      style={accentColor ? { borderLeftColor: accentColor } : undefined}
       {...props}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
         {icon && <span className="text-text-muted">{icon}</span>}
       </div>
 
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[32px] font-bold leading-none text-foreground">
+          <span className="text-[32px] font-bold leading-none tracking-tight text-foreground">
             {value}
           </span>
-          {subtitle && (
-            <span className="text-xs text-muted-foreground">{subtitle}</span>
-          )}
           {delta !== undefined && deltaDirection && (
             <span
               className={cn(
@@ -64,6 +65,9 @@ function KpiCard({
               )}
               {delta}%
             </span>
+          )}
+          {subtitle && (
+            <span className="text-xs text-muted-foreground">{subtitle}</span>
           )}
         </div>
         {sparkline && <div className="shrink-0">{sparkline}</div>}
