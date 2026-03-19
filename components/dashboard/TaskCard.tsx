@@ -15,6 +15,7 @@ interface TaskCardProps {
   onStatusChange: (taskId: string, status: TaskStatus) => void;
   onEdit: (task: TaskWithProject) => void;
   onDelete: (task: TaskWithProject) => void;
+  onClick?: (task: TaskWithProject) => void;
 }
 
 const STATUS_CYCLE: Record<TaskStatus, TaskStatus> = {
@@ -43,6 +44,7 @@ export function TaskCard({
   onStatusChange,
   onEdit,
   onDelete,
+  onClick,
 }: TaskCardProps) {
   const isDone = task.status === "done";
 
@@ -59,14 +61,22 @@ export function TaskCard({
     <div
       className={cn(
         "group flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors hover:bg-accent/50",
-        isDone && "opacity-60"
+        isDone && "opacity-60",
+        onClick && "cursor-pointer"
       )}
+      onClick={() => onClick?.(task)}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(task); } } : undefined}
     >
-      <Checkbox
-        checked={isDone}
-        onCheckedChange={handleCheckedChange}
-        aria-label={`Mark "${task.title}" as ${isDone ? "incomplete" : "complete"}`}
-      />
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <span onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={isDone}
+          onCheckedChange={handleCheckedChange}
+          aria-label={`Mark "${task.title}" as ${isDone ? "incomplete" : "complete"}`}
+        />
+      </span>
 
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="min-w-0 flex-1">
@@ -95,7 +105,7 @@ export function TaskCard({
           <PriorityBadge priority={task.priority} />
           <button
             type="button"
-            onClick={handleStatusCycle}
+            onClick={(e) => { e.stopPropagation(); handleStatusCycle(); }}
             className={cn(
               "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-colors hover:opacity-80 cursor-pointer",
               STATUS_COLORS[task.status]
@@ -118,7 +128,8 @@ export function TaskCard({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
         <Button
           variant="ghost"
           size="icon-xs"

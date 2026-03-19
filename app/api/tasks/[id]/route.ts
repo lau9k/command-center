@@ -68,6 +68,8 @@ export async function PUT(
   return NextResponse.json({ data, nextOccurrence });
 }
 
+export { PUT as PATCH };
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
