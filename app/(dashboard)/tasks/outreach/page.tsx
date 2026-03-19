@@ -16,7 +16,7 @@ export default async function OutreachPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("*, projects(id, name, color)")
+        .select("*, projects(id, name, color), contacts(name, company, linkedin_url)")
         .order("created_at", { ascending: false });
       if (error) {
         console.error("[Outreach] query error:", error.message);
