@@ -44,17 +44,8 @@ import type {
 
 /* ─── helpers ─── */
 
-const LINKEDIN_URL_RE = /https?:\/\/(?:www\.)?linkedin\.com\/in\/[^\s)]+/i;
-
-function extractLinkedInUrl(description: string | null): string | null {
-  if (!description) return null;
-  const match = description.match(LINKEDIN_URL_RE);
-  return match ? match[0] : null;
-}
-
-function stripLinkedInUrl(description: string | null): string {
-  if (!description) return "";
-  return description.replace(LINKEDIN_URL_RE, "").trim();
+function getLinkedInUrl(task: TaskWithProject): string | null {
+  return task.external_url ?? task.contacts?.linkedin_url ?? null;
 }
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
@@ -310,8 +301,7 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
             </thead>
             <tbody>
               {sorted.map((task) => {
-                const linkedInUrl = extractLinkedInUrl(task.description);
-                const messagePreview = stripLinkedInUrl(task.description);
+                const linkedInUrl = getLinkedInUrl(task);
                 const isExpanded = expandedId === task.id;
                 const isDone = task.status === "done";
 
@@ -322,7 +312,7 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
                     isDone={isDone}
                     isExpanded={isExpanded}
                     linkedInUrl={linkedInUrl}
-                    messagePreview={messagePreview}
+                    messagePreview={task.description ?? ""}
                     onToggleDone={() => handleToggleDone(task)}
                     onToggleExpand={() =>
                       setExpandedId(isExpanded ? null : task.id)
@@ -432,6 +422,7 @@ function OutreachRow({
               href={linkedInUrl}
               target="_blank"
               rel="noopener noreferrer"
+              title={linkedInUrl}
               className="inline-flex items-center justify-center rounded-md p-1 text-blue-500 transition-colors hover:bg-blue-500/10"
               aria-label={`Open LinkedIn profile for ${task.title}`}
             >
@@ -538,20 +529,51 @@ function OutreachRow({
           </TooltipProvider>
         </td>
       </tr>
-      {isExpanded && messagePreview && (
+      {isExpanded && (
         <tr className="border-b border-border bg-muted/20">
           <td colSpan={9} className="px-6 py-4">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Message Template
-                </p>
-                <CopyMessageButton text={task.description ?? ""} />
-              </div>
-              <div className="rounded-md border border-border bg-background p-4">
-                <p className="whitespace-pre-wrap text-sm text-foreground">
-                  {messagePreview}
-                </p>
+              {messagePreview && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Message Template
+                    </p>
+                    <CopyMessageButton text={task.description ?? ""} />
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-4">
+                    <p className="whitespace-pre-wrap text-sm text-foreground">
+                      {messagePreview}
+                    </p>
+                  </div>
+                </>
+              )}
+              <div className="flex items-center justify-end gap-2">
+                {linkedInUrl && (
+                  <Button size="sm" className="gap-1.5" asChild>
+                    <a
+                      href={linkedInUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="size-3.5" />
+                      Open LinkedIn
+                    </a>
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={isDone}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleDone();
+                  }}
+                >
+                  <Send className="size-3.5" />
+                  Mark as Sent
+                </Button>
               </div>
             </div>
           </td>
