@@ -28,6 +28,7 @@ import { TaskQuickAdd } from "./TaskQuickAdd";
 import { TaskForm } from "./TaskForm";
 import type { TaskFormData } from "./TaskForm";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
+import { TaskDetailDrawer } from "@/components/task-detail-drawer";
 import { BulkActionBar } from "@/components/tasks/BulkActionBar";
 import { useTaskSelection } from "@/hooks/useTaskSelection";
 import type {
@@ -130,6 +131,9 @@ export function MasterTaskList({
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<TaskWithProject | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Detail drawer state
+  const [selectedTask, setSelectedTask] = useState<TaskWithProject | null>(null);
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
@@ -485,6 +489,7 @@ export function MasterTaskList({
                   onStatusChange={handleStatusChange}
                   onEdit={handleEdit}
                   onDelete={setDeleteTarget}
+                  onClick={setSelectedTask}
                 />
               </div>
             </div>
@@ -516,6 +521,24 @@ export function MasterTaskList({
         }
         onConfirm={handleDelete}
         loading={deleting}
+      />
+
+      <TaskDetailDrawer
+        task={selectedTask}
+        open={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdate={(updated) => {
+          queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+            old?.map((t) => (t.id === updated.id ? updated : t))
+          );
+          setSelectedTask(updated);
+        }}
+        onDelete={(id) => {
+          queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+            old?.filter((t) => t.id !== id)
+          );
+          setSelectedTask(null);
+        }}
       />
 
       <BulkActionBar
