@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckSquare, Send } from "lucide-react";
+import { CheckSquare } from "lucide-react";
 
 const TABS = [
   { href: "/tasks", label: "All Tasks", icon: CheckSquare },
-  { href: "/tasks/outreach", label: "Outreach Queue", icon: Send },
 ] as const;
 
 export function TasksSubNav() {
@@ -16,9 +15,7 @@ export function TasksSubNav() {
     <nav className="flex gap-1 border-b border-border">
       {TABS.map((tab) => {
         const isActive =
-          tab.href === "/tasks"
-            ? pathname === "/tasks" || pathname === "/tasks/board" || pathname === "/tasks/recurring"
-            : pathname.startsWith(tab.href);
+          pathname === "/tasks" || pathname === "/tasks/board" || pathname === "/tasks/recurring";
         const Icon = tab.icon;
         return (
           <Link

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   BarChart3,
   Calendar,
   CheckSquare,
@@ -11,17 +10,10 @@ import {
   DollarSign,
   FileText,
   FolderOpen,
-  Handshake,
-  Library,
   LayoutDashboard,
-  Mail,
   MessageSquare,
-  Radio,
-  RefreshCw,
   Settings,
-  Upload,
   Users,
-  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,20 +23,12 @@ import type { Project } from "@/lib/types/project";
 const modules = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "Tasks", href: "/tasks", icon: CheckSquare },
-  { label: "Import", href: "/admin/import", icon: Upload },
   { label: "Finance", href: "/finance", icon: DollarSign },
   { label: "Meetings", href: "/meetings", icon: Calendar },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Conversations", href: "/conversations", icon: MessageSquare },
-  { label: "Sponsors", href: "/sponsors", icon: Handshake },
   { label: "Content", href: "/content", icon: FileText },
-  { label: "Resources", href: "/resources", icon: Library },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "Community", href: "/community", icon: UsersRound },
-  { label: "Templates", href: "/templates", icon: Mail },
-  { label: "Webhooks", href: "/webhooks", icon: Radio },
-  { label: "Sync Log", href: "/sync", icon: RefreshCw },
-  { label: "Activity", href: "/activity", icon: Activity },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
