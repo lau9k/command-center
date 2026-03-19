@@ -44,8 +44,6 @@ export async function Header({ projects }: HeaderProps) {
 
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
-      <h1 className="text-lg font-semibold">Command Center</h1>
-
       <div className="ml-auto flex items-center gap-3">
         <NotificationBell
           initialNotifications={notifications}

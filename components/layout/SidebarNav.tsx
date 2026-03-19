@@ -45,7 +45,7 @@ export function SidebarNav({ projects, hasMeekWallet, collapsed }: SidebarNavPro
 
   return (
     <div className="flex h-full flex-col">
-      <div className={cn("py-5", collapsed ? "px-2" : "px-4")}>
+      <div className={cn("h-14 flex items-center", collapsed ? "px-2" : "px-4")}>
         <Link
           href="/"
           className={cn(

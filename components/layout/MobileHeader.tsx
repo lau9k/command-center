@@ -29,8 +29,6 @@ export function MobileHeader({ email, unreadCount, initialNotifications = [] }: 
         <span className="sr-only">Open menu</span>
       </Button>
 
-      <h1 className="text-lg font-semibold md:hidden">Command Center</h1>
-
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"
