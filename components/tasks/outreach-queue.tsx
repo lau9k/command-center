@@ -12,8 +12,12 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronRight,
+  Copy,
+  Check,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/ui/kpi-card";
 import {
   Select,
@@ -23,6 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CopyMessageButton } from "@/components/copy-message-button";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import type {
@@ -127,6 +138,31 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
       } catch {
         queryClient.setQueryData(["tasks", "list"], previous);
         toast.error("Failed to update status");
+      }
+    },
+    [queryClient]
+  );
+
+  const handleDelete = useCallback(
+    async (task: TaskWithProject) => {
+      const previous = queryClient.getQueryData<TaskWithProject[]>([
+        "tasks",
+        "list",
+      ]);
+
+      queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
+        old?.filter((t) => t.id !== task.id)
+      );
+
+      try {
+        const res = await fetch(`/api/tasks/${task.id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to delete");
+        toast.success("Task deleted");
+      } catch {
+        queryClient.setQueryData(["tasks", "list"], previous);
+        toast.error("Failed to delete task");
       }
     },
     [queryClient]
@@ -267,6 +303,9 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
                 <th className="hidden px-3 py-2.5 text-left font-medium text-muted-foreground sm:table-cell">
                   Tags
                 </th>
+                <th className="px-3 py-2.5 text-right font-medium text-muted-foreground">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -288,6 +327,7 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
                     onToggleExpand={() =>
                       setExpandedId(isExpanded ? null : task.id)
                     }
+                    onDelete={() => handleDelete(task)}
                   />
                 );
               })}
@@ -309,6 +349,7 @@ interface OutreachRowProps {
   messagePreview: string;
   onToggleDone: () => void;
   onToggleExpand: () => void;
+  onDelete: () => void;
 }
 
 function OutreachRow({
@@ -319,10 +360,31 @@ function OutreachRow({
   messagePreview,
   onToggleDone,
   onToggleExpand,
+  onDelete,
 }: OutreachRowProps) {
+  const [copied, setCopied] = useState(false);
   const nonOutreachTags = (task.tags ?? []).filter(
     (tag) => tag.toLowerCase() !== "outreach"
   );
+
+  const handleCopy = useCallback(async () => {
+    const text = task.description;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [task.description]);
 
   return (
     <>
@@ -401,17 +463,96 @@ function OutreachRow({
             ))}
           </div>
         </td>
+        <td
+          className="px-3 py-2.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TooltipProvider>
+            <div className="flex items-center justify-end gap-1">
+              {task.description && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={handleCopy}
+                      aria-label={copied ? "Copied!" : "Copy message"}
+                    >
+                      {copied ? (
+                        <Check className="text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Copy />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{copied ? "Copied!" : "Copy message"}</TooltipContent>
+                </Tooltip>
+              )}
+
+              {(linkedInUrl ?? task.external_url) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-xs" asChild>
+                      <a
+                        href={(linkedInUrl ?? task.external_url)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open LinkedIn"
+                      >
+                        <ExternalLink />
+                      </a>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Open LinkedIn</TooltipContent>
+                </Tooltip>
+              )}
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onToggleDone()}
+                    aria-label={isDone ? "Mark pending" : "Mark done"}
+                  >
+                    <Check className={isDone ? "text-green-600 dark:text-green-400" : ""} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isDone ? "Mark pending" : "Mark done"}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={onDelete}
+                    aria-label="Delete task"
+                  >
+                    <Trash2 className="text-destructive" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
+        </td>
       </tr>
       {isExpanded && messagePreview && (
         <tr className="border-b border-border bg-muted/20">
-          <td colSpan={8} className="px-6 py-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Message Template
-              </p>
-              <p className="whitespace-pre-wrap text-sm text-foreground">
-                {messagePreview}
-              </p>
+          <td colSpan={9} className="px-6 py-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Message Template
+                </p>
+                <CopyMessageButton text={task.description ?? ""} />
+              </div>
+              <div className="rounded-md border border-border bg-background p-4">
+                <p className="whitespace-pre-wrap text-sm text-foreground">
+                  {messagePreview}
+                </p>
+              </div>
             </div>
           </td>
         </tr>
