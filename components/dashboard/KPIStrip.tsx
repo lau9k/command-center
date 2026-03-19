@@ -11,6 +11,16 @@ import {
 } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 
+const ACCENT = {
+  blue: "#3B82F6",
+  green: "#22C55E",
+  purple: "#8B5CF6",
+  cyan: "#06B6D4",
+  amber: "#F59E0B",
+  indigo: "#6366F1",
+  pink: "#EC4899",
+} as const;
+
 interface KPIStripProps {
   activeTasks: number;
   activeProjectCount: number;
@@ -81,24 +91,28 @@ export function KPIStrip({
         value={safeValue(activeTasks)}
         subtitle={safeSubtitle(activeProjectCount, "project")}
         icon={<CheckSquare className="size-5" />}
+        accentColor={ACCENT.blue}
       />
       <KpiCard
         label="Content Engine"
         value={safeValue(totalContentPosts)}
         subtitle={contentBreakdown}
         icon={<FileText className="size-5" />}
+        accentColor={ACCENT.purple}
       />
       <KpiCard
         label="Content This Week"
         value={safeValue(contentThisWeek)}
         subtitle="posts scheduled"
         icon={<Calendar className="size-5" />}
+        accentColor={ACCENT.cyan}
       />
       <KpiCard
         label="Contacts"
         value={safeValue(contactsCount)}
         subtitle={contactsCount > 0 ? "total tracked" : "none tracked yet"}
         icon={<Users className="size-5" />}
+        accentColor={ACCENT.indigo}
       />
       <KpiCard
         label="Pipeline Items"
@@ -109,6 +123,7 @@ export function KPIStrip({
             : "no deals yet"
         }
         icon={<Layers className="size-5" />}
+        accentColor={ACCENT.amber}
       />
       <KpiCard
         label="Sponsors"
@@ -125,6 +140,7 @@ export function KPIStrip({
         value={safeValue(communityMemberCount)}
         subtitle="Telegram members"
         icon={<MessageCircle className="size-5" />}
+        accentColor={ACCENT.cyan}
         delta={communityDelta != null && communityDelta !== 0 ? Math.abs(communityDelta) : undefined}
         deltaDirection={communityDelta != null && communityDelta !== 0 ? (communityDelta > 0 ? "up" : "down") : undefined}
       />
