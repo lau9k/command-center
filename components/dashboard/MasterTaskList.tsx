@@ -138,6 +138,7 @@ export function MasterTaskList({
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
+  const [filterType, setFilterType] = useState<string>(ALL_VALUE);
 
   const refreshTasks = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
@@ -279,40 +280,35 @@ export function MasterTaskList({
     setFormOpen(true);
   }
 
-  const visibleIds = tasks
-    .filter((t) => {
-      if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
-      if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
-      if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        if (!t.title.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    })
-    .map((t) => t.id);
-
-  const selection = useTaskSelection(visibleIds);
-
-  const filtered = tasks.filter((t) => {
-    if (filterProject !== ALL_VALUE && t.project_id !== filterProject)
-      return false;
-    if (filterPriority !== ALL_VALUE && t.priority !== filterPriority)
-      return false;
+  const applyFilters = (t: TaskWithProject) => {
+    if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
+    if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
     if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
+    if (filterType === "outreach") {
+      if (!t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
+    } else if (filterType === "cross-project") {
+      if (t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       if (!t.title.toLowerCase().includes(q)) return false;
     }
     return true;
-  });
+  };
+
+  const visibleIds = tasks.filter(applyFilters).map((t) => t.id);
+
+  const selection = useTaskSelection(visibleIds);
+
+  const filtered = tasks.filter(applyFilters);
 
   const sorted = sortTasks(filtered);
 
   const hasFilters =
     filterProject !== ALL_VALUE ||
     filterPriority !== ALL_VALUE ||
-    filterStatus !== ALL_VALUE;
+    filterStatus !== ALL_VALUE ||
+    filterType !== ALL_VALUE;
 
   return (
     <div className="space-y-4">
@@ -416,6 +412,17 @@ export function MasterTaskList({
           </SelectContent>
         </Select>
 
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger size="sm">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All Types</SelectItem>
+            <SelectItem value="outreach">Outreach</SelectItem>
+            <SelectItem value="cross-project">Cross-Project</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={filterPriority} onValueChange={setFilterPriority}>
           <SelectTrigger size="sm">
             <SelectValue placeholder="All Priorities" />
@@ -437,6 +444,7 @@ export function MasterTaskList({
               setFilterProject(ALL_VALUE);
               setFilterPriority(ALL_VALUE);
               setFilterStatus(ALL_VALUE);
+              setFilterType(ALL_VALUE);
             }}
           >
             Clear filters
@@ -457,7 +465,7 @@ export function MasterTaskList({
           icon={hasFilters ? <ListFilter /> : <CheckSquare />}
           title={hasFilters ? "No results match your filters" : "No tasks yet"}
           description={hasFilters ? "Try adjusting or clearing your filters to see tasks." : "Create your first task to start tracking work across projects."}
-          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
+          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); setFilterType(ALL_VALUE); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
         />
       ) : (
         <div className="space-y-2">
