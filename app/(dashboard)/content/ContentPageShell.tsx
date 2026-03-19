@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { Calendar, ClipboardCheck, LayoutGrid, Plus } from "lucide-react";
 import Link from "next/link";
-import { startOfWeek, endOfWeek } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { BufferCalendar } from "@/components/content/BufferCalendar";
@@ -64,11 +64,11 @@ export function ContentPageShell() {
 
   const fetchCalendarPosts = useCallback(async () => {
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 0 });
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
     const params = new URLSearchParams({
-      start: weekStart.toISOString(),
-      end: weekEnd.toISOString(),
+      start: monthStart.toISOString(),
+      end: monthEnd.toISOString(),
     });
     try {
       const res = await fetch(`/api/content/calendar?${params}`);

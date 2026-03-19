@@ -56,7 +56,7 @@ export function BufferCalendar({
   projects,
 }: BufferCalendarProps) {
   const [posts, setPosts] = React.useState<PostWithProject[]>(initialPosts);
-  const [viewMode, setViewMode] = React.useState<ViewMode>("week");
+  const [viewMode, setViewMode] = React.useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [selectedProjectId, setSelectedProjectId] = React.useState<
     string | null

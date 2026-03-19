@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  startOfMonth,
+  endOfMonth,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
@@ -21,21 +23,25 @@ interface ContentCalendarPreviewProps {
 
 export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
   const now = new Date();
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
 
-  // Filter to this week's posts
-  const weekPosts = posts.filter((post) => {
+  // Pad to full weeks for a proper calendar grid
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  // Filter to this month's posts
+  const monthPosts = posts.filter((post) => {
     const dateStr = post.scheduled_at ?? post.scheduled_for;
     if (!dateStr) return false;
     const d = parseISO(dateStr);
-    return d >= weekStart && d <= weekEnd;
+    return d >= monthStart && d <= monthEnd;
   });
 
   // Group posts by date
   const postsByDate = new Map<string, ContentPost[]>();
-  for (const post of weekPosts) {
+  for (const post of monthPosts) {
     const dateStr = post.scheduled_at ?? post.scheduled_for;
     if (!dateStr) continue;
     const dateKey = format(parseISO(dateStr), "yyyy-MM-dd");
@@ -44,9 +50,9 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
     postsByDate.set(dateKey, existing);
   }
 
-  const totalThisWeek = weekPosts.length;
+  const totalThisMonth = monthPosts.length;
 
-  if (totalThisWeek === 0) return null;
+  if (totalThisMonth === 0) return null;
 
   return (
     <section className="space-y-3">
@@ -64,33 +70,46 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
         {/* Header stats */}
         <div className="flex items-center gap-2 mb-3">
           <CalendarDays className="size-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">This Week</span>
+          <span className="text-sm font-semibold text-foreground">
+            {format(now, "MMMM yyyy")}
+          </span>
           <span className="text-xs text-muted-foreground">
-            {totalThisWeek} post{totalThisWeek !== 1 ? "s" : ""}
+            {totalThisMonth} post{totalThisMonth !== 1 ? "s" : ""}
           </span>
         </div>
 
-        {/* Week strip */}
-        <div className="grid grid-cols-7 gap-1">
+        {/* Day-of-week headers */}
+        <div className="grid grid-cols-7 gap-px mb-1">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div
+              key={d}
+              className="text-center text-[10px] font-medium uppercase text-muted-foreground"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Month grid */}
+        <div className="grid grid-cols-7 gap-px">
           {days.map((day) => {
             const dateKey = format(day, "yyyy-MM-dd");
             const dayPosts = postsByDate.get(dateKey) ?? [];
             const today = isToday(day);
+            const inMonth = day >= monthStart && day <= monthEnd;
 
             return (
               <div
                 key={dateKey}
                 className={cn(
-                  "flex flex-col items-center rounded-lg p-2 transition-colors",
-                  today && "bg-accent"
+                  "flex flex-col items-center rounded p-1 transition-colors",
+                  today && "bg-accent",
+                  !inMonth && "opacity-30"
                 )}
               >
-                <span className="text-[10px] font-medium uppercase text-muted-foreground">
-                  {format(day, "EEE")}
-                </span>
                 <span
                   className={cn(
-                    "flex size-7 items-center justify-center rounded-full text-xs font-medium",
+                    "flex size-6 items-center justify-center rounded-full text-[10px] font-medium",
                     today ? "bg-sidebar-primary text-white" : "text-foreground"
                   )}
                 >
@@ -98,8 +117,8 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
                 </span>
 
                 {/* Post dots */}
-                <div className="mt-1 flex flex-wrap justify-center gap-0.5">
-                  {dayPosts.slice(0, 4).map((post) => {
+                <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
+                  {dayPosts.slice(0, 3).map((post) => {
                     const platforms = post.platforms ?? [];
                     const primary = platforms[0] ?? post.platform;
                     const color = primary ? PLATFORM_COLORS[primary] ?? "#666" : "#666";
@@ -112,21 +131,15 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
                     );
                   })}
                 </div>
-
-                {dayPosts.length > 0 && (
-                  <span className="mt-0.5 text-[10px] text-muted-foreground">
-                    {dayPosts.length}
-                  </span>
-                )}
               </div>
             );
           })}
         </div>
 
-        {/* Post list for this week */}
-        {weekPosts.length > 0 && (
+        {/* Upcoming posts list */}
+        {monthPosts.length > 0 && (
           <div className="mt-3 border-t border-border pt-3 space-y-2">
-            {weekPosts.slice(0, 5).map((post) => {
+            {monthPosts.slice(0, 5).map((post) => {
               const dateStr = post.scheduled_at ?? post.scheduled_for;
               const platforms = post.platforms ?? [];
               const primary = platforms[0] ?? post.platform;
@@ -147,14 +160,14 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
                     </span>
                   </div>
                   <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                    {dateStr ? format(parseISO(dateStr), "EEE h:mma") : "No date"}
+                    {dateStr ? format(parseISO(dateStr), "MMM d, h:mma") : "No date"}
                   </span>
                 </div>
               );
             })}
-            {weekPosts.length > 5 && (
+            {monthPosts.length > 5 && (
               <p className="text-xs text-muted-foreground">
-                +{weekPosts.length - 5} more
+                +{monthPosts.length - 5} more
               </p>
             )}
           </div>
