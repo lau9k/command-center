@@ -1,3 +1,4 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
@@ -5,70 +6,101 @@ import { searchContacts } from "@/lib/personize/actions";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/export/ExportButton";
 import { ContactsSubNav } from "@/components/contacts/ContactsSubNav";
+import { getQueryClient } from "@/lib/query-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactsPage() {
-  let contacts: Contact[] = [];
-  let totalFromPersonize = 0;
+  const supabase = createServiceClient();
+  const queryClient = getQueryClient();
+
   let personizeAvailable = false;
 
-  // Try Personize first for live data
-  if (process.env.PERSONIZE_SECRET_KEY) {
-    try {
-      const result = await searchContacts(undefined, 1, 50, "priority_score");
-      contacts = result.contacts;
-      totalFromPersonize = result.total;
-      personizeAvailable = true;
-    } catch (error) {
-      console.error("[Contacts] Personize search failed:", error);
-      // Fall through to Supabase
-    }
-  }
+  // Prefetch contacts list into the query client
+  await queryClient.prefetchQuery({
+    queryKey: ["contacts", "list"],
+    queryFn: async () => {
+      // Try Personize first for live data
+      if (process.env.PERSONIZE_SECRET_KEY) {
+        try {
+          const result = await searchContacts(undefined, 1, 50, "priority_score");
+          personizeAvailable = true;
+          return { contacts: result.contacts, total: result.total, personizeAvailable: true };
+        } catch (error) {
+          console.error("[Contacts] Personize search failed:", error);
+          // Fall through to Supabase
+        }
+      }
 
-  // Supabase fallback + stats
-  const supabase = createServiceClient();
+      // Supabase fallback
+      const contactsRes = await supabase
+        .from("contacts")
+        .select("*")
+        .order("updated_at", { ascending: false });
 
-  if (!personizeAvailable) {
-    const contactsRes = await supabase
-      .from("contacts")
-      .select("*")
-      .order("updated_at", { ascending: false });
+      if (contactsRes.error) {
+        console.error("[Contacts] Supabase query error:", contactsRes.error.message);
+        return { contacts: [], total: 0, personizeAvailable: false };
+      }
 
-    if (contactsRes.error) {
-      console.error("[Contacts] Supabase query error:", contactsRes.error.message);
-    }
-    contacts = (contactsRes.data as Contact[]) ?? [];
-  }
+      const contacts = (contactsRes.data as Contact[]) ?? [];
+      return { contacts, total: contacts.length, personizeAvailable: false };
+    },
+  });
 
-  // Fetch tagged-this-week stat from Supabase (always useful)
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const taggedThisWeekRes = await supabase
-    .from("contacts")
-    .select("id", { count: "exact", head: true })
-    .gte("updated_at", oneWeekAgo.toISOString())
-    .not("tags", "eq", "{}");
+  // Prefetch KPI stats
+  await queryClient.prefetchQuery({
+    queryKey: ["contacts", "kpis"],
+    queryFn: async () => {
+      const contactsData = queryClient.getQueryData<{
+        contacts: Contact[];
+        total: number;
+        personizeAvailable: boolean;
+      }>(["contacts", "list"]);
 
-  if (taggedThisWeekRes.error) {
-    console.error("[Contacts] tagged-this-week query error:", taggedThisWeekRes.error.message);
-  }
+      const contacts = contactsData?.contacts ?? [];
+      const totalContacts = contactsData?.total ?? contacts.length;
 
-  const taggedThisWeek = taggedThisWeekRes.count ?? 0;
-  const totalContacts = personizeAvailable ? totalFromPersonize : contacts.length;
-  const withMemories = contacts.filter(
-    (c) => c.has_conversation === true || (c.email !== null && c.email !== "")
-  ).length;
-  const untagged = contacts.filter(
-    (c) => !c.tags || c.tags.length === 0
-  ).length;
+      // Fetch tagged-this-week stat from Supabase
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const taggedThisWeekRes = await supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .gte("updated_at", oneWeekAgo.toISOString())
+        .not("tags", "eq", "{}");
+
+      if (taggedThisWeekRes.error) {
+        console.error("[Contacts] tagged-this-week query error:", taggedThisWeekRes.error.message);
+      }
+
+      const taggedThisWeek = taggedThisWeekRes.count ?? 0;
+      const withMemories = contacts.filter(
+        (c) => c.has_conversation === true || (c.email !== null && c.email !== "")
+      ).length;
+      const untagged = contacts.filter(
+        (c) => !c.tags || c.tags.length === 0
+      ).length;
+
+      return { totalContacts, taggedThisWeek, withMemories, untagged };
+    },
+  });
+
+  // Read back data for the page header description
+  const contactsData = queryClient.getQueryData<{
+    contacts: Contact[];
+    total: number;
+    personizeAvailable: boolean;
+  }>(["contacts", "list"]);
+
+  const isPersonize = personizeAvailable || (contactsData?.personizeAvailable ?? false);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Contacts"
         description={
-          personizeAvailable
+          isPersonize
             ? "Live contacts from your LinkedIn network via Personize"
             : "Manage contacts with Personize memory integration"
         }
@@ -77,15 +109,9 @@ export default async function ContactsPage() {
 
       <ContactsSubNav />
 
-      <ContactsClient
-        initialContacts={contacts}
-        kpis={{
-          totalContacts,
-          taggedThisWeek,
-          withMemories,
-          untagged,
-        }}
-      />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ContactsClient />
+      </HydrationBoundary>
     </div>
   );
 }
