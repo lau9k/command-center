@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { KpiCard } from "@/components/ui";
+import { DebtPayoffProgress } from "@/components/finance/DebtProgressCard";
 import type { DebtWithProjections } from "@/lib/types/database";
 
 function formatCurrency(amount: number): string {
@@ -97,6 +98,9 @@ function DebtCard({ debt }: { debt: DebtWithProjections }) {
           />
         </div>
       </div>
+
+      {/* Payoff progress */}
+      <DebtPayoffProgress debt={debt} />
 
       {/* Details grid */}
       <div className="grid grid-cols-2 gap-3">
