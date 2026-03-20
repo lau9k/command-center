@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Plus,
@@ -41,18 +42,57 @@ interface Pagination {
   hasMore: boolean;
 }
 
-interface ContactsClientProps {
-  initialContacts: Contact[];
-  kpis: {
-    totalContacts: number;
-    taggedThisWeek: number;
-    withMemories: number;
-    untagged: number;
-  };
+interface ContactsListData {
+  contacts: Contact[];
+  total: number;
+  personizeAvailable: boolean;
 }
 
-export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
-  const [contacts, setContacts] = useState<Contact[]>(initialContacts);
+interface ContactsKpis {
+  totalContacts: number;
+  taggedThisWeek: number;
+  withMemories: number;
+  untagged: number;
+}
+
+export function ContactsClient() {
+  const queryClient = useQueryClient();
+
+  const { data: contactsData } = useQuery<ContactsListData>({
+    queryKey: ["contacts", "list"],
+    queryFn: async () => {
+      const res = await fetch("/api/contacts?page=1&pageSize=50");
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      const json = await res.json();
+      return {
+        contacts: (json.data as Contact[]) ?? [],
+        total: json.pagination?.total ?? json.data?.length ?? 0,
+        personizeAvailable: false,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: kpis } = useQuery<ContactsKpis>({
+    queryKey: ["contacts", "kpis"],
+    // KPIs are prefetched on the server; staleTime: Infinity prevents refetch
+    // until we add a dedicated client-side KPI endpoint.
+    staleTime: Infinity,
+  });
+
+  const initialContacts = contactsData?.contacts ?? [];
+  const kpiValues: ContactsKpis = kpis ?? {
+    totalContacts: 0,
+    taggedThisWeek: 0,
+    withMemories: 0,
+    untagged: 0,
+  };
+
+  // Local overrides: when search/pagination/mutations produce client-fetched data,
+  // we store it here. `null` means "use React Query data" (the prefetched/hydrated list).
+  const [localContacts, setLocalContacts] = useState<Contact[] | null>(null);
+  const contacts = localContacts ?? initialContacts;
+
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState<string>("all");
@@ -102,7 +142,7 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       const res = await fetch(`/api/contacts?${params}`);
       if (res.ok) {
         const json = await res.json();
-        setContacts(json.data ?? []);
+        setLocalContacts(json.data ?? []);
         if (json.pagination) {
           setPagination(json.pagination);
         }
@@ -127,7 +167,7 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(query.trim())}`);
       if (res.ok) {
         const json = await res.json();
-        setContacts(json.data ?? []);
+        setLocalContacts(json.data ?? []);
         setPagination(null);
       } else if (res.status === 503) {
         // Personize not configured, fall back to local filter
@@ -163,7 +203,9 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
 
   const refreshContacts = useCallback(async () => {
     await fetchContacts(currentPage, tagFilter);
-  }, [fetchContacts, currentPage, tagFilter]);
+    // Also invalidate the React Query cache so KPIs refresh on next visit
+    void queryClient.invalidateQueries({ queryKey: ["contacts"] });
+  }, [fetchContacts, currentPage, tagFilter, queryClient]);
 
   const handleCreateOrEdit = useCallback(
     async (data: ContactFormData, contactId?: string) => {
@@ -211,8 +253,8 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
 
   const handleContactUpdated = useCallback(
     (updated: Contact) => {
-      setContacts((prev) =>
-        prev.map((c) => (c.id === updated.id ? updated : c))
+      setLocalContacts((prev) =>
+        (prev ?? initialContacts).map((c) => (c.id === updated.id ? updated : c))
       );
       setSelectedContact(updated);
     },
@@ -221,7 +263,9 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
 
   const handleContactDeleted = useCallback(
     (id: string) => {
-      setContacts((prev) => prev.filter((c) => c.id !== id));
+      setLocalContacts((prev) =>
+        (prev ?? initialContacts).filter((c) => c.id !== id)
+      );
       setSelectedContact(null);
     },
     []
@@ -286,25 +330,25 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
           label="Total Contacts"
-          value={pagination?.total ?? kpis.totalContacts}
+          value={pagination?.total ?? kpiValues.totalContacts}
           subtitle="in network"
           icon={<Users className="size-5" />}
         />
         <KpiCard
           label="Tagged This Week"
-          value={kpis.taggedThisWeek}
+          value={kpiValues.taggedThisWeek}
           subtitle="recently tagged"
           icon={<Tag className="size-5" />}
         />
         <KpiCard
           label="With Memories"
-          value={kpis.withMemories}
+          value={kpiValues.withMemories}
           subtitle="have conversation history"
           icon={<Brain className="size-5" />}
         />
         <KpiCard
           label="Untagged"
-          value={kpis.untagged}
+          value={kpiValues.untagged}
           subtitle="need categorization"
           icon={<UserX className="size-5" />}
         />
@@ -369,7 +413,7 @@ export function ContactsClient({ initialContacts, kpis }: ContactsClientProps) {
       {pagination && !isSemanticSearch && (
         <div className="flex items-center justify-between border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * (pagination.pageSize)) + 1}\u2013
+            Showing {((currentPage - 1) * (pagination.pageSize)) + 1}&ndash;
             {Math.min(currentPage * pagination.pageSize, pagination.total)} of{" "}
             {pagination.total} contacts
           </p>
