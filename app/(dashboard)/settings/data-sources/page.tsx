@@ -2,6 +2,7 @@ import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
 import { PlaidConnect } from "@/components/settings/plaid-connect";
 import { GmailConnect } from "@/components/settings/gmail-connect";
+import { IntegrationHealthGrid } from "@/components/settings/IntegrationCard";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Suspense } from "react";
@@ -23,6 +24,17 @@ export default function DataSourcesPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Monitor the health and sync status of your connected data sources
         </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">
+            Integration Health
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Connection status and health of all integrations
+          </p>
+        </div>
+        <IntegrationHealthGrid />
       </div>
       <div className="rounded-lg border border-border bg-card p-6 space-y-6">
         <div>
