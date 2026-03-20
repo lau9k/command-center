@@ -1,4 +1,5 @@
-import { AIFocusPanelLive } from "@/components/home/ai-focus-panel";
+import { TodaysFocusWidget } from "@/components/home/TodaysFocusWidget";
+import type { FocusTask, StaleContact } from "@/components/home/TodaysFocusWidget";
 import { DailyBriefingWidget } from "@/components/home/daily-briefing";
 import { MemoryHealthWidget } from "@/components/home/memory-health-widget";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
@@ -19,11 +20,84 @@ import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
 
 import { getHomeStats } from "@/app/api/home-stats/route";
+import { createServiceClient } from "@/lib/supabase/service";
+import type { TaskPriority } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
 
+async function getTodaysFocusData() {
+  const supabase = createServiceClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+
+  const [overdueRes, dueTodayRes, staleRes] = await Promise.all([
+    // Overdue: due_date < today AND status != done
+    supabase
+      .from("tasks")
+      .select("id, title, priority, due_date, projects(name, color)")
+      .lt("due_date", today)
+      .neq("status", "done")
+      .order("due_date", { ascending: true })
+      .limit(5),
+
+    // Due today: due_date = today AND status != done
+    supabase
+      .from("tasks")
+      .select("id, title, priority, due_date, projects(name, color)")
+      .eq("due_date", today)
+      .neq("status", "done")
+      .order("priority", { ascending: true })
+      .limit(5),
+
+    // Stale contacts: last_contact_date <= 7 days ago, tagged Personize or Hackathon
+    supabase
+      .from("contacts")
+      .select("id, name, company, last_contact_date, tags")
+      .lte("last_contact_date", sevenDaysAgo)
+      .overlaps("tags", ["Personize", "Hackathon"])
+      .order("last_contact_date", { ascending: true })
+      .limit(5),
+  ]);
+
+  const mapTask = (row: Record<string, unknown>): FocusTask => {
+    const proj = row.projects as { name: string; color: string | null } | null;
+    return {
+      id: row.id as string,
+      title: row.title as string,
+      priority: row.priority as TaskPriority,
+      due_date: (row.due_date as string) ?? null,
+      project_name: proj?.name ?? null,
+      project_color: proj?.color ?? null,
+    };
+  };
+
+  const overdueTasks: FocusTask[] = (overdueRes.data ?? []).map(mapTask);
+  const dueTodayTasks: FocusTask[] = (dueTodayRes.data ?? []).map(mapTask);
+
+  const staleContacts: StaleContact[] = (staleRes.data ?? []).map((row) => {
+    const lastDate = row.last_contact_date as string | null;
+    const daysSince = lastDate
+      ? Math.floor((Date.now() - new Date(lastDate).getTime()) / 86_400_000)
+      : 999;
+    const tags = (row.tags as string[]) ?? [];
+    const tag = tags.includes("Personize") ? "Personize" : tags.includes("Hackathon") ? "Hackathon" : tags[0] ?? "";
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      company: (row.company as string) ?? null,
+      days_since_contact: daysSince,
+      tag,
+    };
+  });
+
+  return { overdueTasks, dueTodayTasks, staleContacts };
+}
+
 export default async function DashboardPage() {
-  const stats = await getHomeStats();
+  const [stats, focusData] = await Promise.all([
+    getHomeStats(),
+    getTodaysFocusData(),
+  ]);
 
   return (
     <div className="min-w-0 space-y-6 overflow-x-hidden">
@@ -35,9 +109,13 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* 1. AI Focus Panel + Daily Briefing */}
+      {/* 1. Today's Focus + Session Prompt */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <AIFocusPanelLive />
+        <TodaysFocusWidget
+          overdueTasks={focusData.overdueTasks}
+          dueTodayTasks={focusData.dueTodayTasks}
+          staleContacts={focusData.staleContacts}
+        />
         <SessionPromptButton />
       </div>
 
