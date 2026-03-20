@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Clock, FileText, Pencil, Trash2 } from "lucide-react";
 import { StatusBadge, PlatformBadge, EmptyState, Drawer } from "@/components/ui";
 import type { PlatformType, StatusType } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ContentForm } from "@/components/dashboard/ContentForm";
 import { sanitizeText } from "@/lib/sanitize";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
+import { BulkActionBar } from "@/components/content/BulkActionBar";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
 import { colors } from "@/lib/design-tokens";
 
@@ -45,6 +47,7 @@ interface ContentBoardProps {
 export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps) {
   const [posts, setPosts] = useState<ContentPost[]>(initialPosts);
   const [drawerPost, setDrawerPost] = useState<ContentPost | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Edit form state
   const [formOpen, setFormOpen] = useState(false);
@@ -53,6 +56,31 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<ContentPost | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const allSelected = useMemo(
+    () => posts.length > 0 && posts.every((p) => selectedIds.has(p.id)),
+    [posts, selectedIds]
+  );
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(posts.map((p) => p.id)));
+    }
+  }, [allSelected, posts]);
 
   const columnPosts = (status: ContentPostStatus) =>
     posts.filter((p) => p.status === status);
@@ -201,6 +229,20 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Select All header */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          checked={allSelected}
+          onCheckedChange={toggleSelectAll}
+          aria-label="Select all posts"
+        />
+        <span className="text-sm text-muted-foreground">
+          {selectedIds.size > 0
+            ? `${selectedIds.size} of ${posts.length} selected`
+            : "Select all"}
+        </span>
+      </div>
+
       {/* Kanban board */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {COLUMNS.map((column) => {
@@ -230,16 +272,24 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                     platform && VALID_PLATFORMS.has(platform);
                   const scheduledDate =
                     post.scheduled_at ?? post.scheduled_for;
+                  const isSelected = selectedIds.has(post.id);
 
                   return (
                     <div
                       key={post.id}
-                      className="group rounded-lg border border-border bg-card p-3 transition-all duration-150 hover:border-ring hover:shadow-sm"
+                      className={`group rounded-lg border bg-card p-3 transition-all duration-150 hover:border-ring hover:shadow-sm ${isSelected ? "border-primary bg-primary/5" : "border-border"}`}
                     >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(post.id)}
+                          className="mt-0.5"
+                          aria-label={`Select ${post.title ?? "post"}`}
+                        />
                       <button
                         type="button"
                         onClick={() => setDrawerPost(post)}
-                        className="w-full text-left"
+                        className="flex-1 min-w-0 text-left"
                       >
                         {/* Title */}
                         <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
@@ -267,6 +317,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                           </div>
                         )}
                       </button>
+                      </div>
 
                       {/* Action icons */}
                       <div className="mt-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -505,6 +556,15 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
         description={`Are you sure you want to delete "${deleteTarget?.title ?? "this post"}"? This cannot be undone.`}
         onConfirm={handleDelete}
         loading={deleting}
+      />
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedIds={selectedIds}
+        posts={posts}
+        totalCount={posts.length}
+        onClear={() => setSelectedIds(new Set())}
+        onBulkUpdate={refreshPosts}
       />
     </div>
   );
