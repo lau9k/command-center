@@ -12,6 +12,7 @@ import {
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { cn } from "@/lib/utils";
 import { KpiCard } from "@/components/ui/kpi-card";
+import { PeriodComparison } from "@/components/analytics/PeriodComparison";
 import type { AnalyticsSummaryResponse } from "@/app/api/analytics/summary/route";
 
 type Period = "7d" | "30d" | "90d";
@@ -21,6 +22,51 @@ const PERIOD_LABELS: Record<Period, string> = {
   "30d": "30 Days",
   "90d": "90 Days",
 };
+
+const PERIOD_DAYS: Record<Period, number> = { "7d": 7, "30d": 30, "90d": 90 };
+
+/** Map selected period → wider period to fetch for comparison data */
+const EXTENDED_PERIOD: Record<Period, Period> = {
+  "7d": "30d",
+  "30d": "90d",
+  "90d": "90d",
+};
+
+interface PeriodDeltas {
+  completedTasks: { current: number; previous: number };
+  contentPosts: { current: number; previous: number };
+}
+
+function splitTrendByDate<T extends { date?: string; week?: string }>(
+  data: T[],
+  periodDays: number
+): { current: T[]; previous: T[] } {
+  const now = new Date();
+  const periodStart = new Date(now);
+  periodStart.setDate(periodStart.getDate() - periodDays);
+  const prevStart = new Date(periodStart);
+  prevStart.setDate(prevStart.getDate() - periodDays);
+
+  const current: T[] = [];
+  const previous: T[] = [];
+
+  for (const point of data) {
+    const dateStr = point.date ?? point.week;
+    if (!dateStr) continue;
+    const d = new Date(dateStr + "T00:00:00");
+    if (d >= periodStart) {
+      current.push(point);
+    } else if (d >= prevStart) {
+      previous.push(point);
+    }
+  }
+
+  return { current, previous };
+}
+
+function sumCounts(items: { count: number }[]): number {
+  return items.reduce((sum, item) => sum + item.count, 0);
+}
 
 function formatCurrency(amount: number): string {
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
@@ -458,6 +504,7 @@ export default function AnalyticsDashboard({
   initial,
 }: AnalyticsDashboardProps) {
   const [data, setData] = useState<AnalyticsSummaryResponse | null>(initial);
+  const [deltas, setDeltas] = useState<PeriodDeltas | null>(null);
   const [loading, setLoading] = useState(!initial);
   const [period, setPeriod] = useState<Period>("30d");
 
@@ -466,10 +513,49 @@ export default function AnalyticsDashboard({
       // Skip fetching on initial load if we have server-provided data and period is default
       if (data === initial && p === "30d" && initial) return;
       setLoading(true);
-      fetch(`/api/analytics/summary?period=${p}`)
-        .then((res) => res.json())
-        .then((json: AnalyticsSummaryResponse) => setData(json))
-        .catch(() => setData(null))
+
+      const extendedPeriod = EXTENDED_PERIOD[p];
+      const periodDays = PERIOD_DAYS[p];
+
+      Promise.all([
+        fetch(`/api/analytics/summary?period=${p}`).then((res) => res.json()),
+        fetch(`/api/analytics/summary?period=${extendedPeriod}`).then((res) =>
+          res.json()
+        ),
+      ])
+        .then(
+          ([current, extended]: [
+            AnalyticsSummaryResponse,
+            AnalyticsSummaryResponse,
+          ]) => {
+            setData(current);
+
+            // Split extended trend data into current and previous period
+            const taskSplit = splitTrendByDate(
+              extended.taskCompletionTrend,
+              periodDays
+            );
+            const contentSplit = splitTrendByDate(
+              extended.contentCadence,
+              periodDays
+            );
+
+            setDeltas({
+              completedTasks: {
+                current: sumCounts(taskSplit.current),
+                previous: sumCounts(taskSplit.previous),
+              },
+              contentPosts: {
+                current: sumCounts(contentSplit.current),
+                previous: sumCounts(contentSplit.previous),
+              },
+            });
+          }
+        )
+        .catch(() => {
+          setData(null);
+          setDeltas(null);
+        })
         .finally(() => setLoading(false));
     },
     [data, initial]
@@ -537,6 +623,15 @@ export default function AnalyticsDashboard({
           subtitle={`${kpis.completedTasks} completed · ${kpis.overdueTasks} overdue`}
           icon={<CheckCircle2 className="size-5" />}
           accentColor="#22C55E"
+          sparkline={
+            deltas && (
+              <PeriodComparison
+                current={deltas.completedTasks.current}
+                previous={deltas.completedTasks.previous}
+                periodLabel={PERIOD_LABELS[period]}
+              />
+            )
+          }
         />
         <KpiCard
           label="Contacts"
@@ -562,6 +657,15 @@ export default function AnalyticsDashboard({
           )}
           icon={<FileText className="size-5" />}
           accentColor="#8B5CF6"
+          sparkline={
+            deltas && (
+              <PeriodComparison
+                current={deltas.contentPosts.current}
+                previous={deltas.contentPosts.previous}
+                periodLabel={PERIOD_LABELS[period]}
+              />
+            )
+          }
         />
         <KpiCard
           label="Net Worth"
