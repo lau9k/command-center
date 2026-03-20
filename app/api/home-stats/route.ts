@@ -1,8 +1,71 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { fetchCommunityMemberCount } from "@/lib/telegram/community";
+import { scoreTask } from "@/lib/task-scoring";
+import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
+import type { ScoringFactor } from "@/lib/task-scoring";
+
+// ---------- Sub-types used in the response ----------
+
+export interface OutreachStats {
+  queued: number;
+  sent: number;
+  replied: number;
+  no_response: number;
+  skipped: number;
+  total: number;
+}
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  taskCount: number;
+  upcomingTasks: { id: string; title: string; due_date: string | null }[];
+}
+
+export interface RankedTask extends TaskWithProject {
+  score: number;
+  factors: ScoringFactor[];
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  entity_name: string | null;
+  source: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface UpcomingMeeting {
+  id: string;
+  title: string;
+  meeting_date: string | null;
+}
+
+export interface OverdueTask {
+  id: string;
+  title: string;
+  due_date: string;
+  priority: string;
+}
+
+export interface ScheduledContentItem {
+  id: string;
+  title: string | null;
+  scheduled_for: string | null;
+  platform: string | null;
+}
+
+// ---------- Main response interface ----------
 
 export interface HomeStatsResponse {
+  // KPI numbers
   activeTasks: number;
   activeProjectCount: number;
   totalContentPosts: number;
@@ -23,6 +86,26 @@ export interface HomeStatsResponse {
   tasksCompletedToday: number;
   newContactsThisWeek: number;
   lastUpdated: string;
+
+  // Community
+  communityMemberCount: number;
+  communityDelta: number | null;
+
+  // Section data
+  pendingMeetings: Meeting[];
+  activityLog: ActivityLogEntry[];
+  rankedTasks: RankedTask[];
+  projectSummaries: ProjectSummary[];
+  allContent: ContentPost[];
+  outreachStats: OutreachStats;
+
+  // Upcoming items panel
+  overdueTasksList: OverdueTask[];
+  upcomingMeetings: UpcomingMeeting[];
+  scheduledContent: ScheduledContentItem[];
+
+  // Module health (raw counts used by ModuleHealthOverview)
+  totalTasksCount: number;
 }
 
 /** Safely query a table, returning a fallback on error (e.g. table doesn't exist). */
@@ -59,36 +142,70 @@ async function safeCount(
   }
 }
 
-export const GET = withErrorHandler(async function GET() {
+/** Fetch all aggregated home dashboard stats in a single batch. */
+export async function getHomeStats(): Promise<HomeStatsResponse> {
   const supabase = createServiceClient();
 
   const now = new Date();
   const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const [
     tasks,
-    contactsCount,
+    projects,
     allContent,
+    contactsCount,
     pipelineCount,
     pipelineValues,
     invoices,
     memoryStats,
     sponsorsAll,
     sponsorsConfirmedRes,
-    overdueTasks,
+    overdueTasksCount,
     tasksCompletedToday,
     newContactsThisWeek,
     conversationsCount,
+    communityMemberCount,
+    yesterdayStats,
+    pendingMeetings,
+    activityLog,
+    overdueTasksList,
+    upcomingMeetings,
+    scheduledContent,
+    outreachRows,
   ] = await Promise.all([
-    // Tasks (need status + project_id for active count + project count)
+    // Tasks with full details for ranking + project summaries
     safeQuery(
       () =>
         supabase
           .from("tasks")
-          .select("status, project_id"),
-      [] as { status: string; project_id: string | null }[],
+          .select("id, project_id, title, status, priority, due_date, updated_at, projects(id, name, slug, color, status)")
+          .order("updated_at", { ascending: false }),
+      [] as { id: string; project_id: string | null; title: string; status: string; priority: string; due_date: string | null; updated_at: string; projects: { id: string; name: string; slug: string; color: string | null; status: string }[] }[],
+    ),
+
+    // Active projects
+    safeQuery(
+      () =>
+        supabase
+          .from("projects")
+          .select("id, name, slug, status")
+          .eq("status", "active")
+          .order("name", { ascending: true }),
+      [] as { id: string; name: string; slug: string; status: string }[],
+    ),
+
+    // All content posts (full data for calendar preview)
+    safeQuery(
+      () =>
+        supabase
+          .from("content_posts")
+          .select("id, status, scheduled_at, scheduled_for, platforms, platform, project_id, title, caption")
+          .order("scheduled_at", { ascending: true, nullsFirst: false })
+          .returns<ContentPost[]>(),
+      [] as ContentPost[],
     ),
 
     // Contacts count
@@ -98,15 +215,6 @@ export const GET = withErrorHandler(async function GET() {
         .select("id", { count: "exact", head: true }),
     ),
 
-    // All content posts (need status + scheduled_for)
-    safeQuery(
-      () =>
-        supabase
-          .from("content_posts")
-          .select("status, scheduled_for"),
-      [] as { status: string; scheduled_for: string | null }[],
-    ),
-
     // Pipeline count
     safeCount(() =>
       supabase
@@ -114,8 +222,7 @@ export const GET = withErrorHandler(async function GET() {
         .select("id", { count: "exact", head: true }),
     ),
 
-    // Pipeline values: join pipeline_stages to exclude "lost" stage by slug,
-    // and read value from metadata->value since pipeline_items has no value column
+    // Pipeline values (exclude "lost" stage)
     safeQuery(
       () =>
         supabase
@@ -135,7 +242,7 @@ export const GET = withErrorHandler(async function GET() {
       [] as { amount: number | null; status: string }[],
     ),
 
-    // Memory stats — sum both legacy "count" and newer "record_count" columns
+    // Memory stats
     safeQuery(
       () => supabase.from("memory_stats").select("count, record_count"),
       [] as { count: number; record_count: number | null }[],
@@ -158,7 +265,7 @@ export const GET = withErrorHandler(async function GET() {
       [] as { amount: number | null }[],
     ),
 
-    // Overdue tasks (not done, due_date < today)
+    // Overdue tasks count
     safeCount(() =>
       supabase
         .from("tasks")
@@ -190,9 +297,95 @@ export const GET = withErrorHandler(async function GET() {
         .from("conversations")
         .select("id", { count: "exact", head: true }),
     ),
+
+    // Community member count (Telegram API)
+    fetchCommunityMemberCount(),
+
+    // Yesterday's community stats for delta calculation
+    safeQuery(
+      () =>
+        supabase
+          .from("community_stats")
+          .select("member_count")
+          .lt("fetched_at", yesterday)
+          .order("fetched_at", { ascending: false })
+          .limit(1)
+          .single(),
+      null as { member_count: number } | null,
+    ),
+
+    // Pending meetings
+    safeQuery(
+      () =>
+        supabase
+          .from("meetings")
+          .select("*")
+          .eq("status", "pending_review")
+          .order("meeting_date", { ascending: false }),
+      [] as Meeting[],
+    ),
+
+    // Activity log (last 15 entries)
+    safeQuery(
+      () =>
+        supabase
+          .from("activity_log")
+          .select("id, action, entity_type, entity_id, entity_name, source, metadata, created_at")
+          .order("created_at", { ascending: false })
+          .limit(15),
+      [] as ActivityLogEntry[],
+    ),
+
+    // Overdue tasks list (for upcoming items panel)
+    safeQuery(
+      () =>
+        supabase
+          .from("tasks")
+          .select("id, title, due_date, priority")
+          .neq("status", "done")
+          .lt("due_date", todayStart)
+          .order("due_date", { ascending: true })
+          .limit(5),
+      [] as OverdueTask[],
+    ),
+
+    // Upcoming meetings (next 3)
+    safeQuery(
+      () =>
+        supabase
+          .from("meetings")
+          .select("id, title, meeting_date")
+          .gte("meeting_date", now.toISOString())
+          .order("meeting_date", { ascending: true })
+          .limit(3),
+      [] as UpcomingMeeting[],
+    ),
+
+    // Scheduled content (next 3)
+    safeQuery(
+      () =>
+        supabase
+          .from("content_posts")
+          .select("id, title, scheduled_for, platform")
+          .eq("status", "scheduled")
+          .gte("scheduled_for", now.toISOString())
+          .order("scheduled_for", { ascending: true })
+          .limit(3),
+      [] as ScheduledContentItem[],
+    ),
+
+    // Outreach funnel stats
+    safeQuery(
+      () =>
+        supabase
+          .from("tasks")
+          .select("outreach_status")
+          .eq("task_type", "outreach"),
+      [] as { outreach_status: string | null }[],
+    ),
   ]);
 
-  // Compute KPIs
+  // --- KPI computations ---
   const activeTasks = tasks.filter((t) => t.status !== "done").length;
   const activeProjectIds = new Set(
     tasks.filter((t) => t.status !== "done").map((t) => t.project_id).filter(Boolean),
@@ -229,6 +422,67 @@ export const GET = withErrorHandler(async function GET() {
     0,
   );
 
+  // Community growth delta
+  const yesterdayMemberCount = yesterdayStats?.member_count ?? null;
+  const communityDelta =
+    yesterdayMemberCount !== null && yesterdayMemberCount > 0 && communityMemberCount > 0
+      ? Math.round(
+          ((communityMemberCount - yesterdayMemberCount) / yesterdayMemberCount) * 100,
+        )
+      : null;
+
+  // Outreach funnel stats
+  const outreachStats: OutreachStats = {
+    queued: 0,
+    sent: 0,
+    replied: 0,
+    no_response: 0,
+    skipped: 0,
+    total: outreachRows.length,
+  };
+  for (const row of outreachRows) {
+    const s = row.outreach_status as keyof OutreachStats;
+    if (s in outreachStats && s !== "total") {
+      outreachStats[s]++;
+    }
+  }
+
+  // --- Ranked tasks (priority engine) ---
+  const openTasks = (tasks as unknown as TaskWithProject[]).filter((t) => t.status !== "done");
+  const rankedTasks: RankedTask[] = openTasks
+    .map((task) => {
+      const { score, factors } = scoreTask(task, task.projects);
+      return { ...task, score, factors };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  // --- Project summary cards ---
+  const projectSummaries: ProjectSummary[] = projects.map((p) => {
+    const projectTasks = tasks.filter((t) => t.project_id === p.id);
+    const projectOpenTasks = projectTasks.filter((t) => t.status !== "done");
+    const upcoming = projectOpenTasks
+      .sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      })
+      .slice(0, 3);
+
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      status: p.status,
+      taskCount: projectOpenTasks.length,
+      upcomingTasks: upcoming.map((t) => ({
+        id: t.id,
+        title: t.title,
+        due_date: t.due_date,
+      })),
+    };
+  });
+
   const response: HomeStatsResponse = {
     activeTasks,
     activeProjectCount: activeProjectIds.size,
@@ -246,11 +500,32 @@ export const GET = withErrorHandler(async function GET() {
     sponsorsTotal: sponsorsAll,
     sponsorsConfirmed: sponsorsConfirmedRes.length,
     sponsorsConfirmedRevenue,
-    overdueTasks,
+    overdueTasks: overdueTasksCount,
     tasksCompletedToday,
     newContactsThisWeek,
     lastUpdated: new Date().toISOString(),
+
+    communityMemberCount,
+    communityDelta,
+
+    pendingMeetings,
+    activityLog,
+    rankedTasks,
+    projectSummaries,
+    allContent,
+    outreachStats,
+
+    overdueTasksList,
+    upcomingMeetings,
+    scheduledContent,
+
+    totalTasksCount: tasks.length,
   };
 
+  return response;
+}
+
+export const GET = withErrorHandler(async function GET() {
+  const response = await getHomeStats();
   return NextResponse.json({ data: response });
 });
