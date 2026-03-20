@@ -225,27 +225,10 @@ export default async function PipelineAnalyticsPage() {
         <h3 className="mb-4 text-sm font-semibold text-foreground">
           Conversion Funnel
         </h3>
-        <ConversionFunnel data={funnel} />
-        {/* Conversion rate labels */}
-        {funnel.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-3">
-            {funnel.map((stage) => (
-              <div
-                key={stage.stage_slug}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                <div
-                  className="size-2 rounded-full"
-                  style={{ backgroundColor: stage.color ?? "#3B82F6" }}
-                />
-                <span>{stage.stage_name}:</span>
-                <span className="font-medium text-foreground">
-                  {stage.conversion_rate}%
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        <ConversionFunnel
+          data={funnel}
+          totalValue={items.reduce((sum, i) => sum + parseDealValue(i.metadata), 0)}
+        />
       </div>
 
       {/* Stage Durations */}

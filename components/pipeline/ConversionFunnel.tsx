@@ -13,6 +13,27 @@ interface StageConversion {
 
 interface ConversionFunnelProps {
   data: StageConversion[];
+  totalValue: number;
+}
+
+function formatCurrency(amount: number): string {
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+/** Compute stage-to-stage conversion: (nextStageCount / currentStageCount) * 100 */
+function computeStageConversions(
+  data: StageConversion[]
+): { from: string; to: string; rate: number }[] {
+  const conversions: { from: string; to: string; rate: number }[] = [];
+  for (let i = 0; i < data.length - 1; i++) {
+    const current = data[i];
+    const next = data[i + 1];
+    const rate = current.count > 0 ? Math.round((next.count / current.count) * 100) : 0;
+    conversions.push({ from: current.stage_name, to: next.stage_name, rate });
+  }
+  return conversions;
 }
 
 const FunnelChart = dynamic(
@@ -29,51 +50,63 @@ const FunnelChart = dynamic(
         Cell,
       } = mod;
 
-      function formatCurrency(amount: number): string {
-        if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-        if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-        return `$${amount.toLocaleString()}`;
+      function CustomTooltip({ active, payload }: {
+        active?: boolean;
+        payload?: Array<{ payload: StageConversion }>;
+      }) {
+        if (!active || !payload?.[0]) return null;
+        const stage = payload[0].payload;
+        return (
+          <div
+            style={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "8px",
+              fontSize: "13px",
+              padding: "8px 12px",
+            }}
+          >
+            <p style={{ color: "hsl(var(--foreground))", fontWeight: 600, margin: 0 }}>
+              {stage.stage_name}
+            </p>
+            <p style={{ color: "hsl(var(--muted-foreground))", margin: "4px 0 0" }}>
+              {stage.count} deals · {formatCurrency(stage.value)}
+            </p>
+          </div>
+        );
       }
 
-      function Chart({ data }: ConversionFunnelProps) {
+      function Chart({ data }: { data: StageConversion[] }) {
         const defaultColor = "#3B82F6";
 
         return (
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={Math.max(200, data.length * 52)}>
             <BarChart
               data={data}
-              margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+              layout="vertical"
+              margin={{ top: 4, right: 40, left: 0, bottom: 0 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="hsl(var(--border))"
-                vertical={false}
+                horizontal={false}
               />
               <XAxis
-                dataKey="stage_name"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                axisLine={{ stroke: "hsl(var(--border))" }}
-                tickLine={false}
-              />
-              <YAxis
+                type="number"
                 tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                }}
-                labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                formatter={(value) => {
-                  const num = typeof value === "number" ? value : Number(value);
-                  return [num, "Deals"];
-                }}
+              <YAxis
+                type="category"
+                dataKey="stage_name"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                width={110}
               />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Deals">
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]} name="Deals" barSize={28}>
                 {data.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -89,10 +122,15 @@ const FunnelChart = dynamic(
 
       return { default: Chart };
     }),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[260px] animate-pulse rounded-lg bg-muted" />
+    ),
+  }
 );
 
-export function ConversionFunnel({ data }: ConversionFunnelProps) {
+export function ConversionFunnel({ data, totalValue }: ConversionFunnelProps) {
   if (data.length === 0) {
     return (
       <div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
@@ -101,5 +139,37 @@ export function ConversionFunnel({ data }: ConversionFunnelProps) {
     );
   }
 
-  return <FunnelChart data={data} />;
+  const conversions = computeStageConversions(data);
+
+  return (
+    <div className="space-y-4">
+      {/* Total pipeline value header */}
+      <div className="flex items-baseline gap-2">
+        <span className="text-2xl font-bold text-foreground">
+          {formatCurrency(totalValue)}
+        </span>
+        <span className="text-sm text-muted-foreground">total pipeline value</span>
+      </div>
+
+      {/* Horizontal bar chart */}
+      <FunnelChart data={data} />
+
+      {/* Stage-to-stage conversion labels */}
+      {conversions.length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {conversions.map((c) => (
+            <div
+              key={`${c.from}-${c.to}`}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
+              <span>{c.from}</span>
+              <span aria-hidden="true">→</span>
+              <span>{c.to}:</span>
+              <span className="font-semibold text-foreground">{c.rate}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
