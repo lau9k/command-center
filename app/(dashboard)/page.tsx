@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   const stats = await getHomeStats();
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 overflow-x-hidden">
       <DashboardRefreshListener />
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>

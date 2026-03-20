@@ -48,7 +48,7 @@ function KpiCard({
 
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[32px] font-bold leading-none tracking-tight text-foreground">
+          <span className="text-2xl font-bold leading-none tracking-tight text-foreground sm:text-[32px]">
             {value}
           </span>
           {delta !== undefined && deltaDirection && (

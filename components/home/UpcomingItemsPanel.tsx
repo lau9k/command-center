@@ -140,7 +140,7 @@ export function UpcomingItemsPanel({
               </div>
               <button
                 onClick={() => router.push("/tasks")}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="flex min-h-[44px] items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
               >
                 View all
                 <ArrowRight className="size-3" />
@@ -177,7 +177,7 @@ export function UpcomingItemsPanel({
               </div>
               <button
                 onClick={() => router.push("/content")}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                className="flex min-h-[44px] items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground sm:min-h-0"
               >
                 View all
                 <ArrowRight className="size-3" />

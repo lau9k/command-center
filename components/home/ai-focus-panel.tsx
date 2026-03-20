@@ -163,7 +163,7 @@ export function AIFocusPanelLive() {
                     e.stopPropagation();
                     handleDismiss(task.id);
                   }}
-                  className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                  className="flex size-11 shrink-0 items-center justify-center rounded text-muted-foreground opacity-100 transition-opacity hover:bg-muted hover:text-foreground sm:size-auto sm:p-1 sm:opacity-0 sm:group-hover:opacity-100"
                   aria-label={`Dismiss suggestion: ${task.title}`}
                 >
                   <X className="size-3.5" />
