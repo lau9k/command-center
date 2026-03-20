@@ -92,6 +92,11 @@ export const publishContentItemSchema = z.object({
   contentItemId: z.string().uuid(),
 });
 
+export const zernioPublishSchema = z.object({
+  content_post_id: z.string().uuid(),
+  platforms: z.array(z.string().min(1)).min(1, "Select at least one platform"),
+});
+
 // ── Transactions ──────────────────────────────────────────
 
 export const createTransactionSchema = z.object({

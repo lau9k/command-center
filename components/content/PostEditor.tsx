@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, Pencil, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -12,12 +12,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { PlatformPreview, PlatformCharacterCount } from "@/components/content/PlatformPreview";
 import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/types/database";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
 
 const ALL_PLATFORMS = ["twitter", "linkedin", "instagram", "tiktok", "telegram", "youtube"];
+const PUBLISH_PLATFORMS = ["twitter", "linkedin", "facebook", "reddit", "bluesky"];
 const ALL_STATUSES: ContentPostStatus[] = ["draft", "ready", "scheduled", "published"];
 
 const PREVIEW_PLATFORMS = ["twitter", "linkedin"] as const;
@@ -49,6 +59,48 @@ export function PostEditor({ post }: PostEditorProps) {
   );
   const [saving, setSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("edit");
+  const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
+  const [publishPlatforms, setPublishPlatforms] = React.useState<string[]>([]);
+  const [publishing, setPublishing] = React.useState(false);
+
+  const isPublished = status === "published";
+
+  function togglePublishPlatform(platform: string) {
+    setPublishPlatforms((prev) =>
+      prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
+    );
+  }
+
+  async function handlePublish() {
+    if (!post?.id || publishPlatforms.length === 0) return;
+
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/content/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_post_id: post.id,
+          platforms: publishPlatforms,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Failed to publish");
+      }
+
+      toast.success(`Published to ${publishPlatforms.length} platform${publishPlatforms.length > 1 ? "s" : ""}`);
+      setPublishDialogOpen(false);
+      setPublishPlatforms([]);
+      setStatus("published");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to publish");
+    } finally {
+      setPublishing(false);
+    }
+  }
 
   function togglePlatform(p: string) {
     setSelectedPlatforms((prev) =>
@@ -149,6 +201,23 @@ export function PostEditor({ post }: PostEditorProps) {
             {saving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
             {scheduledDate ? "Schedule" : "Mark Ready"}
           </Button>
+          {isEditing && (
+            <Button
+              size="sm"
+              variant={isPublished ? "outline" : "default"}
+              className={isPublished ? "" : "bg-emerald-600 text-white hover:bg-emerald-600/90"}
+              onClick={() => {
+                setPublishPlatforms(
+                  selectedPlatforms.filter((p) => PUBLISH_PLATFORMS.includes(p))
+                );
+                setPublishDialogOpen(true);
+              }}
+              disabled={saving || (!body.trim() && !title.trim())}
+            >
+              <Send className="mr-1.5 size-3.5" />
+              {isPublished ? "Republish" : "Publish"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -366,6 +435,64 @@ export function PostEditor({ post }: PostEditorProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Publish Platform Selector Dialog */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{isPublished ? "Republish Post" : "Publish Post"}</DialogTitle>
+            <DialogDescription>
+              Select which platforms to publish to via Zernio.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {PUBLISH_PLATFORMS.map((platform) => {
+              const checked = publishPlatforms.includes(platform);
+              return (
+                <label
+                  key={platform}
+                  className="flex cursor-pointer items-center gap-3 rounded-md border border-border px-3 py-2.5 transition-colors hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={() => togglePublishPlatform(platform)}
+                  />
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ backgroundColor: PLATFORM_COLORS[platform] }}
+                  />
+                  <span className="text-sm font-medium">
+                    {PLATFORM_LABELS[platform] ?? platform}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPublishDialogOpen(false)}
+              disabled={publishing}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-emerald-600 text-white hover:bg-emerald-600/90"
+              onClick={handlePublish}
+              disabled={publishing || publishPlatforms.length === 0}
+            >
+              {publishing && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
+              {publishing
+                ? "Publishing..."
+                : `Publish to ${publishPlatforms.length} platform${publishPlatforms.length !== 1 ? "s" : ""}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
