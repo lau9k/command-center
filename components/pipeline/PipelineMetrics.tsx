@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { parseDealValue, formatCurrency } from "./DealCard";
 import type { PipelineItemData } from "./DealCard";
 import type { PipelineStage } from "./StageColumn";
 
 interface PipelineMetricsProps {
-  stages: PipelineStage[];
-  items: PipelineItemData[];
+  stages?: PipelineStage[];
+  items?: PipelineItemData[];
 }
 
 interface StageMetric {
@@ -19,7 +20,18 @@ interface StageMetric {
   totalValue: number;
 }
 
-export function PipelineMetrics({ stages, items }: PipelineMetricsProps) {
+export function PipelineMetrics({ stages: stagesProp, items: itemsProp }: PipelineMetricsProps = {}) {
+  const { data: queryStages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ["pipeline", "stages"],
+    enabled: !stagesProp,
+  });
+  const { data: queryItems = [] } = useQuery<PipelineItemData[]>({
+    queryKey: ["pipeline", "items"],
+    enabled: !itemsProp,
+  });
+
+  const stages = stagesProp ?? queryStages;
+  const items = itemsProp ?? queryItems;
   const sortedStages = useMemo(
     () => [...stages].sort((a, b) => a.sort_order - b.sort_order),
     [stages],

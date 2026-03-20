@@ -6,6 +6,7 @@ import {
   DragDropContext,
   type DropResult,
 } from "@hello-pangea/dnd";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   DollarSign,
@@ -27,8 +28,8 @@ import type { PipelineItemData } from "./DealCard";
 import type { PipelineStage } from "./StageColumn";
 
 interface PipelineBoardProps {
-  stages: PipelineStage[];
-  items: PipelineItemData[];
+  stages?: PipelineStage[];
+  items?: PipelineItemData[];
   projectId?: string;
 }
 
@@ -164,8 +165,24 @@ function DrawerContent({
   );
 }
 
-export function PipelineBoard({ stages, items: initialItems, projectId }: PipelineBoardProps) {
-  const [items, setItems] = useState<PipelineItemData[]>(initialItems);
+export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId }: PipelineBoardProps) {
+  const { data: queryStages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ["pipeline", "stages"],
+    enabled: !stagesProp,
+  });
+  const { data: queryItems = [] } = useQuery<PipelineItemData[]>({
+    queryKey: ["pipeline", "items"],
+    enabled: !itemsProp,
+  });
+
+  const stages = stagesProp ?? queryStages;
+  const resolvedItems = itemsProp ?? queryItems;
+  const [items, setItems] = useState<PipelineItemData[]>(resolvedItems);
+
+  // Sync local state when resolved data changes (e.g. on refetch)
+  React.useEffect(() => {
+    setItems(resolvedItems);
+  }, [resolvedItems]);
   const [selectedItem, setSelectedItem] = useState<PipelineItemData | null>(null);
   const [quickAddStageId, setQuickAddStageId] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
