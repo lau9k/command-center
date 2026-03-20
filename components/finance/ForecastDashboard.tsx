@@ -22,6 +22,41 @@ export function ForecastDashboard({
   const [selectedScenario, setSelectedScenario] = useState<string>("");
   const [compareScenario, setCompareScenario] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [hasResults, setHasResults] = useState(false);
+
+  // Load persisted results on mount
+  useEffect(() => {
+    async function loadPersistedResults() {
+      setLoading(true);
+      try {
+        // Try loading persisted results for all runs
+        const fetches = runs.map((run) =>
+          fetch(`/api/finance/forecast/results?forecast_run_id=${run.id}`)
+            .then((res) => (res.ok ? res.json() as Promise<ForecastResult> : null))
+            .catch(() => null)
+        );
+        const settled = await Promise.all(fetches);
+        const persisted = settled.filter((r): r is ForecastResult => r !== null);
+
+        if (persisted.length > 0) {
+          setResults(persisted);
+          setHasResults(true);
+          if (!selectedScenario) {
+            setSelectedScenario(persisted[0].runId);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (runs.length > 0) {
+      loadPersistedResults();
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const computeAll = useCallback(async () => {
     setLoading(true);
@@ -34,6 +69,7 @@ export function ForecastDashboard({
       if (res.ok) {
         const data: ForecastResult[] = await res.json();
         setResults(data);
+        setHasResults(data.length > 0);
         if (!selectedScenario && data.length > 0) {
           setSelectedScenario(data[0].runId);
         }
@@ -42,11 +78,6 @@ export function ForecastDashboard({
       setLoading(false);
     }
   }, [selectedScenario]);
-
-  useEffect(() => {
-    computeAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const activeResult = useMemo(
     () => results.find((r) => r.runId === selectedScenario),
@@ -95,6 +126,37 @@ export function ForecastDashboard({
     () => flows.filter((f) => f.direction === "outflow").map((f) => f.name),
     [flows]
   );
+
+  // Empty state: no results and not loading
+  if (!loading && !hasResults && results.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
+          <h3 className="text-lg font-semibold text-foreground">Run your first forecast</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Compute a cash forecast to see day-by-day projections with best and worst case scenarios.
+          </p>
+          <button
+            onClick={computeAll}
+            className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Run Forecast
+          </button>
+        </div>
+
+        <ForecastTable
+          flows={flows}
+          activeCount={activeFlows.length}
+          inactiveCount={inactiveFlows.length}
+          loading={false}
+          onToggleFlow={handleToggleFlow}
+          onDeleteFlow={handleDeleteFlow}
+          onAddFlow={handleAddFlow}
+          onRecompute={computeAll}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

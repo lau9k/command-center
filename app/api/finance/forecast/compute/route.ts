@@ -298,22 +298,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: runsErr.message }, { status: 500 });
   }
 
-  const results: ForecastResult[] = ((runs ?? []) as ForecastRun[]).map(
-    (run) => {
-      const timeSeries = computeForecast(run, (flows ?? []) as ScheduledFlow[]);
-      const minBalance = Math.min(...timeSeries.map((p) => p.base));
-      const cashZeroDay = timeSeries.find((p) => p.base <= 0);
+  const results: ForecastResult[] = [];
 
-      return {
-        runId: run.id,
-        runName: run.name,
-        timeSeries,
-        runway: cashZeroDay ? cashZeroDay.dayIndex : timeSeries.length,
-        minBalance: Math.round(minBalance * 100) / 100,
-        cashZeroDate: cashZeroDay?.date ?? null,
-      };
-    }
-  );
+  for (const run of (runs ?? []) as ForecastRun[]) {
+    const timeSeries = computeForecast(run, (flows ?? []) as ScheduledFlow[]);
+    const minBalance = Math.min(...timeSeries.map((p) => p.base));
+    const cashZeroDay = timeSeries.find((p) => p.base <= 0);
+
+    // Persist results: delete old, insert new
+    await supabase
+      .from("cash_forecasts")
+      .delete()
+      .eq("forecast_run_id", run.id);
+
+    const cacheRows = timeSeries.map((point) => ({
+      user_id: run.user_id,
+      forecast_run_id: run.id,
+      forecast_date: point.date,
+      day_index: point.dayIndex,
+      base_balance: point.base,
+      best_balance: point.best,
+      worst_balance: point.worst,
+      inflows: point.inflows,
+      outflows: point.outflows,
+      events: point.events,
+    }));
+
+    await supabase.from("cash_forecasts").insert(cacheRows);
+
+    results.push({
+      runId: run.id,
+      runName: run.name,
+      timeSeries,
+      runway: cashZeroDay ? cashZeroDay.dayIndex : timeSeries.length,
+      minBalance: Math.round(minBalance * 100) / 100,
+      cashZeroDate: cashZeroDay?.date ?? null,
+    });
+  }
 
   return NextResponse.json(results);
 }
