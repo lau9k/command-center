@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { PriorityBadge } from "./PriorityBadge";
 import { ProjectBadge } from "./ProjectBadge";
+import { ContactPopover } from "./ContactPopover";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 import { statusBadgeClass } from "@/lib/design-tokens";
@@ -117,6 +118,24 @@ export function TaskCard({
           {task.description && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               {task.description}
+            </p>
+          )}
+          {task.contacts && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {task.contact_id ? (
+                <ContactPopover contactId={task.contact_id}>
+                  <span className="hover:text-foreground hover:underline transition-colors">
+                    {task.contacts.name}
+                  </span>
+                </ContactPopover>
+              ) : (
+                <span>{task.contacts.name}</span>
+              )}
+              {task.contacts.company && (
+                <span className="text-muted-foreground/60">
+                  {" · "}{task.contacts.company}
+                </span>
+              )}
             </p>
           )}
         </div>
