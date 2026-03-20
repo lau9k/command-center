@@ -13,6 +13,7 @@ export const createContactSchema = z.object({
   score: z.number().int().min(0).max(100).optional().nullable(),
   source: z.string().max(200).optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
+  checked_in_at: z.string().datetime().optional().nullable(),
 });
 
 export const updateContactSchema = createContactSchema.partial();

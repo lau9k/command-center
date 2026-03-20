@@ -127,6 +127,7 @@ export interface Contact {
   notes: string | null;
   last_contact_date: string | null;
   merged_into_id: string | null;
+  checked_in_at?: string | null;
   created_at: string;
   updated_at: string;
   // Personize-specific fields (present when sourced from Personize SDK)
