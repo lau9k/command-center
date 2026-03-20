@@ -2,12 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { FinanceSkeleton } from "@/components/dashboard/LoadingSkeleton";
-import type {
-  Transaction,
-  Debt,
-  BalanceSnapshot,
-  ReimbursementRequest,
-} from "@/lib/types/database";
 
 const FinanceDashboard = dynamic(
   () =>
@@ -17,13 +11,6 @@ const FinanceDashboard = dynamic(
   { ssr: false, loading: () => <FinanceSkeleton /> }
 );
 
-interface Props {
-  transactions: Transaction[];
-  debts: Debt[];
-  snapshots: BalanceSnapshot[];
-  reimbursementRequests: ReimbursementRequest[];
-}
-
-export function FinanceDashboardLazy(props: Props) {
-  return <FinanceDashboard {...props} />;
+export function FinanceDashboardLazy() {
+  return <FinanceDashboard />;
 }

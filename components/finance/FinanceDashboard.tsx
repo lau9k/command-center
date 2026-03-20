@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TransactionDetailDrawer } from "@/components/finance/TransactionDetailDrawer";
 import { WalletViewSwitcher } from "./FinanceFilters";
 import { FinanceSummaryCards } from "./FinanceSummaryCards";
@@ -17,26 +18,30 @@ import type {
   ReimbursementRequest,
 } from "./types";
 
-interface FinanceDashboardProps {
-  transactions: Transaction[];
-  debts: Debt[];
-  snapshots: BalanceSnapshot[];
-  reimbursementRequests?: ReimbursementRequest[];
-}
+export function FinanceDashboard() {
+  const { data: transactions = [] } = useQuery<Transaction[]>({
+    queryKey: ["finance", "transactions"],
+  });
+  const { data: debts = [] } = useQuery<Debt[]>({
+    queryKey: ["finance", "debts"],
+  });
+  const { data: snapshots = [] } = useQuery<BalanceSnapshot[]>({
+    queryKey: ["finance", "snapshots"],
+  });
+  const { data: reimbursementRequests = [] } = useQuery<ReimbursementRequest[]>(
+    {
+      queryKey: ["finance", "reimbursements"],
+    }
+  );
 
-export function FinanceDashboard({
-  transactions,
-  debts,
-  snapshots,
-  reimbursementRequests = [],
-}: FinanceDashboardProps) {
   const [walletView, setWalletView] = useState<WalletView>("overview");
   const [filterValues, setFilterValues] = useState<FilterValues>({
     category: [],
     interval: [],
   });
   const [truePersonalSpend, setTruePersonalSpend] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleTransactionClick = useCallback((row: Transaction) => {
@@ -69,7 +74,7 @@ export function FinanceDashboard({
     reimbursementRequests,
     truePersonalSpend,
     walletView,
-    filterValues,
+    filterValues
   );
 
   return (

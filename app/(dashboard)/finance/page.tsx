@@ -1,9 +1,11 @@
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceEmptyState } from "./FinanceEmptyState";
 import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";
 import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
 import { PlaidSyncButton } from "@/components/finance/PlaidSyncButton";
 import { ImportCsvButton } from "@/components/finance/ImportCsvButton";
+import { getQueryClient } from "@/lib/query-client";
 import type {
   Transaction,
   Debt,
@@ -15,33 +17,74 @@ export const dynamic = "force-dynamic";
 
 export default async function FinancePage() {
   const supabase = createServiceClient();
+  const queryClient = getQueryClient();
 
-  const [transactionsRes, debtsRes, snapshotsRes, reimbursementRequestsRes] =
-    await Promise.all([
-      supabase
-        .from("transactions")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("debts")
-        .select("*")
-        .order("balance", { ascending: false }),
-      supabase
-        .from("balance_snapshots")
-        .select("*")
-        .order("snapshot_date", { ascending: false })
-        .limit(12),
-      supabase
-        .from("reimbursement_requests")
-        .select("*")
-        .order("created_at", { ascending: false }),
-    ]);
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["finance", "transactions"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("transactions")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.error("[Finance] transactions query error:", error.message);
+          return [];
+        }
+        return (data as Transaction[]) ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["finance", "debts"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("debts")
+          .select("*")
+          .order("balance", { ascending: false });
+        if (error) {
+          console.error("[Finance] debts query error:", error.message);
+          return [];
+        }
+        return (data as Debt[]) ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["finance", "snapshots"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("balance_snapshots")
+          .select("*")
+          .order("snapshot_date", { ascending: false })
+          .limit(12);
+        if (error) {
+          console.error("[Finance] snapshots query error:", error.message);
+          return [];
+        }
+        return (data as BalanceSnapshot[]) ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["finance", "reimbursements"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("reimbursement_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.error("[Finance] reimbursements query error:", error.message);
+          return [];
+        }
+        return (data as ReimbursementRequest[]) ?? [];
+      },
+    }),
+  ]);
 
-  const transactions = (transactionsRes.data as Transaction[]) ?? [];
-  const debts = (debtsRes.data as Debt[]) ?? [];
-  const snapshots = (snapshotsRes.data as BalanceSnapshot[]) ?? [];
-  const reimbursementRequests =
-    (reimbursementRequestsRes.data as ReimbursementRequest[]) ?? [];
+  const transactions =
+    queryClient.getQueryData<Transaction[]>(["finance", "transactions"]) ?? [];
+  const debts =
+    queryClient.getQueryData<Debt[]>(["finance", "debts"]) ?? [];
+  const snapshots =
+    queryClient.getQueryData<BalanceSnapshot[]>(["finance", "snapshots"]) ?? [];
 
   const hasData =
     transactions.length > 0 || debts.length > 0 || snapshots.length > 0;
@@ -63,16 +106,9 @@ export default async function FinancePage() {
 
       <ConnectedAccounts />
 
-      {hasData ? (
-        <FinanceDashboardLazy
-          transactions={transactions}
-          debts={debts}
-          snapshots={snapshots}
-          reimbursementRequests={reimbursementRequests}
-        />
-      ) : (
-        <FinanceEmptyState />
-      )}
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        {hasData ? <FinanceDashboardLazy /> : <FinanceEmptyState />}
+      </HydrationBoundary>
     </div>
   );
 }
