@@ -17,6 +17,7 @@ import { KPIStripLive } from "@/components/home/KPIStripLive";
 import { LiveActivityStream } from "@/components/home/LiveActivityStream";
 import { UpcomingItemsPanel } from "@/components/home/UpcomingItemsPanel";
 import { QuickActionsBar } from "@/components/home/QuickActionsBar";
+import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 
 import { scoreTask } from "@/lib/task-scoring";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
@@ -61,6 +62,7 @@ export default async function DashboardPage() {
     scheduledContentRes,
     overdueTasksCountRes,
     conversationsCountRes,
+    outreachStatsRes,
   ] = await Promise.all([
     serviceClient
       .from("tasks")
@@ -165,6 +167,11 @@ export default async function DashboardPage() {
     serviceClient
       .from("conversations")
       .select("id", { count: "exact", head: true }),
+    // Outreach funnel stats
+    serviceClient
+      .from("tasks")
+      .select("outreach_status")
+      .eq("task_type", "outreach"),
   ]);
 
   // Log query errors server-side for debugging KPI issues
@@ -189,6 +196,7 @@ export default async function DashboardPage() {
     { name: "scheduled_content", error: scheduledContentRes.error },
     { name: "overdue_tasks_count", error: overdueTasksCountRes.error },
     { name: "conversations_count", error: conversationsCountRes.error },
+    { name: "outreach_stats", error: outreachStatsRes.error },
   ];
 
   for (const q of queryResults) {
@@ -218,6 +226,23 @@ export default async function DashboardPage() {
     (sum: number, s: { amount: number | null }) => sum + Number(s.amount ?? 0),
     0,
   );
+
+  // Outreach funnel stats
+  const outreachRows = outreachStatsRes.data ?? [];
+  const outreachStats = {
+    queued: 0,
+    sent: 0,
+    replied: 0,
+    no_response: 0,
+    skipped: 0,
+    total: outreachRows.length,
+  };
+  for (const row of outreachRows) {
+    const s = row.outreach_status as keyof typeof outreachStats;
+    if (s in outreachStats && s !== "total") {
+      outreachStats[s]++;
+    }
+  }
 
   // Community growth delta
   const yesterdayMemberCount = yesterdayStatsRes.data?.member_count ?? null;
@@ -369,6 +394,9 @@ export default async function DashboardPage() {
         communityMemberCount={communityMemberCount}
         communityDelta={communityDelta}
       />
+
+      {/* 5b. Outreach Funnel */}
+      <OutreachFunnelCard stats={outreachStats} />
 
       {/* 6. Upcoming Items Panel */}
       <UpcomingItemsPanel
