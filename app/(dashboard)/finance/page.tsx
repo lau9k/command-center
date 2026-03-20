@@ -3,6 +3,7 @@ import { FinanceEmptyState } from "./FinanceEmptyState";
 import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";
 import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
 import { PlaidSyncButton } from "@/components/finance/PlaidSyncButton";
+import { ImportCsvButton } from "@/components/finance/ImportCsvButton";
 import type {
   Transaction,
   Debt,
@@ -54,7 +55,10 @@ export default async function FinancePage() {
             Track income, expenses, debts, and net worth
           </p>
         </div>
-        <PlaidSyncButton />
+        <div className="flex items-center gap-2">
+          <ImportCsvButton />
+          <PlaidSyncButton />
+        </div>
       </div>
 
       <ConnectedAccounts />
