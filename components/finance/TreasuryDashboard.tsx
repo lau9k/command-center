@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Coins,
   DollarSign,
   Lock,
+  RefreshCw,
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   PieChart,
   Pie,
@@ -262,6 +264,48 @@ interface TreasuryDashboardProps {
 export function TreasuryDashboard({ holdings, snapshots }: TreasuryDashboardProps) {
   const [prices, setPrices] = useState<Prices>({});
   const [walletFilter, setWalletFilter] = useState<string>("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const lastUpdated = useMemo(() => {
+    const timestamps = holdings
+      .map((h) => h.last_price_updated_at)
+      .filter((t): t is string => t !== null);
+    if (timestamps.length === 0) return null;
+    return new Date(
+      Math.max(...timestamps.map((t) => new Date(t).getTime()))
+    );
+  }, [holdings]);
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdated) return null;
+    const diffMs = Date.now() - lastUpdated.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return `${Math.floor(diffHrs / 24)}d ago`;
+  }, [lastUpdated]);
+
+  const handleRefreshPrices = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/finance/crypto-prices", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Request failed" }));
+        toast.error(body.error ?? "Failed to refresh prices");
+        return;
+      }
+      const data = await res.json();
+      toast.success(`Updated ${data.updated} price(s)`);
+      // Reload page to get fresh server data
+      window.location.reload();
+    } catch {
+      toast.error("Network error — could not reach price API");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/finance/treasury/price")
@@ -427,6 +471,25 @@ export function TreasuryDashboard({ holdings, snapshots }: TreasuryDashboardProp
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Refresh Prices */}
+      <div className="flex items-center justify-end gap-3">
+        {lastUpdatedLabel && (
+          <span className="text-xs text-muted-foreground">
+            Prices updated {lastUpdatedLabel}
+          </span>
+        )}
+        <button
+          onClick={handleRefreshPrices}
+          disabled={isRefreshing}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+        >
+          <RefreshCw
+            className={cn("size-3.5", isRefreshing && "animate-spin")}
+          />
+          {isRefreshing ? "Refreshing…" : "Refresh Prices"}
+        </button>
+      </div>
+
       {/* Net Worth Headline + Sparkline */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-5">
