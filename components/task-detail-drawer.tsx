@@ -34,6 +34,7 @@ import { ProjectBadge } from "@/components/dashboard/ProjectBadge";
 import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
 import { statusBadgeClass } from "@/lib/design-tokens";
+import { PersonizeContextPanel } from "@/components/dashboard/PersonizeContextPanel";
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "Todo",
@@ -395,6 +396,11 @@ export function TaskDetailDrawer({
                       </div>
                     </CardContent>
                   </Card>
+                )}
+
+                {/* Personize Context (outreach tasks with contact) */}
+                {isOutreach && task.contact_id && (
+                  <PersonizeContextPanel contactId={task.contact_id} />
                 )}
               </div>
 
