@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Calendar,
   Users,
@@ -10,6 +10,8 @@ import {
   Clock,
   XCircle,
   Filter,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
@@ -42,6 +44,10 @@ function formatDate(dateStr: string | null): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatDateShort(date: Date): string {
+  return date.toISOString().split("T")[0];
 }
 
 function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
@@ -86,6 +92,12 @@ function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
                 {attendees.length} attendee{attendees.length !== 1 ? "s" : ""}
               </span>
             )}
+            {actionItems.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <CheckCircle2 className="size-3" />
+                {actionItems.length} action item{actionItems.length !== 1 ? "s" : ""}
+              </span>
+            )}
             {meeting.actions.length > 0 && (
               <span>
                 {completedCount}/{meeting.actions.length} actions completed
@@ -101,7 +113,7 @@ function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
           {meeting.summary && (
             <div>
               <h4 className="mb-1 text-xs font-medium text-muted-foreground uppercase">Summary</h4>
-              <p className="text-sm text-foreground">{meeting.summary}</p>
+              <p className="text-sm text-foreground whitespace-pre-line">{meeting.summary}</p>
             </div>
           )}
 
@@ -188,47 +200,186 @@ function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
   );
 }
 
+// --- Loading skeleton ---
+
+function MeetingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="rounded-lg border border-border bg-card p-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="size-4 rounded bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-2/3 rounded bg-muted" />
+              <div className="h-3 w-1/3 rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- Main component ---
+
 interface MeetingsClientProps {
   meetings: MeetingWithActions[];
 }
 
-export function MeetingsClient({ meetings }: MeetingsClientProps) {
+export function MeetingsClient({ meetings: initialMeetings }: MeetingsClientProps) {
+  const [meetings, setMeetings] = useState(initialMeetings);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending_review" | "reviewed" | "dismissed">("all");
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ synced: number; actions_created: number } | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  const filtered = statusFilter === "all"
-    ? meetings
-    : meetings.filter((m) => m.status === statusFilter);
+  // Date range filter — default to last 30 days
+  const defaultFrom = new Date();
+  defaultFrom.setDate(defaultFrom.getDate() - 30);
+  const [dateFrom, setDateFrom] = useState(formatDateShort(defaultFrom));
+  const [dateTo, setDateTo] = useState(formatDateShort(new Date()));
+
+  const refreshMeetings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/meetings?pageSize=200");
+      if (res.ok) {
+        const json = await res.json();
+        setMeetings(json.data ?? []);
+      }
+    } catch {
+      // Silently fail on refresh — data stays stale
+    }
+  }, []);
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    setSyncError(null);
+
+    try {
+      const res = await fetch("/api/sync/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "granola" }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok && !json.synced) {
+        setSyncError(json.error ?? "Sync failed");
+        return;
+      }
+
+      setSyncResult({
+        synced: json.synced ?? 0,
+        actions_created: json.actions_created ?? 0,
+      });
+
+      // Refresh meetings list after sync
+      await refreshMeetings();
+    } catch {
+      setSyncError("Failed to connect to sync service");
+    } finally {
+      setSyncing(false);
+    }
+  }, [refreshMeetings]);
+
+  // Apply filters
+  const filtered = meetings.filter((m) => {
+    // Status filter
+    if (statusFilter !== "all" && m.status !== statusFilter) return false;
+
+    // Date range filter
+    if (m.meeting_date) {
+      const meetingDate = m.meeting_date.split("T")[0];
+      if (dateFrom && meetingDate < dateFrom) return false;
+      if (dateTo && meetingDate > dateTo) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-4">
-      {/* Filter buttons */}
-      <div className="flex items-center gap-2">
-        <Filter className="size-4 text-muted-foreground" />
-        {(["all", "pending_review", "reviewed", "dismissed"] as const).map((status) => (
-          <Button
-            key={status}
-            variant={statusFilter === status ? "default" : "outline"}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setStatusFilter(status)}
-          >
-            {status === "all" ? "All" : STATUS_CONFIG[status].label}
-          </Button>
-        ))}
+      {/* Sync bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-2"
+          onClick={handleSync}
+          disabled={syncing}
+        >
+          {syncing ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3.5" />
+          )}
+          {syncing ? "Syncing..." : "Sync from Granola"}
+        </Button>
+
+        {syncResult && (
+          <span className="text-xs text-[#22C55E]">
+            Synced {syncResult.synced} meeting{syncResult.synced !== 1 ? "s" : ""}, {syncResult.actions_created} action{syncResult.actions_created !== 1 ? "s" : ""} created
+          </span>
+        )}
+        {syncError && (
+          <span className="text-xs text-destructive">{syncError}</span>
+        )}
+      </div>
+
+      {/* Filters row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Status filter */}
+        <div className="flex items-center gap-2">
+          <Filter className="size-4 text-muted-foreground" />
+          {(["all", "pending_review", "reviewed", "dismissed"] as const).map((status) => (
+            <Button
+              key={status}
+              variant={statusFilter === status ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setStatusFilter(status)}
+            >
+              {status === "all" ? "All" : STATUS_CONFIG[status].label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Date range filter */}
+        <div className="flex items-center gap-2 ml-auto">
+          <label className="text-xs text-muted-foreground">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-7 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+          />
+          <label className="text-xs text-muted-foreground">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-7 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+          />
+        </div>
       </div>
 
       {/* Meeting list */}
-      {filtered.length === 0 && meetings.length === 0 ? (
+      {syncing ? (
+        <MeetingSkeleton />
+      ) : filtered.length === 0 && meetings.length === 0 ? (
         <SharedEmptyState
           icon={<Calendar className="size-12" />}
           title="No meetings yet"
-          description="Meetings will appear here when synced from Granola. Connect your account to get started."
+          description="Meetings will appear here when synced from Granola. Click the button above to pull your recent meetings."
+          action={{ label: "Sync from Granola", onClick: handleSync }}
         />
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center">
           <Calendar className="mx-auto size-8 text-muted-foreground" />
           <p className="mt-2 text-sm text-muted-foreground">
-            No {STATUS_CONFIG[statusFilter as keyof typeof STATUS_CONFIG]?.label.toLowerCase() ?? ""} meetings.
+            No meetings match the current filters.
           </p>
         </div>
       ) : (
