@@ -27,6 +27,9 @@ import {
   Linkedin,
   X,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  ThumbsDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PriorityBadge } from "@/components/dashboard/PriorityBadge";
@@ -73,6 +76,10 @@ interface TaskDetailDrawerProps {
   onClose: () => void;
   onUpdate: (task: TaskWithProject) => void;
   onDelete: (id: string) => void;
+  /** Ordered list of task IDs in the current filtered view */
+  taskIds?: string[];
+  /** Called when user navigates to a different task */
+  onNavigate?: (taskId: string) => void;
 }
 
 export function TaskDetailDrawer({
@@ -81,15 +88,42 @@ export function TaskDetailDrawer({
   onClose,
   onUpdate,
   onDelete,
+  taskIds = [],
+  onNavigate,
 }: TaskDetailDrawerProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [badTasking, setBadTasking] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const currentIndex = task ? taskIds.indexOf(task.id) : -1;
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < taskIds.length - 1;
+
+  const navigatePrev = useCallback(() => {
+    if (hasPrev && onNavigate) {
+      onNavigate(taskIds[currentIndex - 1]);
+    }
+  }, [hasPrev, onNavigate, taskIds, currentIndex]);
+
+  const navigateNext = useCallback(() => {
+    if (hasNext && onNavigate) {
+      onNavigate(taskIds[currentIndex + 1]);
+    }
+  }, [hasNext, onNavigate, taskIds, currentIndex]);
+
+  const advanceOrClose = useCallback(() => {
+    if (hasNext && onNavigate) {
+      onNavigate(taskIds[currentIndex + 1]);
+    } else {
+      onClose();
+    }
+  }, [hasNext, onNavigate, taskIds, currentIndex, onClose]);
 
   const handleMarkComplete = useCallback(async () => {
     if (!task) return;
@@ -104,12 +138,38 @@ export function TaskDetailDrawer({
       const { data } = await res.json();
       onUpdate(data);
       toast.success("Task completed");
+      advanceOrClose();
     } catch {
       toast.error("Failed to mark task complete");
     } finally {
       setCompleting(false);
     }
-  }, [task, onUpdate]);
+  }, [task, onUpdate, advanceOrClose]);
+
+  const handleBadTask = useCallback(async () => {
+    if (!task) return;
+    setBadTasking(true);
+    try {
+      const existingTags = task.tags ?? [];
+      const tags = existingTags.includes("bad_task")
+        ? existingTags
+        : [...existingTags, "bad_task"];
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" as TaskStatus, tags }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      const { data } = await res.json();
+      onUpdate(data);
+      toast.success("Marked as bad task");
+      advanceOrClose();
+    } catch {
+      toast.error("Failed to mark as bad task");
+    } finally {
+      setBadTasking(false);
+    }
+  }, [task, onUpdate, advanceOrClose]);
 
   const handleDelete = useCallback(async () => {
     if (!task) return;
@@ -226,104 +286,45 @@ export function TaskDetailDrawer({
                       {TASK_TYPE_LABELS[task.task_type] ?? task.task_type}
                     </Badge>
                   )}
+                  {taskIds.length > 1 && currentIndex >= 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {currentIndex + 1} / {taskIds.length}
+                    </span>
+                  )}
                 </SheetDescription>
               </div>
+
+              {/* Navigation arrows */}
+              {taskIds.length > 1 && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-10"
+                    onClick={navigatePrev}
+                    disabled={!hasPrev}
+                    aria-label="Previous task"
+                  >
+                    <ChevronLeft className="size-5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-10"
+                    onClick={navigateNext}
+                    disabled={!hasNext}
+                    aria-label="Next task"
+                  >
+                    <ChevronRight className="size-5" />
+                  </Button>
+                </div>
+              )}
             </div>
           </SheetHeader>
 
           <div className="space-y-6 px-4 pb-6">
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-2">
-              {!isDone && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={handleMarkComplete}
-                  disabled={completing}
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  {completing ? "Completing..." : "Mark Complete"}
-                </Button>
-              )}
-              {editing ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={handleSaveEdit}
-                    disabled={saving}
-                  >
-                    <Check className="size-3.5" />
-                    {saving ? "Saving..." : "Save"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={handleCancelEdit}
-                  >
-                    <X className="size-3.5" />
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={handleStartEdit}
-                >
-                  <Pencil className="size-3.5" />
-                  Edit
-                </Button>
-              )}
-              {task.external_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  asChild
-                >
-                  <a
-                    href={task.external_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="size-3.5" />
-                    Open Link
-                  </a>
-                </Button>
-              )}
-              {isOutreach && (
-                <>
-                  {task.contacts?.linkedin_url && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={handleOpenLinkedIn}
-                    >
-                      <Linkedin className="size-3.5" />
-                      Open LinkedIn
-                    </Button>
-                  )}
-                </>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="size-3.5" />
-                Delete
-              </Button>
-            </div>
-
-            {/* 2-column grid: Description left, Details right */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* 2-column grid: Content left, Actions + Details right */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_280px]">
               {/* Left column: Description + Contact */}
               <div className="space-y-6">
                 {/* Description */}
@@ -402,10 +403,7 @@ export function TaskDetailDrawer({
                 {isOutreach && task.contact_id && (
                   <PersonizeContextPanel contactId={task.contact_id} />
                 )}
-              </div>
 
-              {/* Right column: Details + Tags */}
-              <div className="space-y-6">
                 {/* Metadata */}
                 <Card>
                   <CardHeader>
@@ -463,6 +461,96 @@ export function TaskDetailDrawer({
                       </div>
                     </CardContent>
                   </Card>
+                )}
+              </div>
+
+              {/* Right column: Action buttons */}
+              <div className="space-y-3">
+                {editing ? (
+                  <>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleSaveEdit}
+                      disabled={saving}
+                    >
+                      <Check className="size-4" />
+                      {saving ? "Saving..." : "Save Changes"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={handleCancelEdit}
+                    >
+                      <X className="size-4" />
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {!isDone && (
+                      <Button
+                        className="w-full gap-2"
+                        onClick={handleMarkComplete}
+                        disabled={completing}
+                      >
+                        <CheckCircle2 className="size-4" />
+                        {completing ? "Completing..." : "Complete"}
+                      </Button>
+                    )}
+                    {!isDone && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                        onClick={handleBadTask}
+                        disabled={badTasking}
+                      >
+                        <ThumbsDown className="size-4" />
+                        {badTasking ? "Marking..." : "Bad Task"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={handleStartEdit}
+                    >
+                      <Pencil className="size-4" />
+                      Edit
+                    </Button>
+                    {task.external_url && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        asChild
+                      >
+                        <a
+                          href={task.external_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="size-4" />
+                          Open Link
+                        </a>
+                      </Button>
+                    )}
+                    {isOutreach && task.contacts?.linkedin_url && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleOpenLinkedIn}
+                      >
+                        <Linkedin className="size-4" />
+                        Open LinkedIn
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteOpen(true)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </Button>
+                  </>
                 )}
               </div>
             </div>

@@ -512,6 +512,11 @@ export function MasterTaskList({
           );
           setSelectedTask(null);
         }}
+        taskIds={sorted.map((t) => t.id)}
+        onNavigate={(taskId) => {
+          const target = tasks.find((t) => t.id === taskId);
+          if (target) setSelectedTask(target);
+        }}
       />
 
       <BulkActionBar
