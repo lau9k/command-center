@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TaskCard } from "./TaskCard";
-import { TaskQuickAdd } from "./TaskQuickAdd";
+
 import { TaskForm } from "./TaskForm";
 import type { TaskFormData } from "./TaskForm";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
@@ -93,7 +93,7 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 const ALL_VALUE = "__all__";
 
 const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = [
-  { label: "All", value: ALL_VALUE },
+  { label: "Active", value: ALL_VALUE },
   { label: "Todo", value: "todo" },
   { label: "In Progress", value: "in_progress" },
   { label: "Blocked", value: "blocked" },
@@ -125,7 +125,6 @@ export function MasterTaskList({
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithProject | null>(null);
-  const [quickAdding, setQuickAdding] = useState(false);
   const [search, setSearch] = useState("");
 
   // Delete modal state
@@ -247,34 +246,6 @@ export function MasterTaskList({
     [refreshTasks]
   );
 
-  const handleQuickAdd = useCallback(
-    async (title: string) => {
-      setQuickAdding(true);
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            status: "todo",
-            priority: "medium",
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to create task");
-        const { data } = await res.json();
-        queryClient.setQueryData<TaskWithProject[]>(["tasks", "list"], (old) =>
-          [data, ...(old ?? [])]
-        );
-        toast.success("Task created");
-      } catch {
-        toast.error("Failed to create task — try again");
-      } finally {
-        setQuickAdding(false);
-      }
-    },
-    [queryClient]
-  );
-
   function handleOpenCreate() {
     setEditingTask(null);
     setFormOpen(true);
@@ -283,6 +254,7 @@ export function MasterTaskList({
   const applyFilters = (t: TaskWithProject) => {
     if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
     if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
+    if (filterStatus === ALL_VALUE && t.status === "done") return false;
     if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
     if (filterType === "outreach") {
       if (!t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
@@ -313,18 +285,12 @@ export function MasterTaskList({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            Tasks
-            {isFetchingTasks && (
-              <RefreshCw className="ml-2 inline size-4 animate-spin text-muted-foreground" />
-            )}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {tasks.length} task{tasks.length !== 1 ? "s" : ""} across all
-            projects
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {tasks.length} task{tasks.length !== 1 ? "s" : ""} across all projects
+          {isFetchingTasks && (
+            <RefreshCw className="ml-2 inline size-4 animate-spin text-muted-foreground" />
+          )}
+        </p>
         <Button onClick={handleOpenCreate}>
           <Plus />
           Add Task
@@ -358,9 +324,6 @@ export function MasterTaskList({
           icon={<CheckCircle2 className="size-5" />}
         />
       </section>
-
-      {/* Quick-add bar */}
-      <TaskQuickAdd onAdd={handleQuickAdd} disabled={quickAdding} />
 
       {/* Status filter chips */}
       <div className="flex flex-wrap items-center gap-2">
