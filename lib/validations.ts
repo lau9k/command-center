@@ -452,6 +452,27 @@ export const createSavedViewSchema = z.object({
 
 export const updateSavedViewSchema = createSavedViewSchema.partial();
 
+// ── AI Context Cache ─────────────────────────────────────
+
+export const aiCacheGetSchema = z.object({
+  user_id: z.string().uuid(),
+  view_type: z.string().min(1).max(100),
+  scope_id: z.string().max(200).optional().nullable(),
+  model_mode: z.enum(["fast", "full"]),
+  input_hash: z.string().max(128).optional().nullable(),
+});
+
+export const aiCachePostSchema = z.object({
+  user_id: z.string().uuid(),
+  view_type: z.string().min(1).max(100),
+  scope_id: z.string().max(200).optional().nullable(),
+  model_mode: z.enum(["fast", "full"]),
+  input_hash: z.string().min(1).max(128),
+  content: z.record(z.string(), z.unknown()),
+  token_cost: z.number().int().min(0),
+  ttl_minutes: z.number().int().min(1).max(10080).optional(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
