@@ -124,6 +124,7 @@ export interface Contact {
   status: ContactStatus;
   tags: string[];
   score: number;
+  linkedin_url?: string | null;
   notes: string | null;
   last_contact_date: string | null;
   merged_into_id: string | null;
