@@ -13,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -89,6 +88,7 @@ export function TaskDetailDrawer({
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleMarkComplete = useCallback(async () => {
     if (!task) return;
@@ -167,7 +167,9 @@ export function TaskDetailDrawer({
   const handleCopyMessage = useCallback(() => {
     if (!task?.description) return;
     navigator.clipboard.writeText(task.description);
+    setCopied(true);
     toast.success("Message copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
   }, [task]);
 
   const handleOpenLinkedIn = useCallback(() => {
@@ -184,8 +186,8 @@ export function TaskDetailDrawer({
     <>
       <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
         <SheetContent
-          side="right"
-          className="w-full overflow-y-auto sm:max-w-lg"
+          side="bottom"
+          className="max-h-[80vh] overflow-y-auto rounded-t-xl"
         >
           <SheetHeader>
             <div className="flex items-start gap-3">
@@ -295,16 +297,6 @@ export function TaskDetailDrawer({
               )}
               {isOutreach && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={handleCopyMessage}
-                    disabled={!task.description}
-                  >
-                    <Copy className="size-3.5" />
-                    Copy Message
-                  </Button>
                   {task.contacts?.linkedin_url && (
                     <Button
                       variant="outline"
@@ -329,109 +321,145 @@ export function TaskDetailDrawer({
               </Button>
             </div>
 
-            {/* Description */}
-            {(task.description || editing) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Description</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {editing ? (
-                    <Textarea
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      rows={5}
-                      className="resize-y"
-                    />
+            {/* 2-column grid: Description left, Details right */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* Left column: Description + Contact */}
+              <div className="space-y-6">
+                {/* Description */}
+                {(task.description || editing) && (
+                  editing ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm">Description</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Textarea
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          rows={5}
+                          className="resize-y"
+                        />
+                      </CardContent>
+                    </Card>
+                  ) : isOutreach ? (
+                    <div>
+                      <div className="mb-2 text-sm font-semibold">Outreach Message</div>
+                      <div className="relative rounded-lg border bg-muted/50 dark:bg-zinc-900">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="absolute right-2 top-2"
+                          onClick={handleCopyMessage}
+                          aria-label={copied ? "Copied!" : "Copy message"}
+                        >
+                          {copied ? (
+                            <Check className="size-3.5 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <Copy className="size-3.5" />
+                          )}
+                        </Button>
+                        <pre className="whitespace-pre-wrap p-4 pr-10 font-mono text-sm text-foreground">
+                          {task.description}
+                        </pre>
+                      </div>
+                    </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                      {task.description}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm">Description</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                          {task.description}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
 
-            {/* Contact Info (outreach tasks) */}
-            {isOutreach && task.contacts && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="text-sm">
-                    <span className="font-medium">{task.contacts.name}</span>
-                    {task.contacts.company && (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        at {task.contacts.company}
-                      </span>
+                {/* Contact Info (outreach tasks) */}
+                {isOutreach && task.contacts && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Contact</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="text-sm">
+                        <span className="font-medium">{task.contacts.name}</span>
+                        {task.contacts.company && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            at {task.contacts.company}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Right column: Details + Tags */}
+              <div className="space-y-6">
+                {/* Metadata */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {task.due_date && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="text-muted-foreground">Due:</span>
+                        <span className="text-foreground">
+                          {format(new Date(task.due_date), "MMM d, yyyy")}
+                        </span>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-muted-foreground">Created:</span>
+                      <span className="text-foreground">
+                        {formatDate(task.created_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-muted-foreground">Updated:</span>
+                      <span className="text-foreground">
+                        {formatDate(task.updated_at)}
+                      </span>
+                    </div>
+                    {task.assignee && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Assignee:</span>
+                        <span className="text-foreground">{task.assignee}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-            {/* Metadata */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {task.due_date && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="text-muted-foreground">Due:</span>
-                    <span className="text-foreground">
-                      {format(new Date(task.due_date), "MMM d, yyyy")}
-                    </span>
-                  </div>
+                {/* Tags */}
+                {task.tags && task.tags.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-1.5 text-sm">
+                        <Tag className="size-3.5" />
+                        Tags
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1.5">
+                        {task.tags.map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-muted-foreground">Created:</span>
-                  <span className="text-foreground">
-                    {formatDate(task.created_at)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-muted-foreground">Updated:</span>
-                  <span className="text-foreground">
-                    {formatDate(task.updated_at)}
-                  </span>
-                </div>
-                {task.assignee && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Assignee:</span>
-                    <span className="text-foreground">{task.assignee}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Tags */}
-            {task.tags && task.tags.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-1.5 text-sm">
-                    <Tag className="size-3.5" />
-                    Tags
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-1.5">
-                    {task.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Separator />
+              </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
