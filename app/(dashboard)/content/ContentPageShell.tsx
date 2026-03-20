@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Calendar, ClipboardCheck, LayoutGrid, Plus } from "lucide-react";
 import Link from "next/link";
@@ -16,83 +17,61 @@ import { SeedContentButton } from "@/components/content/SeedButton";
 import type { ContentPost, Project } from "@/lib/types/database";
 
 type PostWithProject = ContentPost & {
-  projects?: { id: string; name: string; color: string | null } | null;
+  projects?: Pick<Project, "id" | "name" | "color"> | null;
 };
 
 type ViewMode = "calendar" | "board";
 
 export function ContentPageShell() {
   const [view, setView] = useState<ViewMode>("calendar");
-  const [posts, setPosts] = useState<ContentPost[]>([]);
-  const [calendarPosts, setCalendarPosts] = useState<PostWithProject[]>([]);
-  const [projects, setProjects] = useState<
-    Pick<Project, "id" | "name" | "color">[]
-  >([]);
-  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const fetchAllPosts = useCallback(async () => {
-    try {
+  const { data: posts = [] } = useQuery<PostWithProject[]>({
+    queryKey: ["content", "posts"],
+    queryFn: async () => {
       const res = await fetch("/api/content");
-      if (res.ok) {
-        const json = await res.json();
-        const data: PostWithProject[] = Array.isArray(json.data)
-          ? json.data
-          : [];
-        setPosts(data);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json.data) ? json.data : [];
+    },
+  });
 
-        // Extract unique projects from joined data
-        const projectMap = new Map<
-          string,
-          Pick<Project, "id" | "name" | "color">
-        >();
-        for (const post of data) {
-          if (post.projects) {
-            projectMap.set(post.projects.id, post.projects);
-          }
-        }
-        setProjects(
-          Array.from(projectMap.values()).sort((a, b) =>
-            a.name.localeCompare(b.name)
-          )
-        );
-      }
-    } catch {
-      // silent
-    }
-  }, []);
-
-  const fetchCalendarPosts = useCallback(async () => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
-    const params = new URLSearchParams({
-      start: monthStart.toISOString(),
-      end: monthEnd.toISOString(),
-    });
-    try {
+  const { data: calendarPosts = [] } = useQuery<PostWithProject[]>({
+    queryKey: ["content", "calendar"],
+    queryFn: async () => {
+      const now = new Date();
+      const params = new URLSearchParams({
+        start: startOfMonth(now).toISOString(),
+        end: endOfMonth(now).toISOString(),
+      });
       const res = await fetch(`/api/content/calendar?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCalendarPosts(Array.isArray(data) ? data : []);
-      }
-    } catch {
-      // silent
-    }
-  }, []);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+  });
 
-  useEffect(() => {
-    async function init() {
-      setLoading(true);
-      await Promise.all([fetchAllPosts(), fetchCalendarPosts()]);
-      setLoading(false);
-    }
-    init();
-  }, [fetchAllPosts, fetchCalendarPosts]);
+  const { data: projects = [] } = useQuery<Pick<Project, "id" | "name" | "color">[]>({
+    queryKey: ["projects", "list"],
+    queryFn: async () => {
+      // Derive from posts as fallback — matches original behavior
+      const projectMap = new Map<string, Pick<Project, "id" | "name" | "color">>();
+      for (const post of posts) {
+        if (post.projects) {
+          projectMap.set(post.projects.id, post.projects);
+        }
+      }
+      return Array.from(projectMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    },
+  });
 
   const refreshPosts = useCallback(async () => {
-    await Promise.all([fetchAllPosts(), fetchCalendarPosts()]);
-  }, [fetchAllPosts, fetchCalendarPosts]);
+    await queryClient.invalidateQueries({ queryKey: ["content"] });
+    await queryClient.invalidateQueries({ queryKey: ["projects", "list"] });
+  }, [queryClient]);
 
   const handleNewPost = useCallback(
     async (data: ContentFormData) => {
@@ -122,24 +101,6 @@ export function ContentPageShell() {
     },
     [refreshPosts]
   );
-
-  if (loading) {
-    return (
-      <div>
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-foreground">
-            Content Calendar
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Schedule and manage posts across all projects
-          </p>
-        </div>
-        <div className="flex items-center justify-center py-20">
-          <div className="size-6 animate-spin rounded-full border-2 border-border border-t-primary" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div>
