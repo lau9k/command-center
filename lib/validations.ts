@@ -36,6 +36,7 @@ export const createTaskSchema = z.object({
   outreach_status: z.enum(["queued", "sent", "replied", "no_response", "skipped"]).optional(),
   sent_at: z.string().datetime().optional().nullable(),
   response_notes: z.string().max(10000).optional().nullable(),
+  tags: z.array(z.string().max(100)).optional().nullable(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial();
