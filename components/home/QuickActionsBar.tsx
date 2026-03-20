@@ -58,7 +58,7 @@ export function QuickActionsBar() {
               variant="outline"
               onClick={() => handleClick(action)}
               disabled={loading === action.id}
-              className="gap-2"
+              className="min-h-[44px] gap-2"
             >
               <Icon className="size-4" />
               {action.label}

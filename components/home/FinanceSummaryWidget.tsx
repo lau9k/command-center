@@ -55,7 +55,7 @@ export function FinanceSummaryWidget() {
       <div className="animate-pulse rounded-xl border border-border bg-card p-6">
         <div className="h-4 w-32 rounded bg-muted" />
         <div className="mt-4 h-8 w-48 rounded bg-muted" />
-        <div className="mt-4 grid grid-cols-3 gap-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="h-12 rounded bg-muted" />
           <div className="h-12 rounded bg-muted" />
           <div className="h-12 rounded bg-muted" />
@@ -172,7 +172,7 @@ export function FinanceSummaryWidget() {
       </div>
 
       {/* Secondary metrics */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-lg bg-muted/50 px-3 py-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Wallet className="size-3.5" />

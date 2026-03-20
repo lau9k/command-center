@@ -142,19 +142,26 @@ export function LiveActivityStream({ initial }: LiveActivityStreamProps) {
               className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
             >
               <EntityIcon entityType={entry.entity_type} />
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {actionLabel(entry.action)}
-                </span>
-                <span className="truncate text-sm text-foreground">
-                  {entry.entity_name ?? `${entityTypeLabel(entry.entity_type)} record`}
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {actionLabel(entry.action)}
+                  </span>
+                  <span className="truncate text-sm text-foreground">
+                    {entry.entity_name ?? `${entityTypeLabel(entry.entity_type)} record`}
+                  </span>
+                </div>
                 {entry.source !== "manual" && (
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground sm:hidden">
                     via {entry.source}
                   </span>
                 )}
               </div>
+              {entry.source !== "manual" && (
+                <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
+                  via {entry.source}
+                </span>
+              )}
               <span className="shrink-0 text-xs text-muted-foreground">
                 {relativeTime(entry.created_at)}
               </span>

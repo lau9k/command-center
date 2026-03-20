@@ -217,7 +217,7 @@ export function KPIStripLive({
           <button
             type="button"
             onClick={fetchStats}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex size-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-auto sm:p-1"
             aria-label="Refresh metrics"
           >
             <RefreshCw className="size-4" />
@@ -232,7 +232,7 @@ export function KPIStripLive({
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Active Tasks"
           value={safeValue(stats.activeTasks)}
