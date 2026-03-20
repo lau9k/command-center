@@ -452,6 +452,26 @@ export const createSavedViewSchema = z.object({
 
 export const updateSavedViewSchema = createSavedViewSchema.partial();
 
+// ── AI Token Budget ──────────────────────────────────────
+
+const aiFeatureEnum = z.enum([
+  "daily_brief",
+  "task_priorities",
+  "contact_summary",
+  "pipeline_summary",
+  "suggestions",
+]);
+
+export const aiBudgetCheckSchema = z.object({
+  feature: aiFeatureEnum,
+  estimated_cost: z.number().int().min(0),
+});
+
+export const aiBudgetRecordSchema = z.object({
+  feature: aiFeatureEnum,
+  tokens_used: z.number().int().min(1),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
