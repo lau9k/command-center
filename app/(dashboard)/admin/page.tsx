@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { SeedRunner } from "@/components/admin/SeedRunner";
+import { CronMonitor } from "@/components/admin/cron-monitor";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -243,6 +244,15 @@ export default function AdminPage() {
           health.
         </p>
       </div>
+
+      {/* Cron Monitor */}
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Activity className="h-5 w-5" />
+          Cron Jobs
+        </h2>
+        <CronMonitor />
+      </section>
 
       {/* Seed Runner */}
       <section>
