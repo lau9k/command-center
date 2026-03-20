@@ -18,6 +18,7 @@ import { LiveActivityStream } from "@/components/home/LiveActivityStream";
 import { UpcomingItemsPanel } from "@/components/home/UpcomingItemsPanel";
 import { QuickActionsBar } from "@/components/home/QuickActionsBar";
 import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
+import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
 
 import { scoreTask } from "@/lib/task-scoring";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
@@ -395,8 +396,11 @@ export default async function DashboardPage() {
         communityDelta={communityDelta}
       />
 
-      {/* 5b. Outreach Funnel */}
-      <OutreachFunnelCard stats={outreachStats} />
+      {/* 5b. Outreach Funnel + Finance Summary */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <OutreachFunnelCard stats={outreachStats} />
+        <FinanceSummaryWidget />
+      </div>
 
       {/* 6. Upcoming Items Panel */}
       <UpcomingItemsPanel
