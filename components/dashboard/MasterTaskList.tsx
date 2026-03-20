@@ -30,6 +30,8 @@ import type { TaskFormData } from "./TaskForm";
 import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 import { TaskDetailDrawer } from "@/components/task-detail-drawer";
 import { BulkActionBar } from "@/components/tasks/BulkActionBar";
+import { TasksViewToggle } from "@/components/tasks/tasks-view-toggle";
+import { ExportButton } from "@/components/export/ExportButton";
 import { useTaskSelection } from "@/hooks/useTaskSelection";
 import type {
   TaskWithProject,
@@ -284,19 +286,6 @@ export function MasterTaskList({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {tasks.length} task{tasks.length !== 1 ? "s" : ""} across all projects
-          {isFetchingTasks && (
-            <RefreshCw className="ml-2 inline size-4 animate-spin text-muted-foreground" />
-          )}
-        </p>
-        <Button onClick={handleOpenCreate}>
-          <Plus />
-          Add Task
-        </Button>
-      </div>
-
       {/* KPI Strip */}
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
@@ -325,28 +314,41 @@ export function MasterTaskList({
         />
       </section>
 
-      {/* Status filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        {STATUS_CHIPS.map((chip) => (
-          <button
-            key={chip.value}
-            type="button"
-            onClick={() => setFilterStatus(chip.value)}
-            className={cn(
-              "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-              filterStatus === chip.value
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
-            )}
-          >
-            {chip.label}
-            {chip.value !== ALL_VALUE && (
-              <span className="ml-1.5 tabular-nums">
-                {tasks.filter((t) => t.status === chip.value).length}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* Status tabs + action buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {STATUS_CHIPS.map((chip) => (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => setFilterStatus(chip.value)}
+              className={cn(
+                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
+                filterStatus === chip.value
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+              )}
+            >
+              {chip.label}
+              {chip.value !== ALL_VALUE && (
+                <span className="ml-1.5 tabular-nums">
+                  {tasks.filter((t) => t.status === chip.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+          {isFetchingTasks && (
+            <RefreshCw className="size-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <TasksViewToggle />
+          <ExportButton table="tasks" />
+          <Button onClick={handleOpenCreate}>
+            <Plus />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -454,7 +456,7 @@ export function MasterTaskList({
                   aria-label={`Select "${task.title}"`}
                 />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 [&>div>span:first-child]:hidden">
                 <TaskCard
                   task={task}
                   onStatusChange={handleStatusChange}

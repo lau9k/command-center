@@ -3,9 +3,6 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { MasterTaskList } from "@/components/dashboard/MasterTaskList";
 import type { TaskWithProject } from "@/lib/types/database";
 import { seedTasksIfEmpty } from "@/lib/seed-tasks";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { ExportButton } from "@/components/export/ExportButton";
-import { TasksViewToggle } from "@/components/tasks/tasks-view-toggle";
 import { getQueryClient } from "@/lib/query-client";
 
 export const dynamic = "force-dynamic";
@@ -78,22 +75,15 @@ export default async function TasksPage() {
   }).length;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Tasks"
-        description="Manage tasks with priority engine"
-        actions={<><TasksViewToggle /><ExportButton table="tasks" /></>}
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <MasterTaskList
+        kpis={{
+          totalOpen,
+          dueThisWeek,
+          overdue,
+          completedThisWeek,
+        }}
       />
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <MasterTaskList
-          kpis={{
-            totalOpen,
-            dueThisWeek,
-            overdue,
-            completedThisWeek,
-          }}
-        />
-      </HydrationBoundary>
-    </div>
+    </HydrationBoundary>
   );
 }
