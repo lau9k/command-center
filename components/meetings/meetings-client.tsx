@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   Users,
@@ -222,12 +223,18 @@ function MeetingSkeleton() {
 
 // --- Main component ---
 
-interface MeetingsClientProps {
-  meetings: MeetingWithActions[];
-}
+export function MeetingsClient() {
+  const queryClient = useQueryClient();
+  const { data: meetings = [] } = useQuery<MeetingWithActions[]>({
+    queryKey: ["meetings", "list"],
+    queryFn: async () => {
+      const res = await fetch("/api/meetings?pageSize=200");
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.data ?? []) as MeetingWithActions[];
+    },
+  });
 
-export function MeetingsClient({ meetings: initialMeetings }: MeetingsClientProps) {
-  const [meetings, setMeetings] = useState(initialMeetings);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending_review" | "reviewed" | "dismissed">("all");
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; actions_created: number } | null>(null);
@@ -240,16 +247,8 @@ export function MeetingsClient({ meetings: initialMeetings }: MeetingsClientProp
   const [dateTo, setDateTo] = useState(formatDateShort(new Date()));
 
   const refreshMeetings = useCallback(async () => {
-    try {
-      const res = await fetch("/api/meetings?pageSize=200");
-      if (res.ok) {
-        const json = await res.json();
-        setMeetings(json.data ?? []);
-      }
-    } catch {
-      // Silently fail on refresh — data stays stale
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: ["meetings", "list"] });
+  }, [queryClient]);
 
   const handleSync = useCallback(async () => {
     setSyncing(true);

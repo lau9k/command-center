@@ -1,38 +1,70 @@
-import { headers } from "next/headers";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { createServiceClient } from "@/lib/supabase/service";
 import { MeetingsClient } from "@/components/meetings/meetings-client";
 import type { Meeting, MeetingAction } from "@/lib/types/database";
+import { getQueryClient } from "@/lib/query-client";
 
 export const dynamic = "force-dynamic";
 
 type MeetingWithActions = Meeting & { actions: MeetingAction[] };
 
-interface MeetingsApiResponse {
-  data: MeetingWithActions[];
-  pagination: { page: number; pageSize: number; total: number; hasMore: boolean };
-  error?: string;
-}
+export default async function MeetingsPage() {
+  const supabase = createServiceClient();
+  const queryClient = getQueryClient();
 
-async function fetchMeetingsFromApi(): Promise<MeetingsApiResponse> {
-  const headersList = await headers();
-  const host = headersList.get("host") ?? "localhost:3000";
-  const protocol = headersList.get("x-forwarded-proto") ?? "http";
+  // Prefetch meetings and actions into the query client
+  await queryClient.prefetchQuery({
+    queryKey: ["meetings", "list"],
+    queryFn: async () => {
+      const { data: meetings, error: meetingsError } = await supabase
+        .from("meetings")
+        .select("*")
+        .order("meeting_date", { ascending: false });
 
-  const res = await fetch(`${protocol}://${host}/api/meetings?pageSize=200`, {
-    cache: "no-store",
+      if (meetingsError) {
+        console.error("[Meetings] query error:", meetingsError.message);
+        return [];
+      }
+
+      const typedMeetings = (meetings ?? []) as Meeting[];
+
+      // Fetch actions for all meetings
+      const meetingIds = typedMeetings.map((m) => m.id);
+      let actions: MeetingAction[] = [];
+
+      if (meetingIds.length > 0) {
+        const { data: actionsData, error: actionsError } = await supabase
+          .from("meeting_actions")
+          .select("*")
+          .in("meeting_id", meetingIds)
+          .order("created_at", { ascending: true });
+
+        if (actionsError) {
+          console.error("[Meetings] actions query error:", actionsError.message);
+        } else {
+          actions = (actionsData ?? []) as MeetingAction[];
+        }
+      }
+
+      // Group actions by meeting_id
+      const actionsByMeeting = new Map<string, MeetingAction[]>();
+      for (const action of actions) {
+        const existing = actionsByMeeting.get(action.meeting_id) ?? [];
+        existing.push(action);
+        actionsByMeeting.set(action.meeting_id, existing);
+      }
+
+      return typedMeetings.map((m) => ({
+        ...m,
+        actions: actionsByMeeting.get(m.id) ?? [],
+      })) as MeetingWithActions[];
+    },
   });
 
-  if (!res.ok) {
-    console.error("[Meetings] API error:", res.status);
-    return { data: [], pagination: { page: 1, pageSize: 200, total: 0, hasMore: false } };
-  }
+  // Compute KPIs from prefetched data
+  const meetings =
+    queryClient.getQueryData<MeetingWithActions[]>(["meetings", "list"]) ?? [];
 
-  return res.json();
-}
-
-export default async function MeetingsPage() {
-  const { data: meetings } = await fetchMeetingsFromApi();
-
-  // KPI computations
   const totalMeetings = meetings.length;
   const pendingReview = meetings.filter((m) => m.status === "pending_review").length;
   const reviewed = meetings.filter((m) => m.status === "reviewed").length;
@@ -71,7 +103,9 @@ export default async function MeetingsPage() {
         </div>
       </div>
 
-      <MeetingsClient meetings={meetings} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <MeetingsClient />
+      </HydrationBoundary>
     </div>
   );
 }
