@@ -40,6 +40,7 @@ import type {
 } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useRealtimeQuery } from "@/lib/hooks";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -117,6 +118,9 @@ export function MasterTaskList({
     },
     staleTime: 30_000,
   });
+
+  // Subscribe to realtime changes on the tasks table
+  useRealtimeQuery("tasks", ["tasks", "list"]);
 
   const { data: projects = [] } = useQuery<ProjectOption[]>({
     queryKey: ["projects", "list"],
