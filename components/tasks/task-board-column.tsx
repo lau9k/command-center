@@ -4,6 +4,7 @@ import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import { TaskBoardCard } from "./task-board-card";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
+import type { GovernanceMap } from "@/lib/hooks/useGovernanceCheck";
 
 interface TaskBoardColumnProps {
   status: TaskStatus;
@@ -11,6 +12,7 @@ interface TaskBoardColumnProps {
   color: string;
   tasks: TaskWithProject[];
   onCardClick: (task: TaskWithProject) => void;
+  governanceMap?: GovernanceMap;
 }
 
 export function TaskBoardColumn({
@@ -19,6 +21,7 @@ export function TaskBoardColumn({
   color,
   tasks,
   onCardClick,
+  governanceMap,
 }: TaskBoardColumnProps) {
   return (
     <div className="flex min-w-[280px] flex-col" style={{ width: 300 }}>
@@ -62,6 +65,11 @@ export function TaskBoardColumn({
                       task={task}
                       onClick={onCardClick}
                       dragHandleProps={dragProvided.dragHandleProps}
+                      governanceStatus={
+                        task.task_type === "outreach" && task.contacts?.email
+                          ? governanceMap?.[task.contacts.email]?.status
+                          : undefined
+                      }
                     />
                   </div>
                 )}

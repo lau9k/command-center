@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { Contact } from "@/lib/types/database";
+import type { ScoreBreakdown } from "@/lib/personize/relationship-score";
 import { ContactsTable } from "@/components/dashboard/ContactsTable";
 import { ContactDetailPanel } from "@/components/contacts/ContactDetailPanel";
 import { ContactForm } from "@/components/dashboard/ContactForm";
@@ -55,6 +56,20 @@ interface ContactsKpis {
   untagged: number;
 }
 
+interface ScoredContactEntry {
+  email: string | null;
+  name: string;
+  company: string | null;
+  record_id: string;
+  score: number;
+  breakdown: ScoreBreakdown;
+}
+
+type ContactWithScore = Contact & {
+  relationship_score?: number;
+  score_breakdown?: ScoreBreakdown;
+};
+
 export function ContactsClient() {
   const queryClient = useQueryClient();
 
@@ -75,9 +90,18 @@ export function ContactsClient() {
 
   const { data: kpis } = useQuery<ContactsKpis>({
     queryKey: ["contacts", "kpis"],
-    // KPIs are prefetched on the server; staleTime: Infinity prevents refetch
-    // until we add a dedicated client-side KPI endpoint.
     staleTime: Infinity,
+  });
+
+  // Fetch relationship scores
+  const { data: scoresData } = useQuery<{ contacts: ScoredContactEntry[] }>({
+    queryKey: ["contacts", "scores"],
+    queryFn: async () => {
+      const res = await fetch("/api/contacts/scores");
+      if (!res.ok) return { contacts: [] };
+      return res.json();
+    },
+    staleTime: 120_000, // 2 minutes
   });
 
   const initialContacts = contactsData?.contacts ?? [];
@@ -88,8 +112,17 @@ export function ContactsClient() {
     untagged: 0,
   };
 
-  // Local overrides: when search/pagination/mutations produce client-fetched data,
-  // we store it here. `null` means "use React Query data" (the prefetched/hydrated list).
+  // Build a lookup map from scores data (keyed by record_id and email)
+  const scoresMap = useMemo(() => {
+    const map = new Map<string, ScoredContactEntry>();
+    for (const entry of scoresData?.contacts ?? []) {
+      if (entry.record_id) map.set(entry.record_id, entry);
+      if (entry.email) map.set(entry.email, entry);
+    }
+    return map;
+  }, [scoresData]);
+
+  // Local overrides
   const [localContacts, setLocalContacts] = useState<Contact[] | null>(null);
   const contacts = localContacts ?? initialContacts;
 
@@ -101,36 +134,74 @@ export function ContactsClient() {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [scoreSortDirection, setScoreSortDirection] = useState<"asc" | "desc" | null>(null);
 
   // Form drawer state
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
+  // Merge scores into contacts
+  const contactsWithScores: ContactWithScore[] = useMemo(() => {
+    return contacts.map((c) => {
+      const scoreEntry =
+        (c.record_id ? scoresMap.get(c.record_id) : undefined) ??
+        (c.email ? scoresMap.get(c.email) : undefined);
+      if (scoreEntry) {
+        return {
+          ...c,
+          relationship_score: scoreEntry.score,
+          score_breakdown: scoreEntry.breakdown,
+        };
+      }
+      return c;
+    });
+  }, [contacts, scoresMap]);
+
   const filteredContacts = useMemo(() => {
     // If we're using server-side search, return all contacts as-is
-    if (isSemanticSearch || pagination) return contacts;
+    let result: ContactWithScore[] =
+      isSemanticSearch || pagination
+        ? contactsWithScores
+        : contactsWithScores;
 
-    let result = contacts;
+    if (!isSemanticSearch && !pagination) {
+      if (tagFilter && tagFilter !== "all") {
+        result = result.filter(
+          (c) => c.tags && c.tags.includes(tagFilter)
+        );
+      }
 
-    if (tagFilter && tagFilter !== "all") {
-      result = result.filter(
-        (c) => c.tags && c.tags.includes(tagFilter)
-      );
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        result = result.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.email && c.email.toLowerCase().includes(q)) ||
+            (c.company && c.company.toLowerCase().includes(q)) ||
+            (c.job_title && c.job_title.toLowerCase().includes(q))
+        );
+      }
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.email && c.email.toLowerCase().includes(q)) ||
-          (c.company && c.company.toLowerCase().includes(q)) ||
-          (c.job_title && c.job_title.toLowerCase().includes(q))
-      );
+    // Apply score sort if active
+    if (scoreSortDirection) {
+      result = [...result].sort((a, b) => {
+        const sa = a.relationship_score ?? a.priority_score ?? a.score ?? 0;
+        const sb = b.relationship_score ?? b.priority_score ?? b.score ?? 0;
+        return scoreSortDirection === "desc" ? sb - sa : sa - sb;
+      });
     }
 
     return result;
-  }, [contacts, tagFilter, search, isSemanticSearch, pagination]);
+  }, [contactsWithScores, tagFilter, search, isSemanticSearch, pagination, scoreSortDirection]);
+
+  const handleSortByScore = useCallback(() => {
+    setScoreSortDirection((prev) => {
+      if (prev === null) return "desc";
+      if (prev === "desc") return "asc";
+      return null;
+    });
+  }, []);
 
   const fetchContacts = useCallback(async (page = 1, tag?: string) => {
     try {
@@ -170,7 +241,6 @@ export function ContactsClient() {
         setLocalContacts(json.data ?? []);
         setPagination(null);
       } else if (res.status === 503) {
-        // Personize not configured, fall back to local filter
         setIsSemanticSearch(false);
       }
     } catch {
@@ -184,7 +254,6 @@ export function ContactsClient() {
     (value: string) => {
       setSearch(value);
 
-      // Debounce semantic search
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -203,7 +272,6 @@ export function ContactsClient() {
 
   const refreshContacts = useCallback(async () => {
     await fetchContacts(currentPage, tagFilter);
-    // Also invalidate the React Query cache so KPIs refresh on next visit
     void queryClient.invalidateQueries({ queryKey: ["contacts"] });
   }, [fetchContacts, currentPage, tagFilter, queryClient]);
 
@@ -406,6 +474,8 @@ export function ContactsClient() {
         <ContactsTable
           contacts={filteredContacts}
           onSelectContact={setSelectedContact}
+          onSortByScore={handleSortByScore}
+          scoreSortDirection={scoreSortDirection}
         />
       )}
 

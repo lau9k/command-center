@@ -2,7 +2,7 @@
 
 import type { Contact } from "@/lib/types/database";
 import Link from "next/link";
-import { MessageCircle, FileSearch } from "lucide-react";
+import { MessageCircle, FileSearch, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -12,10 +12,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ScoreBreakdown } from "@/lib/personize/relationship-score";
+
+interface ContactWithScore extends Contact {
+  relationship_score?: number;
+  score_breakdown?: ScoreBreakdown;
+}
 
 interface ContactsTableProps {
-  contacts: Contact[];
+  contacts: ContactWithScore[];
   onSelectContact: (contact: Contact) => void;
+  onSortByScore?: () => void;
+  scoreSortDirection?: "asc" | "desc" | null;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -35,7 +43,110 @@ const tagColors: Record<string, string> = {
   linkedin: "bg-blue-600/15 text-blue-700 dark:text-blue-400 border-blue-600/20",
 };
 
-export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps) {
+function getStrengthBadge(score: number): {
+  label: string;
+  className: string;
+  circleClassName: string;
+} {
+  if (score >= 80) {
+    return {
+      label: "Strong",
+      className: "text-green-700 dark:text-green-400",
+      circleClassName: "bg-green-500",
+    };
+  }
+  if (score >= 60) {
+    return {
+      label: "Good",
+      className: "text-blue-700 dark:text-blue-400",
+      circleClassName: "bg-blue-500",
+    };
+  }
+  if (score >= 40) {
+    return {
+      label: "Moderate",
+      className: "text-yellow-700 dark:text-yellow-400",
+      circleClassName: "bg-yellow-500",
+    };
+  }
+  if (score >= 20) {
+    return {
+      label: "Weak",
+      className: "text-orange-700 dark:text-orange-400",
+      circleClassName: "bg-orange-500",
+    };
+  }
+  return {
+    label: "Cold",
+    className: "text-muted-foreground",
+    circleClassName: "bg-muted-foreground/40",
+  };
+}
+
+function buildScoreTooltip(
+  score: number,
+  breakdown?: ScoreBreakdown
+): string {
+  if (!breakdown) return `Score: ${score}`;
+  return [
+    `Relationship Score: ${score}/100`,
+    `Gmail: ${breakdown.gmail}/30`,
+    `LinkedIn: ${breakdown.linkedin}/25`,
+    `Enrichment: ${breakdown.enrichment}/15`,
+    `Recency: ${breakdown.recency}/20`,
+    `Memory: ${breakdown.memory}/10`,
+  ].join("\n");
+}
+
+function RelationshipBadge({
+  score,
+  breakdown,
+}: {
+  score: number;
+  breakdown?: ScoreBreakdown;
+}) {
+  const badge = getStrengthBadge(score);
+  return (
+    <div
+      className="group relative inline-flex items-center gap-1.5"
+      title={buildScoreTooltip(score, breakdown)}
+    >
+      <span
+        className={`inline-block size-2.5 rounded-full ${badge.circleClassName}`}
+      />
+      <span className={`text-xs font-medium ${badge.className}`}>
+        {score}
+      </span>
+      {/* Hover tooltip with breakdown */}
+      {breakdown && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md group-hover:block">
+          <p className={`font-semibold ${badge.className} mb-1`}>
+            {badge.label} ({score}/100)
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground whitespace-nowrap">
+            <span>Gmail</span>
+            <span className="text-right tabular-nums">{breakdown.gmail}/30</span>
+            <span>LinkedIn</span>
+            <span className="text-right tabular-nums">{breakdown.linkedin}/25</span>
+            <span>Enrichment</span>
+            <span className="text-right tabular-nums">{breakdown.enrichment}/15</span>
+            <span>Recency</span>
+            <span className="text-right tabular-nums">{breakdown.recency}/20</span>
+            <span>Memory</span>
+            <span className="text-right tabular-nums">{breakdown.memory}/10</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ContactsTable({
+  contacts,
+  onSelectContact,
+  onSortByScore,
+  scoreSortDirection,
+}: ContactsTableProps) {
   if (contacts.length === 0) {
     return (
       <div className="flex items-center justify-center rounded-md border border-border p-12">
@@ -48,6 +159,7 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
 
   // Detect if contacts have Personize-specific fields
   const hasPersonizeData = contacts.some((c) => c.job_title !== undefined);
+  const hasScores = contacts.some((c) => c.relationship_score !== undefined);
 
   return (
     <div className="rounded-md border border-border">
@@ -66,7 +178,20 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
             )}
             {!hasPersonizeData && <TableHead>Tags</TableHead>}
             <TableHead>Last Activity</TableHead>
-            <TableHead className="text-right">Score</TableHead>
+            <TableHead className="text-right">
+              {hasScores && onSortByScore ? (
+                <button
+                  type="button"
+                  onClick={onSortByScore}
+                  className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  Strength
+                  <ArrowUpDown className={`size-3.5 ${scoreSortDirection ? "text-foreground" : "text-muted-foreground"}`} />
+                </button>
+              ) : (
+                "Score"
+              )}
+            </TableHead>
             <TableHead className="w-[70px]" />
           </TableRow>
         </TableHeader>
@@ -97,7 +222,7 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
                       Yes
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">\u2014</span>
+                    <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                   )}
                 </TableCell>
               )}
@@ -119,7 +244,7 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-muted-foreground">\u2014</span>
+                      <span className="text-xs text-muted-foreground">{"\u2014"}</span>
                     )}
                   </div>
                 </TableCell>
@@ -129,8 +254,17 @@ export function ContactsTable({ contacts, onSelectContact }: ContactsTableProps)
                   contact.last_interaction_date ?? contact.last_contact_date ?? contact.updated_at
                 )}
               </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {contact.priority_score ?? contact.score ?? 0}
+              <TableCell className="text-right">
+                {contact.relationship_score !== undefined ? (
+                  <RelationshipBadge
+                    score={contact.relationship_score}
+                    breakdown={contact.score_breakdown}
+                  />
+                ) : (
+                  <span className="tabular-nums">
+                    {contact.priority_score ?? contact.score ?? 0}
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 {!contact.record_id && (

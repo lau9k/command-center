@@ -19,6 +19,8 @@ import { QuickActionsBar } from "@/components/home/QuickActionsBar";
 import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
 import { FollowUpSuggestions } from "@/components/home/FollowUpSuggestions";
+import { EnrichmentCoverageCard } from "@/components/home/EnrichmentCoverageCard";
+import type { EnrichmentStats } from "@/app/api/contacts/enrichment-stats/route";
 
 import { getHomeStats } from "@/app/api/home-stats/route";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -94,10 +96,25 @@ async function getTodaysFocusData() {
   return { overdueTasks, dueTodayTasks, staleContacts };
 }
 
+async function getEnrichmentStats(): Promise<EnrichmentStats | null> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/contacts/enrichment-stats`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data: EnrichmentStats };
+    return json.data;
+  } catch {
+    return null;
+  }
+}
+
 export default async function DashboardPage() {
-  const [stats, focusData] = await Promise.all([
+  const [stats, focusData, enrichmentStats] = await Promise.all([
     getHomeStats(),
     getTodaysFocusData(),
+    getEnrichmentStats(),
   ]);
 
   return (
@@ -155,6 +172,9 @@ export default async function DashboardPage() {
         <OutreachFunnelCard stats={stats.outreachStats} />
         <FinanceSummaryWidget />
       </div>
+
+      {/* 5c. Enrichment Coverage */}
+      <EnrichmentCoverageCard initial={enrichmentStats} />
 
       {/* 6. Upcoming Items Panel */}
       <UpcomingItemsPanel
