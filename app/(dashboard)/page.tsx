@@ -18,6 +18,7 @@ import { UpcomingItemsPanel } from "@/components/home/UpcomingItemsPanel";
 import { QuickActionsBar } from "@/components/home/QuickActionsBar";
 import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
+import { FollowUpSuggestions } from "@/components/home/FollowUpSuggestions";
 import { EnrichmentCoverageCard } from "@/components/home/EnrichmentCoverageCard";
 import type { EnrichmentStats } from "@/app/api/contacts/enrichment-stats/route";
 
@@ -136,10 +137,13 @@ export default async function DashboardPage() {
         <SessionPromptButton />
       </div>
 
-      {/* 1b. Daily Briefing */}
+      {/* 1b. Follow-Up Suggestions (Personize-powered) */}
+      <FollowUpSuggestions />
+
+      {/* 1c. Daily Briefing */}
       <DailyBriefingWidget />
 
-      {/* 1c. Memory Health */}
+      {/* 1d. Memory Health */}
       <MemoryHealthWidget />
 
       {/* 2. Quick Actions */}
