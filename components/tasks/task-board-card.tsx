@@ -1,15 +1,18 @@
 "use client";
 
 import { format, isPast, isToday } from "date-fns";
-import { CalendarIcon, GripVertical } from "lucide-react";
+import { CalendarIcon, GripVertical, ShieldAlert, AlertTriangle } from "lucide-react";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import type { TaskWithProject, TaskPriority } from "@/lib/types/database";
+
+type GovernanceStatus = "BLOCKED" | "HANDLE_WITH_CARE" | "CLEAR";
 
 interface TaskBoardCardProps {
   task: TaskWithProject;
   onClick: (task: TaskWithProject) => void;
   dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+  governanceStatus?: GovernanceStatus;
 }
 
 const PRIORITY_DOT: Record<TaskPriority, string> = {
@@ -26,14 +29,18 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   low: "Low",
 };
 
-export function TaskBoardCard({ task, onClick, dragHandleProps }: TaskBoardCardProps) {
+export function TaskBoardCard({ task, onClick, dragHandleProps, governanceStatus }: TaskBoardCardProps) {
   const isOverdue =
     task.due_date && task.status !== "done" && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date));
+  const isBlocked = governanceStatus === "BLOCKED";
 
   return (
     <div
       onClick={() => onClick(task)}
-      className="group cursor-pointer rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50"
+      className={cn(
+        "group cursor-pointer rounded-lg border border-border bg-card p-3 transition-colors hover:bg-accent/50",
+        isBlocked && "opacity-50"
+      )}
     >
       <div className="flex items-start gap-2">
         {/* Drag handle */}
@@ -45,10 +52,22 @@ export function TaskBoardCard({ task, onClick, dragHandleProps }: TaskBoardCardP
         </div>
 
         <div className="min-w-0 flex-1">
-          {/* Title */}
-          <h4 className="truncate text-sm font-medium text-foreground">
-            {task.title}
-          </h4>
+          {/* Title row with governance badge */}
+          <div className="flex items-center gap-1.5">
+            <h4 className="truncate text-sm font-medium text-foreground">
+              {task.title}
+            </h4>
+            {governanceStatus === "BLOCKED" && (
+              <span title="Blocked — outreach not permitted">
+                <ShieldAlert className="size-4 shrink-0 text-red-500" />
+              </span>
+            )}
+            {governanceStatus === "HANDLE_WITH_CARE" && (
+              <span title="Handle with care">
+                <AlertTriangle className="size-4 shrink-0 text-yellow-500" />
+              </span>
+            )}
+          </div>
 
           {/* Bottom row: project badge, priority dot, due date, effort */}
           <div className="mt-2 flex flex-wrap items-center gap-2">
