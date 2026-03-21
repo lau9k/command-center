@@ -103,6 +103,7 @@ export interface Task {
 
 export interface TaskContact {
   name: string;
+  email: string | null;
   company: string | null;
   linkedin_url: string | null;
 }

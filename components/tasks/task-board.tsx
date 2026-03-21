@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { CalendarIcon, Tag, User, FileText } from "lucide-react";
 import { sanitizeText } from "@/lib/sanitize";
 import { TaskActionButtons } from "./TaskActionButtons";
+import { useGovernanceCheck, type GovernanceMap } from "@/lib/hooks/useGovernanceCheck";
 
 const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
   { status: "todo", label: "To Do", color: "#3B82F6" },
@@ -159,6 +160,19 @@ export function TaskBoard() {
     staleTime: 30_000,
   });
 
+  // Extract emails from outreach tasks with contacts for governance checking
+  const outreachEmails = useMemo(() => {
+    const emails: string[] = [];
+    for (const task of tasks) {
+      if (task.task_type === "outreach" && task.contacts?.email) {
+        emails.push(task.contacts.email);
+      }
+    }
+    return [...new Set(emails)];
+  }, [tasks]);
+
+  const { data: governanceMap = {} } = useGovernanceCheck(outreachEmails);
+
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, TaskWithProject[]> = {
       todo: [],
@@ -231,6 +245,7 @@ export function TaskBoard() {
               color={col.color}
               tasks={tasksByStatus[col.status]}
               onCardClick={setSelectedTask}
+              governanceMap={governanceMap}
             />
           ))}
         </div>
