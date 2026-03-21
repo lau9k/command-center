@@ -23,6 +23,7 @@ import {
   Tag,
 } from "lucide-react";
 import { ContactEnrichmentPanel } from "@/components/contacts/ContactEnrichmentPanel";
+import { GmailTimeline } from "@/components/contacts/GmailTimeline";
 import { IntelligencePanel } from "@/components/contacts/intelligence-panel";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { InlineEditField } from "@/components/contacts/InlineEditField";
@@ -324,6 +325,15 @@ export function ContactDetailPanel({
             <ContactEnrichmentPanel
               contactId={contact.id}
               contactName={contact.name}
+              contactEmail={contact.email ?? null}
+              open={open}
+            />
+
+            <Separator />
+
+            {/* Gmail Communication Timeline */}
+            <GmailTimeline
+              contactId={contact.id}
               contactEmail={contact.email ?? null}
               open={open}
             />
