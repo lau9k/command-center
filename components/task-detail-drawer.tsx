@@ -533,7 +533,7 @@ export function TaskDetailDrawer({
                         </a>
                       </Button>
                     )}
-                    {isOutreach && (task.external_url ?? task.contacts?.linkedin_url) && (
+                    {!task.external_url && isOutreach && task.contacts?.linkedin_url && (
                       <Button
                         variant="outline"
                         className="w-full gap-2"
