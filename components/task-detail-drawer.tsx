@@ -234,8 +234,9 @@ export function TaskDetailDrawer({
   }, [task]);
 
   const handleOpenLinkedIn = useCallback(() => {
-    if (!task?.contacts?.linkedin_url) return;
-    window.open(task.contacts.linkedin_url, "_blank", "noopener,noreferrer");
+    const url = task?.external_url ?? task?.contacts?.linkedin_url;
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   }, [task]);
 
   if (!task) return null;
@@ -532,7 +533,7 @@ export function TaskDetailDrawer({
                         </a>
                       </Button>
                     )}
-                    {isOutreach && task.contacts?.linkedin_url && (
+                    {isOutreach && (task.external_url ?? task.contacts?.linkedin_url) && (
                       <Button
                         variant="outline"
                         className="w-full gap-2"
