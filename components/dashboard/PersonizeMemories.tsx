@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { SmartRecallItem } from "@/lib/personize/types";
+import type { SmartRecallRecord } from "@/lib/personize/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,7 @@ interface PersonizeMemoriesProps {
 
 interface MemoryState {
   loading: boolean;
-  memories: SmartRecallItem[];
+  records: SmartRecallRecord[];
   error: string | null;
 }
 
@@ -28,6 +28,12 @@ const tierColors: Record<string, string> = {
   partial: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
   might: "bg-muted text-muted-foreground",
 };
+
+function deriveTier(score: number): string {
+  if (score >= 0.8) return "direct";
+  if (score >= 0.5) return "partial";
+  return "might";
+}
 
 function MemorySkeleton() {
   return (
@@ -56,23 +62,23 @@ export function PersonizeMemories({
 }: PersonizeMemoriesProps) {
   const [memory, setMemory] = useState<MemoryState>({
     loading: false,
-    memories: [],
+    records: [],
     error: null,
   });
 
   const fetchMemories = useCallback(async (id: string) => {
-    setMemory({ loading: true, memories: [], error: null });
+    setMemory({ loading: true, records: [], error: null });
 
     try {
       const res = await fetch(`/api/contacts/${id}/memory`);
 
       if (res.status === 503) {
-        setMemory({ loading: false, memories: [], error: "not_configured" });
+        setMemory({ loading: false, records: [], error: "not_configured" });
         return;
       }
 
       if (res.status === 422) {
-        setMemory({ loading: false, memories: [], error: "no_email" });
+        setMemory({ loading: false, records: [], error: "no_email" });
         return;
       }
 
@@ -81,12 +87,12 @@ export function PersonizeMemories({
       }
 
       const json = await res.json();
-      const memories = json.data?.memories ?? [];
-      setMemory({ loading: false, memories, error: null });
+      const records: SmartRecallRecord[] = json.data?.records ?? [];
+      setMemory({ loading: false, records, error: null });
     } catch {
       setMemory({
         loading: false,
-        memories: [],
+        records: [],
         error: "Memory service unavailable",
       });
     }
@@ -96,7 +102,7 @@ export function PersonizeMemories({
     if (contactId && open) {
       fetchMemories(contactId);
     } else {
-      setMemory({ loading: false, memories: [], error: null });
+      setMemory({ loading: false, records: [], error: null });
     }
   }, [contactId, open, fetchMemories]);
 
@@ -138,43 +144,53 @@ export function PersonizeMemories({
             <AlertCircle className="h-4 w-4" />
             {memory.error}
           </div>
-        ) : memory.memories.length === 0 ? (
+        ) : memory.records.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No memories found for this contact. Personize will surface
             relevant context here once memories are available.
           </p>
         ) : (
           <ul className="space-y-2">
-            {memory.memories.map((item) => (
-              <li
-                key={item.id}
-                className="space-y-1.5 rounded-md border border-border p-3 text-sm"
-              >
-                <p>{item.text}</p>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierColors[item.relevance_tier] ?? tierColors.might}`}
-                  >
-                    {item.score.toFixed(2)}
-                  </span>
-                  {item.type && (
-                    <Badge variant="outline" className="text-xs">
-                      {item.type}
-                    </Badge>
+            {memory.records.map((item) => {
+              const tier = deriveTier(item.score);
+              return (
+                <li
+                  key={item.recordId}
+                  className="space-y-1.5 rounded-md border border-border p-3 text-sm"
+                >
+                  <p className="font-medium">{item.displayName}</p>
+                  {item.memories.length > 0 && (
+                    <ul className="list-disc pl-4 text-muted-foreground">
+                      {item.memories.map((mem, idx) => (
+                        <li key={idx}>{mem}</li>
+                      ))}
+                    </ul>
                   )}
-                  {item.topic && (
-                    <Badge variant="secondary" className="text-xs">
-                      {item.topic}
-                    </Badge>
-                  )}
-                  {item.timestamp && (
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(item.timestamp).toLocaleDateString()}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierColors[tier]}`}
+                    >
+                      {item.score.toFixed(2)}
                     </span>
-                  )}
-                </div>
-              </li>
-            ))}
+                    {item.properties.company && (
+                      <Badge variant="secondary" className="text-xs">
+                        {item.properties.company}
+                      </Badge>
+                    )}
+                    {item.properties.job_title && (
+                      <Badge variant="outline" className="text-xs">
+                        {item.properties.job_title}
+                      </Badge>
+                    )}
+                    {item.freshness > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        Freshness: {(item.freshness * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>
