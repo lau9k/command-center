@@ -16,11 +16,12 @@ import {
   FileText,
   Trash2,
   Plus,
+  Save,
+  Loader2,
 } from "lucide-react";
 import { KpiCard, Drawer } from "@/components/ui";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { EmptyState } from "@/components/ui/empty-state";
-import { sanitizeText } from "@/lib/sanitize";
 import { StageColumn } from "./StageColumn";
 import { AddDealDialog } from "./AddDealDialog";
 import { parseDealValue, formatCurrency } from "./DealCard";
@@ -33,112 +34,236 @@ interface PipelineBoardProps {
   projectId?: string;
 }
 
+interface DrawerForm {
+  company: string;
+  deal_value: string;
+  close_date: string;
+  contact_name: string;
+  probability: string;
+  next_action: string;
+  notes: string;
+  stage_id: string;
+}
+
+function initDrawerForm(item: PipelineItemData): DrawerForm {
+  const meta = item.metadata ?? {};
+  return {
+    company: String(meta.company ?? ""),
+    deal_value: meta.deal_value ? String(meta.deal_value) : "",
+    close_date: String(meta.close_date ?? ""),
+    contact_name: String(meta.contact_name ?? ""),
+    probability: String(meta.probability ?? ""),
+    next_action: String(meta.next_action ?? ""),
+    notes: String(meta.notes ?? ""),
+    stage_id: item.stage_id,
+  };
+}
+
 function DrawerContent({
   item,
-  stage,
+  stages,
   onDelete,
+  onSave,
+  onStageChange,
 }: {
   item: PipelineItemData;
-  stage: PipelineStage | null;
+  stages: PipelineStage[];
   onDelete: (id: string) => void;
+  onSave: (id: string, metadata: Record<string, unknown>, stageId: string) => Promise<void>;
+  onStageChange: (itemId: string, newStageId: string, newIndex: number) => Promise<void>;
 }) {
-  const meta = item.metadata ?? {};
-  const dealValue = parseDealValue(meta.deal_value);
-  const company = String(meta.company ?? "");
-  const contactName = String(meta.contact_name ?? "");
-  const closeDate = String(meta.close_date ?? "");
-  const probability = String(meta.probability ?? "");
-  const nextAction = String(meta.next_action ?? "");
-  const notes = String(meta.notes ?? "");
+  const [form, setForm] = useState<DrawerForm>(() => initDrawerForm(item));
+  const [saving, setSaving] = useState(false);
+
+  // Re-initialize form when a different item is selected
+  React.useEffect(() => {
+    setForm(initDrawerForm(item));
+  }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentStage = stages.find((s) => s.id === form.stage_id) ?? null;
+
+  const hasChanges = React.useMemo(() => {
+    const original = initDrawerForm(item);
+    return (Object.keys(original) as (keyof DrawerForm)[]).some(
+      (key) => form[key] !== original[key]
+    );
+  }, [form, item]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const metadata: Record<string, unknown> = { ...item.metadata };
+      metadata.company = form.company.trim() || undefined;
+      const parsedValue = parseFloat(form.deal_value.replace(/[$,\s]/g, ""));
+      metadata.deal_value = !isNaN(parsedValue) ? parsedValue : undefined;
+      metadata.close_date = form.close_date.trim() || undefined;
+      metadata.contact_name = form.contact_name.trim() || undefined;
+      metadata.probability = form.probability.trim() || undefined;
+      metadata.next_action = form.next_action.trim() || undefined;
+      metadata.notes = form.notes.trim() || undefined;
+
+      // Clean undefined keys
+      for (const key of Object.keys(metadata)) {
+        if (metadata[key] === undefined) delete metadata[key];
+      }
+
+      // Handle stage change via moveItem if stage changed
+      if (form.stage_id !== item.stage_id) {
+        await onStageChange(item.id, form.stage_id, 0);
+      }
+
+      await onSave(item.id, metadata, form.stage_id);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateField(field: keyof DrawerForm, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  const fieldLabelClass = "mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground";
+  const inputClass =
+    "w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring";
 
   return (
     <div className="flex flex-col gap-5">
-      {stage && (
+      {/* Stage Selector */}
+      <div>
+        <h4 className={fieldLabelClass}>Stage</h4>
         <div className="flex items-center gap-2">
-          <span
-            className="inline-block size-3 rounded-full"
-            style={{ backgroundColor: stage.color ?? "#6B7280" }}
+          {currentStage && (
+            <span
+              className="inline-block size-3 shrink-0 rounded-full"
+              style={{ backgroundColor: currentStage.color ?? "#6B7280" }}
+            />
+          )}
+          <select
+            value={form.stage_id}
+            onChange={(e) => updateField("stage_id", e.target.value)}
+            className={inputClass}
+          >
+            {stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Deal Value */}
+      <div>
+        <h4 className={fieldLabelClass}>Deal Value</h4>
+        <div className="flex items-center gap-1.5">
+          <DollarSign className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            value={form.deal_value}
+            onChange={(e) => updateField("deal_value", e.target.value)}
+            placeholder="10000"
+            className={inputClass}
           />
-          <span className="text-sm font-medium text-foreground">{stage.name}</span>
         </div>
-      )}
+      </div>
 
-      {dealValue > 0 && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Deal Value
-          </h4>
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <DollarSign className="size-4 text-muted-foreground" />
-            {formatCurrency(dealValue)}
-          </div>
+      {/* Company */}
+      <div>
+        <h4 className={fieldLabelClass}>Company</h4>
+        <div className="flex items-center gap-1.5">
+          <Building2 className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            value={form.company}
+            onChange={(e) => updateField("company", e.target.value)}
+            placeholder="Company name"
+            className={inputClass}
+          />
         </div>
-      )}
+      </div>
 
-      {company && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Company
-          </h4>
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <Building2 className="size-4 text-muted-foreground" />
-            {company}
-          </div>
+      {/* Contact */}
+      <div>
+        <h4 className={fieldLabelClass}>Contact</h4>
+        <div className="flex items-center gap-1.5">
+          <User className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="text"
+            value={form.contact_name}
+            onChange={(e) => updateField("contact_name", e.target.value)}
+            placeholder="Contact name"
+            className={inputClass}
+          />
         </div>
-      )}
+      </div>
 
-      {contactName && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Contact
-          </h4>
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <User className="size-4 text-muted-foreground" />
-            {contactName}
-          </div>
+      {/* Close Date */}
+      <div>
+        <h4 className={fieldLabelClass}>Close Date</h4>
+        <div className="flex items-center gap-1.5">
+          <Calendar className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="date"
+            value={form.close_date}
+            onChange={(e) => updateField("close_date", e.target.value)}
+            className={inputClass}
+          />
         </div>
-      )}
+      </div>
 
-      {closeDate && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Close Date
-          </h4>
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <Calendar className="size-4 text-muted-foreground" />
-            {closeDate}
-          </div>
-        </div>
-      )}
+      {/* Probability */}
+      <div>
+        <h4 className={fieldLabelClass}>Probability</h4>
+        <input
+          type="text"
+          value={form.probability}
+          onChange={(e) => updateField("probability", e.target.value)}
+          placeholder="e.g. 75%"
+          className={inputClass}
+        />
+      </div>
 
-      {probability && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Probability
-          </h4>
-          <p className="text-sm text-foreground">{probability}</p>
-        </div>
-      )}
+      {/* Next Action */}
+      <div>
+        <h4 className={fieldLabelClass}>Next Action</h4>
+        <input
+          type="text"
+          value={form.next_action}
+          onChange={(e) => updateField("next_action", e.target.value)}
+          placeholder="Next step..."
+          className={inputClass}
+        />
+      </div>
 
-      {nextAction && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Next Action
-          </h4>
-          <p className="text-sm text-foreground">{nextAction}</p>
+      {/* Notes */}
+      <div>
+        <h4 className={fieldLabelClass}>Notes</h4>
+        <div className="flex items-start gap-1.5">
+          <FileText className="mt-2 size-4 shrink-0 text-muted-foreground" />
+          <textarea
+            value={form.notes}
+            onChange={(e) => updateField("notes", e.target.value)}
+            placeholder="Additional notes..."
+            rows={3}
+            className={inputClass + " resize-y"}
+          />
         </div>
-      )}
+      </div>
 
-      {notes && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Notes
-          </h4>
-          <div className="flex items-start gap-1.5 text-sm text-foreground">
-            <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <p className="whitespace-pre-wrap">{sanitizeText(notes)}</p>
-          </div>
-        </div>
+      {/* Save Button */}
+      {hasChanges && (
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Save className="size-4" />
+          )}
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
       )}
 
       <div className="border-t border-border pt-4">
@@ -340,6 +465,40 @@ export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId 
     setQuickAddTitle("");
   }, []);
 
+  const handleSaveItem = useCallback(
+    async (id: string, metadata: Record<string, unknown>, stageId: string) => {
+      const prev = items;
+
+      // Optimistic update
+      setItems((current) =>
+        current.map((i) =>
+          i.id === id
+            ? { ...i, metadata, stage_id: stageId, updated_at: new Date().toISOString() }
+            : i
+        )
+      );
+      setSelectedItem((sel) =>
+        sel?.id === id
+          ? { ...sel, metadata, stage_id: stageId, updated_at: new Date().toISOString() }
+          : sel
+      );
+
+      try {
+        const res = await fetch("/api/pipeline", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, metadata }),
+        });
+        if (!res.ok) {
+          setItems(prev);
+        }
+      } catch {
+        setItems(prev);
+      }
+    },
+    [items]
+  );
+
   const handleDelete = useCallback(async (id: string) => {
     const prev = items;
     setItems((current) => current.filter((i) => i.id !== id));
@@ -354,8 +513,6 @@ export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId 
       setItems(prev);
     }
   }, [items]);
-
-  const selectedStage = selectedItem ? stageMap.get(selectedItem.stage_id) : null;
 
   if (sortedStages.length === 0 && items.length === 0) {
     return (
@@ -460,7 +617,13 @@ export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId 
         title={selectedItem?.title ?? "Deal Details"}
       >
         {selectedItem ? (
-          <DrawerContent item={selectedItem} stage={selectedStage ?? null} onDelete={handleDelete} />
+          <DrawerContent
+            item={selectedItem}
+            stages={sortedStages}
+            onDelete={handleDelete}
+            onSave={handleSaveItem}
+            onStageChange={moveItem}
+          />
         ) : (
           <div />
         )}
