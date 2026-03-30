@@ -83,7 +83,7 @@ export async function memorize(
 
 export async function smartRecall(
   query: string,
-  options?: { email?: string; collectionIds?: string[] }
+  options?: { email?: string; collectionIds?: string[]; response_detail?: "full" | "summary" }
 ): Promise<SmartRecallResult | null> {
   try {
     const response = await client.memory.smartRecall({
@@ -219,23 +219,23 @@ export async function searchContacts(
       });
 
       const recallData = recallResponse.data as {
-        memories?: Array<{
+        records?: Array<{
           record_id?: string;
           recordId?: string;
           properties?: Record<string, string>;
         }>;
       } | null;
 
-      const memories = recallData?.memories ?? [];
+      const records = recallData?.records ?? [];
       const seen = new Set<string>();
       const queryContacts: PersonizeContact[] = [];
 
-      for (const mem of memories) {
-        const rid = mem.record_id ?? mem.recordId;
+      for (const rec of records) {
+        const rid = rec.record_id ?? rec.recordId;
         if (!rid || seen.has(rid)) continue;
         seen.add(rid);
-        if (mem.properties) {
-          queryContacts.push(mapRecordToContact({ recordId: rid, properties: mem.properties }, queryContacts.length));
+        if (rec.properties) {
+          queryContacts.push(mapRecordToContact({ recordId: rid, properties: rec.properties }, queryContacts.length));
         }
       }
 
@@ -403,34 +403,34 @@ export async function recallContacts(
     });
 
     const data = response.data as {
-      memories?: Array<{
+      records?: Array<{
         record_id?: string;
         recordId?: string;
         properties?: Record<string, string>;
         score?: number;
-        text?: string;
+        memories?: Array<{ text: string }>;
       }>;
     } | null;
 
-    const memories = data?.memories ?? [];
+    const records = data?.records ?? [];
 
     // Group by record_id and take unique contacts
     const seen = new Set<string>();
     const contacts: PersonizeContact[] = [];
 
-    for (const mem of memories) {
-      const rid = mem.record_id ?? mem.recordId;
+    for (const rec of records) {
+      const rid = rec.record_id ?? rec.recordId;
       if (!rid || seen.has(rid)) continue;
       seen.add(rid);
 
-      if (mem.properties) {
-        contacts.push(mapRecordToContact({ recordId: rid, properties: mem.properties }, contacts.length));
+      if (rec.properties) {
+        contacts.push(mapRecordToContact({ recordId: rid, properties: rec.properties }, contacts.length));
       } else {
-        // Create a minimal contact from the memory text
+        const firstMemory = rec.memories?.[0]?.text;
         contacts.push({
           id: rid,
           record_id: rid,
-          name: mem.text?.split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 100) ?? "Unknown",
+          name: firstMemory?.split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 100) ?? "Unknown",
           email: null,
           phone: null,
           company: null,
@@ -438,13 +438,13 @@ export async function recallContacts(
           job_title: null,
           has_conversation: false,
           message_count: 0,
-          priority_score: (mem.score ?? 0) * 100,
+          priority_score: (rec.score ?? 0) * 100,
           last_interaction_date: null,
           memory_count: null,
           source: "linkedin",
           status: "active",
           tags: [],
-          score: Math.round((mem.score ?? 0) * 100),
+          score: Math.round((rec.score ?? 0) * 100),
           notes: null,
           project_id: "00000000-0000-0000-0000-000000000000",
           last_contact_date: null,

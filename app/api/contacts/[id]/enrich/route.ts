@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { smartRecall, smartDigest } from "@/lib/personize/actions";
+import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const querySchema = z.object({
@@ -28,11 +28,8 @@ export async function GET(
 
   let contactName = "contact";
   let contactEmail: string | null = null;
-  let recordId: string | null = null;
 
-  if (isPersonizeId) {
-    recordId = id;
-  } else {
+  if (!isPersonizeId) {
     const supabase = createServiceClient();
     const { data: contact, error } = await supabase
       .from("contacts")
@@ -49,59 +46,33 @@ export async function GET(
 
     contactName = contact.name;
     contactEmail = contact.email;
-    recordId = (contact as Record<string, unknown>).record_id as string | null;
   }
 
   try {
-    // Run smartDigest and smartRecall in parallel
     const recallQuery = query ?? contactName;
-    const [digestResult, recallResult] = await Promise.all([
-      recordId
-        ? smartDigest(contactName, { record_id: recordId, token_budget: 3000 })
-        : contactEmail
-          ? smartDigest(contactName, { email: contactEmail, token_budget: 3000 })
-          : Promise.resolve(null),
-      smartRecall(recallQuery, {
-        ...(contactEmail ? { email: contactEmail } : {}),
-      }),
-    ]);
+    const result = await smartRecall(recallQuery, {
+      ...(contactEmail ? { email: contactEmail } : {}),
+      response_detail: "full",
+    });
 
-    // Extract properties from digest
-    const digestData = digestResult as {
-      compiledContext?: string;
-      properties?: Record<string, string>;
-      memories?: Array<{ id: string; text: string; createdAt: string }>;
-      tokenEstimate?: number;
-    } | null;
+    const records = result?.records ?? [];
 
-    const recallData = recallResult as {
-      success?: boolean;
-      memories?: Array<{
-        id: string;
-        text: string;
-        score: number;
-        relevance_tier: string;
-        record_id: string | null;
-        type: string;
-        topic: string;
-        timestamp: string | null;
-      }>;
-    } | null;
+    // Extract properties from records that have them
+    const properties: Record<string, string> = {};
+    for (const record of records) {
+      if (record.properties) {
+        Object.assign(properties, record.properties);
+      }
+    }
 
     return NextResponse.json({
       data: {
-        digest: digestData
-          ? {
-              summary: digestData.compiledContext ?? null,
-              properties: digestData.properties ?? {},
-              memories: digestData.memories ?? [],
-              tokenEstimate: digestData.tokenEstimate ?? 0,
-            }
-          : null,
         recall: {
           query: recallQuery,
-          memories: recallData?.memories ?? [],
+          records,
+          answer: result?.answer ?? null,
         },
+        properties,
       },
     });
   } catch (err) {
