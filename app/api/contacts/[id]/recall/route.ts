@@ -10,7 +10,7 @@ function scoreTier(score: number): "direct" | "partial" | "might" {
 }
 
 function flattenRecordTexts(record: SmartRecallRecord): string[] {
-  return record.memories.map((m) => m.text);
+  return record.memories;
 }
 
 export async function GET(
@@ -91,17 +91,19 @@ export async function GET(
         }
       }
 
+      const props = record.properties ?? {};
+      const recordType = props.type ?? "unknown";
       const isInteraction =
-        record.type === "conversation" ||
-        record.type === "meeting" ||
-        record.type === "email" ||
-        !!record.timestamp;
+        recordType === "conversation" ||
+        recordType === "meeting" ||
+        recordType === "email" ||
+        !!props.timestamp;
 
       if (isInteraction) {
         recentInteractions.push({
           text: texts.join(" "),
-          timestamp: record.timestamp,
-          type: record.type,
+          timestamp: props.timestamp ?? null,
+          type: recordType,
           score: record.score,
           tier,
         });

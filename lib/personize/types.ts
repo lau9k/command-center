@@ -36,21 +36,32 @@ export interface SmartRecallResult {
 }
 
 export interface SmartRecallRecord {
-  id: string;
-  record_id: string | null;
+  recordId: string;
+  displayName: string;
   score: number;
-  type: string;
-  topic: string;
-  timestamp: string | null;
-  memories: Array<{ text: string; createdAt?: string }>;
-  properties?: Record<string, string>;
+  completeness: number;
+  freshness: number;
+  properties: Record<string, string>;
+  memories: string[];
 }
 
-/** @deprecated Use SmartRecallRecord instead. */
-export type SmartRecallItem = SmartRecallRecord & {
+/** @deprecated Use SmartRecallRecord instead. Kept for backward compatibility with components. */
+export interface SmartRecallItem {
+  id: string;
   text: string;
   relevance_tier: "direct" | "partial" | "might";
-};
+  topic?: string;
+  timestamp?: string | null;
+  score: number;
+  type?: string;
+}
+
+/** Unified response from the SmartRecall / enrich API. */
+export interface SmartRecallUnifiedResult {
+  digest: string;
+  properties: Record<string, string>;
+  records: SmartRecallRecord[];
+}
 
 export interface SmartDigestResult {
   recordId: string;

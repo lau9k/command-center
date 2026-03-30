@@ -155,15 +155,14 @@ export async function GET(
       } | null;
 
       const recall = recallResult as {
-        memories?: Array<{
-          id: string;
-          text: string;
+        records?: Array<{
+          recordId: string;
+          displayName: string;
           score: number;
-          relevance_tier: string;
-          type: string;
-          topic: string;
-          timestamp: string | null;
+          properties: Record<string, string>;
+          memories: string[];
         }>;
+        answer?: string;
       } | null;
 
       if (digest) {
@@ -172,11 +171,25 @@ export async function GET(
         properties = digest.properties ?? {};
       }
 
-      const memories = recall?.memories ?? [];
+      const records = recall?.records ?? [];
+
+      // Flatten records into memory entries with score-based tiers
+      const flatMemories = records.flatMap((r) => {
+        const tier = r.score >= 0.8 ? "direct" : r.score >= 0.5 ? "partial" : "might";
+        const props = r.properties ?? {};
+        return r.memories.map((text) => ({
+          text,
+          score: r.score,
+          tier,
+          type: props.type ?? "unknown",
+          topic: props.topic ?? null,
+          timestamp: props.timestamp ?? null,
+        }));
+      });
 
       // Categorize memories for briefing
-      recentInteractions = memories
-        .filter((m) => m.relevance_tier === "direct")
+      recentInteractions = flatMemories
+        .filter((m) => m.tier === "direct")
         .slice(0, 3)
         .map((m) => ({
           text: m.text,
@@ -185,7 +198,7 @@ export async function GET(
           topic: m.topic,
         }));
 
-      commitments = memories
+      commitments = flatMemories
         .filter(
           (m) =>
             m.topic?.toLowerCase().includes("commitment") ||
@@ -203,7 +216,7 @@ export async function GET(
           topic: m.topic,
         }));
 
-      interests = memories
+      interests = flatMemories
         .filter(
           (m) =>
             m.topic?.toLowerCase().includes("interest") ||

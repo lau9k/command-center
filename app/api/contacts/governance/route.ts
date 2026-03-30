@@ -21,13 +21,13 @@ function parseGovernanceFromRecall(
 
   for (const record of result.records) {
     for (const mem of record.memories) {
-      const text = mem.text.toUpperCase();
+      const text = mem.toUpperCase();
 
       if (text.includes("OUTREACH STATUS: BLOCKED") || text.includes("OUTREACH_STATUS: BLOCKED")) {
-        return { status: "BLOCKED", note: mem.text };
+        return { status: "BLOCKED", note: mem };
       }
       if (text.includes("OUTREACH STATUS: HANDLE_WITH_CARE") || text.includes("OUTREACH_STATUS: HANDLE_WITH_CARE")) {
-        return { status: "HANDLE_WITH_CARE", note: mem.text };
+        return { status: "HANDLE_WITH_CARE", note: mem };
       }
     }
   }
@@ -35,12 +35,12 @@ function parseGovernanceFromRecall(
   // Check for keywords in record memories
   for (const record of result.records) {
     for (const mem of record.memories) {
-      const text = mem.text.toUpperCase();
+      const text = mem.toUpperCase();
       if (text.includes("BLOCKED")) {
-        return { status: "BLOCKED", note: mem.text };
+        return { status: "BLOCKED", note: mem };
       }
       if (text.includes("HANDLE WITH CARE") || text.includes("HANDLE_WITH_CARE")) {
-        return { status: "HANDLE_WITH_CARE", note: mem.text };
+        return { status: "HANDLE_WITH_CARE", note: mem };
       }
     }
   }
