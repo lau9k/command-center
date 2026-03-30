@@ -23,6 +23,8 @@ export type {
 
 export interface PersonizeContextResult {
   guidelines: _SmartGuidelinesResponse | null;
+  /** @deprecated Use recall instead. Will be removed in a future update. */
+  memories?: _SmartDigestResponse | null;
   recall: SmartRecallUnifiedResult | null;
 }
 
@@ -40,7 +42,33 @@ export interface SmartRecallRecord {
 }
 
 /** @deprecated Use SmartRecallRecord instead. */
-export type SmartRecallItem = SmartRecallRecord;
+export interface SmartRecallItem {
+  id: string;
+  text: string;
+  score: number;
+  relevance_tier: "direct" | "partial" | "might";
+  record_id: string | null;
+  type: string;
+  topic: string;
+  timestamp: string | null;
+}
+
+/** @deprecated Use SmartRecallUnifiedResult instead. */
+export interface SmartRecallResult {
+  success: boolean;
+  memories: Array<SmartRecallItem>;
+}
+
+/** @deprecated Merged into SmartRecallUnifiedResult. */
+export interface SmartDigestResult {
+  recordId: string;
+  type: string;
+  properties: Record<string, string>;
+  memories: { id: string; text: string; createdAt: string }[];
+  compiledContext: string;
+  tokenEstimate: number;
+  tokenBudget: number;
+}
 
 export interface SmartRecallUnifiedResult {
   plan: string;
