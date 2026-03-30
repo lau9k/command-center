@@ -61,7 +61,7 @@ async function callUnifiedSmartRecall(
   const response = await client.memory.smartRecall(
     options as unknown as Parameters<typeof client.memory.smartRecall>[0]
   );
-  return response.data as UnifiedSmartRecallResponse | null;
+  return response.data as unknown as UnifiedSmartRecallResponse | null;
 }
 
 // ---------------------------------------------------------------------------

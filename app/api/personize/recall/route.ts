@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { smartRecall } from "@/lib/personize/actions";
+import client from "@/lib/personize/client";
 
 export async function GET(request: NextRequest) {
   if (!process.env.PERSONIZE_SECRET_KEY) {
@@ -11,8 +11,9 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl;
   const query = searchParams.get("q");
-  const type = searchParams.get("type") ?? undefined;
   const email = searchParams.get("email") ?? undefined;
+  const sessionId = searchParams.get("session_id") ?? undefined;
+  const responseDetail = searchParams.get("response_detail") ?? undefined;
 
   if (!query) {
     return NextResponse.json(
@@ -22,12 +23,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await smartRecall(query, {
-      email,
-      ...(type ? { collectionIds: undefined } : {}),
-    });
+    const response = await client.memory.smartRecall({
+      query,
+      message: query,
+      ...(email ? { email } : {}),
+      ...(sessionId ? { session_id: sessionId } : {}),
+      ...(responseDetail ? { response_detail: responseDetail } : {}),
+      fast_mode: true,
+      min_score: 0.3,
+    } as Parameters<typeof client.memory.smartRecall>[0]);
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json({ data: response.data });
   } catch (error) {
     console.error("[API] /api/personize/recall failed:", error);
     return NextResponse.json(

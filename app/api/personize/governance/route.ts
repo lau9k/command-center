@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const message = "governance variables brand voice ICP playbook competitor policy";
     const response = await client.memory.smartRecall({
-      query: "governance variables brand voice ICP playbook competitor policy",
+      query: message,
+      message,
       collectionIds: [GOVERNANCE_COLLECTION_ID],
       min_score: 0.0,
       fast_mode: true,
