@@ -23,34 +23,58 @@ export type {
 
 export interface PersonizeContextResult {
   guidelines: _SmartGuidelinesResponse | null;
-  memories: _SmartDigestResponse | null;
-  recall: SmartRecallResult | null;
+  recall: SmartRecallUnifiedResult | null;
 }
 
-export interface SmartRecallResult {
-  success: boolean;
-  memories: Array<SmartRecallItem>;
-}
-
-export interface SmartRecallItem {
-  id: string;
-  text: string;
-  score: number;
-  relevance_tier: "direct" | "partial" | "might";
-  record_id: string | null;
-  type: string;
-  topic: string;
-  timestamp: string | null;
-}
-
-export interface SmartDigestResult {
+export interface SmartRecallRecord {
+  displayName: string;
   recordId: string;
+  email: string | null;
   type: string;
+  score: number;
+  identity: string;
+  completeness: number;
+  freshness: number;
   properties: Record<string, string>;
-  memories: { id: string; text: string; createdAt: string }[];
-  compiledContext: string;
-  tokenEstimate: number;
-  tokenBudget: number;
+  memories: string[];
+}
+
+/** @deprecated Use SmartRecallRecord instead. */
+export type SmartRecallItem = SmartRecallRecord;
+
+export interface SmartRecallUnifiedResult {
+  plan: string;
+  confidence: number;
+  totalMatched: number;
+  answer: string;
+  records: SmartRecallRecord[];
+  warnings: string[];
+  suggestedActions: string[];
+  sessionId: string;
+  credits: number;
+  latency: number;
+  sources: string[];
+}
+
+export interface SmartRecallIdentifiers {
+  emails?: string[];
+  websites?: string[];
+  recordIds?: string[];
+  type?: string;
+  name?: string;
+  phoneNumbers?: string[];
+  parentIdentifier?: string;
+  customKeyName?: string;
+  customKeyValue?: string;
+}
+
+export interface SmartRecallUnifiedOptions {
+  message: string;
+  identifiers?: SmartRecallIdentifiers;
+  response_detail?: "ids" | "labels" | "summary" | "context" | "full";
+  token_budget?: number;
+  session_id?: string;
+  mode?: "fast" | "deep" | "auto";
 }
 
 export interface GenerateWithContextResult {
