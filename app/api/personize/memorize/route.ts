@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import client from "@/lib/personize/client";
-import { memorizeSchema } from "@/lib/validations";
+import { memorizeSchema as baseMemorizeSchema } from "@/lib/validations";
+
+const memorizeSchema = baseMemorizeSchema.extend({
+  email: z.string().email().optional(),
+});
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -19,13 +24,14 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
-    const { content, tags, collectionId } = parsed.data;
+    const { content, tags, collectionId, email } = parsed.data;
 
     const response = await client.memory.memorize({
       content,
       tags,
       enhanced: true,
       ...(collectionId ? { collectionIds: [collectionId] } : {}),
+      ...(email ? { email } : {}),
     });
 
     return NextResponse.json({ success: true, data: response.data });

@@ -92,7 +92,7 @@ export async function smartRecall(
       min_score: 0.3,
       ...options,
     });
-    return response.data as SmartRecallResult | null;
+    return response.data as unknown as SmartRecallResult | null;
   } catch (error) {
     console.error("[Personize] smartRecall failed:", error);
     return null;
