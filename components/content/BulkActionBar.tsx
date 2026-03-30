@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { CalendarClock, Send, X, Loader2 } from "lucide-react";
+import { CalendarClock, ChevronDown, Send, Trash2, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import type { ContentPost } from "@/lib/types/database";
+import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
+import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
+
+const STATUS_OPTIONS: { value: ContentPostStatus; label: string }[] = [
+  { value: "draft", label: "Draft" },
+  { value: "ready", label: "Ready" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "published", label: "Published" },
+];
 
 interface BulkActionBarProps {
   selectedIds: Set<string>;
@@ -36,9 +44,11 @@ export function BulkActionBar({
   const [scheduling, setScheduling] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishProgress, setPublishProgress] = useState({ done: 0, total: 0 });
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const count = selectedIds.size;
-  if (count === 0) return null;
 
   const selectedPosts = posts.filter((p) => selectedIds.has(p.id));
   const publishableCount = selectedPosts.filter(
@@ -47,6 +57,62 @@ export function BulkActionBar({
   const schedulableCount = selectedPosts.filter(
     (p) => p.status === "draft" || p.status === "ready"
   ).length;
+
+  const handleStatusChange = useCallback(async (status: ContentPostStatus) => {
+    setStatusOpen(false);
+    setScheduling(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch("/api/content-posts", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, status }),
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`Failed to update ${failed} post(s)`);
+      } else {
+        toast.success(`Updated ${ids.length} post(s) to ${status}`);
+      }
+      onClear();
+      await onBulkUpdate();
+    } catch {
+      toast.error("Failed to update posts");
+    } finally {
+      setScheduling(false);
+    }
+  }, [selectedIds, onClear, onBulkUpdate]);
+
+  const handleBulkDelete = useCallback(async () => {
+    setDeleteOpen(false);
+    setDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/content-posts?id=${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`Failed to delete ${failed} post(s)`);
+      } else {
+        toast.success(`Deleted ${ids.length} post(s)`);
+      }
+      onClear();
+      await onBulkUpdate();
+    } catch {
+      toast.error("Failed to delete posts");
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedIds, onClear, onBulkUpdate]);
 
   const handleSchedule = useCallback(async () => {
     if (!scheduledDate) return;
@@ -152,7 +218,9 @@ export function BulkActionBar({
     await onBulkUpdate();
   }, [selectedPosts, onClear, onBulkUpdate]);
 
-  const isProcessing = scheduling || publishing;
+  const isProcessing = scheduling || publishing || deleting;
+
+  if (count === 0) return null;
 
   return (
     <>
@@ -198,6 +266,50 @@ export function BulkActionBar({
             </Button>
           )}
 
+          <div className="h-5 w-px bg-border" />
+
+          {/* Change Status dropdown */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isProcessing}
+              onClick={() => setStatusOpen(!statusOpen)}
+              className="gap-1.5"
+            >
+              Change Status
+              <ChevronDown className="size-3.5" />
+            </Button>
+            {statusOpen && (
+              <div className="absolute bottom-full left-0 mb-1 w-40 rounded-lg border border-border bg-card py-1 shadow-lg">
+                {STATUS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleStatusChange(opt.value)}
+                    className="w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-accent"
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Delete */}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isProcessing}
+            onClick={() => setDeleteOpen(true)}
+            className="gap-1.5 text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="size-3.5" />
+            Delete
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
           <Button
             variant="ghost"
             size="icon-xs"
@@ -209,6 +321,16 @@ export function BulkActionBar({
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Selected Posts"
+        description={`Are you sure you want to delete ${count} post(s)? This cannot be undone.`}
+        onConfirm={handleBulkDelete}
+        loading={deleting}
+      />
 
       {/* Schedule Date Picker Dialog */}
       <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
