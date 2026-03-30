@@ -139,6 +139,7 @@ export interface Contact {
   message_count?: number;
   priority_score?: number;
   last_interaction_date?: string | null;
+  memory_count?: number | null;
 }
 
 export interface PipelineItem {

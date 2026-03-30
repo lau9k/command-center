@@ -180,6 +180,7 @@ function mapRecordToContact(
     message_count: parseInt(props.message_count ?? "0", 10) || 0,
     priority_score: priorityScore,
     last_interaction_date: props.last_interaction_date ?? null,
+    memory_count: parseInt(props.memory_count ?? "0", 10) || 0,
     source: "linkedin",
     status: "active",
     tags: props.tags ? props.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
@@ -337,6 +338,52 @@ export async function getContactById(
 }
 
 /**
+ * Batch-fetch memory counts for a list of contacts.
+ * Returns a Map of record_id → memory count.
+ * Uses memory.search per record in parallel (bounded concurrency).
+ */
+export async function batchGetMemoryCounts(
+  recordIds: string[]
+): Promise<Map<string, number>> {
+  const cacheKey = `memory-counts:${recordIds.sort().join(",")}`;
+  const cached = getCached<Map<string, number>>(cacheKey);
+  if (cached) return cached;
+
+  const counts = new Map<string, number>();
+
+  // Batch in groups of 10 for bounded concurrency
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < recordIds.length; i += BATCH_SIZE) {
+    const batch = recordIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (recordId) => {
+        try {
+          const response = await client.memory.search({
+            recordId,
+            collectionIds: [CONTACTS_COLLECTION_ID],
+            returnRecords: false,
+            pageSize: 1,
+          });
+          const data = response.data as { totalMatched?: number } | null;
+          return { recordId, count: data?.totalMatched ?? 0 };
+        } catch {
+          return { recordId, count: 0 };
+        }
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        counts.set(result.value.recordId, result.value.count);
+      }
+    }
+  }
+
+  setCache(cacheKey, counts);
+  return counts;
+}
+
+/**
  * Semantic search across contacts using smartRecall.
  * Returns ranked contacts by relevance.
  */
@@ -393,6 +440,7 @@ export async function recallContacts(
           message_count: 0,
           priority_score: (mem.score ?? 0) * 100,
           last_interaction_date: null,
+          memory_count: null,
           source: "linkedin",
           status: "active",
           tags: [],
