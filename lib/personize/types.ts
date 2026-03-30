@@ -43,6 +43,24 @@ export interface SmartRecallItem {
   timestamp: string | null;
 }
 
+/** A record from the SmartRecall Unified response. */
+export interface SmartRecallRecord {
+  recordId: string;
+  displayName: string;
+  score: number;
+  completeness: number;
+  freshness: number;
+  properties: Record<string, string>;
+  memories: string[];
+}
+
+/** Unified response from the SmartRecall / enrich API. */
+export interface SmartRecallUnifiedResult {
+  digest: string;
+  properties: Record<string, string>;
+  records: SmartRecallRecord[];
+}
+
 export interface SmartDigestResult {
   recordId: string;
   type: string;
