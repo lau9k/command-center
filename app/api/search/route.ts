@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
 export const dynamic = "force-dynamic";
 
-interface SearchResult {
+interface SearchResultItem {
   id: string;
   type: "contact" | "pipeline" | "content" | "task" | "sponsor";
   title: string;
@@ -11,18 +12,36 @@ interface SearchResult {
   href: string;
 }
 
-export async function GET(request: NextRequest) {
+interface GroupedSearchResults {
+  tasks: SearchResultItem[];
+  contacts: SearchResultItem[];
+  pipeline: SearchResultItem[];
+  content: SearchResultItem[];
+}
+
+export const GET = withErrorHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
 
-  if (!q || q.length < 2) {
-    return NextResponse.json({ results: [] });
+  if (!q || q.length < 2 || q.length > 200) {
+    const empty: GroupedSearchResults = {
+      tasks: [],
+      contacts: [],
+      pipeline: [],
+      content: [],
+    };
+    return NextResponse.json(empty);
   }
 
   const supabase = createServiceClient();
   const pattern = `%${q}%`;
 
-  const [contacts, pipeline, content, tasks, sponsors] = await Promise.all([
+  const [tasks, contacts, pipeline, content] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, project_id, title, status, priority")
+      .ilike("title", pattern)
+      .limit(5),
     supabase
       .from("contacts")
       .select("id, project_id, name, company, email")
@@ -38,79 +57,46 @@ export async function GET(request: NextRequest) {
       .select("id, project_id, title, platform, status")
       .or(`title.ilike.${pattern},caption.ilike.${pattern}`)
       .limit(5),
-    supabase
-      .from("tasks")
-      .select("id, project_id, title, status, priority")
-      .ilike("title", pattern)
-      .limit(5),
-    supabase
-      .from("sponsors")
-      .select("id, name, tier, status, contact_name")
-      .or(`name.ilike.${pattern},contact_name.ilike.${pattern}`)
-      .limit(5),
   ]);
 
-  const results: SearchResult[] = [];
+  const grouped: GroupedSearchResults = {
+    tasks: (tasks.data ?? []).map((t) => ({
+      id: t.id,
+      type: "task" as const,
+      title: t.title,
+      subtitle: [t.status, t.priority].filter(Boolean).join(" · ") || null,
+      href: t.project_id ? `/projects/${t.project_id}/tasks` : "/tasks",
+    })),
+    contacts: (contacts.data ?? []).map((c) => ({
+      id: c.id,
+      type: "contact" as const,
+      title: c.name,
+      subtitle: c.company || c.email || null,
+      href: `/projects/${c.project_id}/contacts`,
+    })),
+    pipeline: (pipeline.data ?? []).map((p) => ({
+      id: p.id,
+      type: "pipeline" as const,
+      title: p.title,
+      subtitle: p.stage_id,
+      href: `/projects/${p.project_id}/pipeline`,
+    })),
+    content: (content.data ?? []).map((c) => ({
+      id: c.id,
+      type: "content" as const,
+      title: c.title || "Untitled Post",
+      subtitle: [c.platform, c.status].filter(Boolean).join(" · ") || null,
+      href: "/content",
+    })),
+  };
 
-  if (tasks.data) {
-    for (const t of tasks.data) {
-      results.push({
-        id: t.id,
-        type: "task",
-        title: t.title,
-        subtitle: [t.status, t.priority].filter(Boolean).join(" · ") || null,
-        href: t.project_id ? `/projects/${t.project_id}/tasks` : "/tasks",
-      });
-    }
-  }
+  // Also return flat results array for backward compatibility
+  const results: SearchResultItem[] = [
+    ...grouped.tasks,
+    ...grouped.contacts,
+    ...grouped.pipeline,
+    ...grouped.content,
+  ];
 
-  if (contacts.data) {
-    for (const c of contacts.data) {
-      results.push({
-        id: c.id,
-        type: "contact",
-        title: c.name,
-        subtitle: c.company || c.email || null,
-        href: `/projects/${c.project_id}/contacts`,
-      });
-    }
-  }
-
-  if (pipeline.data) {
-    for (const p of pipeline.data) {
-      results.push({
-        id: p.id,
-        type: "pipeline",
-        title: p.title,
-        subtitle: p.stage_id,
-        href: `/projects/${p.project_id}/pipeline`,
-      });
-    }
-  }
-
-  if (content.data) {
-    for (const c of content.data) {
-      results.push({
-        id: c.id,
-        type: "content",
-        title: c.title || "Untitled Post",
-        subtitle: [c.platform, c.status].filter(Boolean).join(" · ") || null,
-        href: "/content",
-      });
-    }
-  }
-
-  if (sponsors.data) {
-    for (const s of sponsors.data) {
-      results.push({
-        id: s.id,
-        type: "sponsor",
-        title: s.name,
-        subtitle: [s.tier, s.status].filter(Boolean).join(" · ") || null,
-        href: "/sponsors",
-      });
-    }
-  }
-
-  return NextResponse.json({ results });
-}
+  return NextResponse.json({ ...grouped, results });
+});

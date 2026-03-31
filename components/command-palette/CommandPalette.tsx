@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import {
   navigationRegistry,
   filterRegistry,
-  type CommandRegistryItem,
 } from "@/lib/command-registry";
 import {
   QuickCreateMenu,
@@ -30,6 +29,7 @@ import {
 
 const RECENT_PAGES_KEY = "command-palette-recent-pages";
 const MAX_RECENT = 10;
+const SEARCH_DEBOUNCE_MS = 300;
 
 type IntentTab = "navigate" | "create" | "search" | "recent";
 type CreateType = "task" | "contact" | "pipeline";
@@ -121,11 +121,14 @@ export function CommandPalette() {
     }
   }, [open]);
 
-  // Debounced search when on search tab
+  // Unified debounced search — fires on navigate and search tabs
+  const shouldSearch =
+    (activeTab === "navigate" || activeTab === "search") && query.length >= 2;
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (activeTab !== "search" || query.length < 2) {
+    if (!shouldSearch) {
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -146,12 +149,12 @@ export function CommandPalette() {
       } finally {
         setIsSearching(false);
       }
-    }, 250);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, activeTab]);
+  }, [query, shouldSearch]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const recentPages = useMemo(() => getRecentPages(), [openCount]);
@@ -186,7 +189,7 @@ export function CommandPalette() {
     return recentPages.filter((p) => p.label.toLowerCase().includes(q));
   }, [query, recentPages]);
 
-  const isActiveSearch = activeTab === "search" && query.length >= 2;
+  const isActiveSearch = shouldSearch;
 
   if (!open) return null;
 
@@ -200,7 +203,10 @@ export function CommandPalette() {
         <Command
           className="rounded-xl border border-border bg-card text-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
           loop
-          shouldFilter={activeTab === "navigate" || activeTab === "recent"}
+          shouldFilter={
+            (activeTab === "navigate" && !isActiveSearch) ||
+            activeTab === "recent"
+          }
         >
           {/* Tab bar */}
           <div className="flex border-b border-border">
@@ -243,7 +249,7 @@ export function CommandPalette() {
                       ? "Filter create actions..."
                       : activeTab === "recent"
                         ? "Filter recent pages..."
-                        : "Go to page..."
+                        : "Search or go to page..."
                 }
                 className="flex h-12 w-full bg-transparent text-sm text-foreground placeholder:text-[#666] outline-none"
                 value={query}
@@ -254,7 +260,7 @@ export function CommandPalette() {
 
           <Command.List className="max-h-[320px] overflow-y-auto p-2">
             <Command.Empty className="py-6 text-center text-sm text-[#666]">
-              {activeTab === "search" && isActiveSearch
+              {isActiveSearch
                 ? "No results found."
                 : activeTab === "search"
                   ? "Start typing to search across all modules."
@@ -263,7 +269,7 @@ export function CommandPalette() {
                     : "No matches found."}
             </Command.Empty>
 
-            {/* ── Navigate tab ─────────────────── */}
+            {/* ── Navigate tab (unified: nav + cross-module search) ── */}
             {activeTab === "navigate" && (
               <>
                 <Command.Group
@@ -308,6 +314,16 @@ export function CommandPalette() {
                     ))}
                   </Command.Group>
                 )}
+
+                {/* Cross-module search results in navigate tab */}
+                {isActiveSearch && (
+                  <SearchResults
+                    results={searchResults}
+                    onSelect={navigateTo}
+                  />
+                )}
+
+                {/* Quick actions placeholder — BAS-319 will add actions here */}
               </>
             )}
 
