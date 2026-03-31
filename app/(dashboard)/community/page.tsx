@@ -2,7 +2,10 @@ import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { createServiceClient } from "@/lib/supabase/service";
 import { CommunityDashboard } from "@/components/community/CommunityDashboard";
 import type { Member } from "@/components/community/MemberCard";
-import type { ActivityEvent, ActivityEventType } from "@/components/community/ActivityFeed";
+import type {
+  ActivityEvent,
+  ActivityEventType,
+} from "@/components/community/ActivityFeed";
 import type { CommunityEventType } from "@/lib/types/database";
 import type { GrowthDataPoint } from "@/components/community/GrowthChart";
 
@@ -11,7 +14,6 @@ export const revalidate = 300;
 export default async function CommunityPage() {
   const supabase = createServiceClient();
 
-  // Fetch live Telegram member count, stored members, cached stats, and latest fetch time in parallel
   const [communityMemberCount, membersRes, statsHistoryRes, latestStatsRes] =
     await Promise.all([
       fetchCommunityMemberCount(),
@@ -40,11 +42,9 @@ export default async function CommunityPage() {
     mass_held: m.mass_held ?? 0,
   }));
 
-  // Use live Telegram count as primary source, fall back to DB member count
   const totalMembers =
     communityMemberCount > 0 ? communityMemberCount : members.length;
 
-  // Compute KPIs from real member data when available
   const now = new Date();
   const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const newThisWeek = members.filter(
@@ -57,7 +57,6 @@ export default async function CommunityPage() {
         )
       : 0;
 
-  // Fetch recent community events from Supabase
   const eventsRes = await supabase
     .from("community_events")
     .select("id, title, description, event_type, created_at")
@@ -65,7 +64,13 @@ export default async function CommunityPage() {
     .limit(20);
 
   const events: ActivityEvent[] = (eventsRes.data ?? []).map(
-    (e: { id: string; title: string; description: string | null; event_type: CommunityEventType; created_at: string }) => ({
+    (e: {
+      id: string;
+      title: string;
+      description: string | null;
+      event_type: CommunityEventType;
+      created_at: string;
+    }) => ({
       id: e.id,
       type: e.event_type as ActivityEventType,
       description: e.description ?? e.title,
@@ -73,7 +78,6 @@ export default async function CommunityPage() {
     })
   );
 
-  // Build growth data from community_stats cache history
   const statsHistory = statsHistoryRes.data ?? [];
   const dailyGrowth: GrowthDataPoint[] = statsHistory
     .map((s) => ({
@@ -85,7 +89,6 @@ export default async function CommunityPage() {
     }))
     .reverse();
 
-  // Weekly: group by week and take the last snapshot per week
   const weeklyMap = new Map<string, GrowthDataPoint>();
   for (const s of statsHistory) {
     const d = new Date(s.fetched_at);
@@ -99,9 +102,10 @@ export default async function CommunityPage() {
       weeklyMap.set(weekKey, { date: weekKey, holders: s.member_count });
     }
   }
-  const weeklyGrowth: GrowthDataPoint[] = Array.from(weeklyMap.values()).reverse();
+  const weeklyGrowth: GrowthDataPoint[] = Array.from(
+    weeklyMap.values()
+  ).reverse();
 
-  // Last-updated timestamp from cached stats
   const lastUpdated = latestStatsRes.data?.fetched_at ?? null;
 
   return (
