@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   DragDropContext,
   Droppable,
@@ -8,6 +8,7 @@ import {
   type DropResult,
 } from "@hello-pangea/dnd";
 import { CalendarClock, FileText } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/ui";
@@ -23,6 +24,10 @@ const COLUMNS: { id: ContentPostStatus; label: string; color: string }[] = [
   { id: "scheduled", label: "Scheduled", color: "#3B82F6" },
   { id: "published", label: "Published", color: "#22C55E" },
 ];
+
+const COLUMN_LABELS: Record<string, string> = Object.fromEntries(
+  COLUMNS.map((c) => [c.id, c.label])
+);
 
 const PLATFORM_OPTIONS = [
   { label: "LinkedIn", value: "linkedin" },
@@ -50,10 +55,14 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
   const [posts, setPosts] = useState<ContentPost[]>(initialPosts);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [drawerPost, setDrawerPost] = useState<ContentPost | null>(null);
+  const [patchingIds, setPatchingIds] = useState<Set<string>>(new Set());
   const [filterValues, setFilterValues] = useState<FilterValues>({
     platform: [],
     status: [],
   });
+
+  // Keep a ref to the latest posts for revert lookups
+  const postsSnapshotRef = useRef<ContentPost[]>(initialPosts);
 
   const filteredPosts = posts.filter((post) => {
     const platformFilter = filterValues.platform;
@@ -72,38 +81,51 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
     filteredPosts.filter((p) => p.status === status);
 
   const updatePostStatus = useCallback(
-    async (id: string, status: ContentPostStatus) => {
+    async (id: string, status: ContentPostStatus, sortOrder?: number) => {
+      // Snapshot current state for revert
+      const snapshot = [...posts];
+      postsSnapshotRef.current = snapshot;
+
+      // Optimistic update
       setPosts((prev) =>
         prev.map((p) =>
           p.id === id ? { ...p, status, updated_at: new Date().toISOString() } : p
         )
       );
+      setPatchingIds((prev) => new Set(prev).add(id));
 
       try {
-        const res = await fetch("/api/content-posts", {
+        const body: Record<string, unknown> = { status };
+        if (sortOrder !== undefined) {
+          body.sort_order = sortOrder;
+        }
+
+        const res = await fetch(`/api/content-posts/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, status }),
+          body: JSON.stringify(body),
         });
+
         if (!res.ok) {
           // Revert on failure
-          setPosts((prev) =>
-            prev.map((p) => {
-              const original = initialPosts.find((ip) => ip.id === p.id);
-              return p.id === id && original ? original : p;
-            })
-          );
+          setPosts(snapshot);
+          toast.error("Failed to update — reverted");
+        } else {
+          const label = COLUMN_LABELS[status] ?? status;
+          toast.success(`Post moved to ${label}`);
         }
       } catch {
-        setPosts((prev) =>
-          prev.map((p) => {
-            const original = initialPosts.find((ip) => ip.id === p.id);
-            return p.id === id && original ? original : p;
-          })
-        );
+        setPosts(snapshot);
+        toast.error("Failed to update — reverted");
+      } finally {
+        setPatchingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
       }
     },
-    [initialPosts]
+    [posts]
   );
 
   const handleDragEnd = useCallback(
@@ -112,11 +134,15 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
 
       const newStatus = result.destination.droppableId as ContentPostStatus;
       const postId = result.draggableId;
+      const newIndex = result.destination.index;
 
       const post = posts.find((p) => p.id === postId);
-      if (!post || post.status === newStatus) return;
+      if (!post) return;
 
-      updatePostStatus(postId, newStatus);
+      // Skip if dropped in same position
+      if (post.status === newStatus && result.source.index === newIndex) return;
+
+      updatePostStatus(postId, newStatus, newIndex);
     },
     [posts, updatePostStatus]
   );
@@ -152,15 +178,25 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
     setSelectedIds(new Set());
 
     // Batch update
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       toSchedule.map((id) =>
-        fetch("/api/content-posts", {
+        fetch(`/api/content-posts/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, status: "scheduled" }),
+          body: JSON.stringify({ status: "scheduled" }),
         })
       )
     );
+
+    const failedCount = results.filter(
+      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)
+    ).length;
+
+    if (failedCount > 0) {
+      toast.error(`Failed to schedule ${failedCount} post${failedCount > 1 ? "s" : ""}`);
+    } else {
+      toast.success(`Scheduled ${toSchedule.length} post${toSchedule.length > 1 ? "s" : ""}`);
+    }
   }, [selectedIds, posts]);
 
   const schedulableCount = Array.from(selectedIds).filter((id) => {
@@ -256,6 +292,10 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
                             <div
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
+                              className={cn(
+                                "transition-opacity",
+                                patchingIds.has(post.id) && "opacity-60"
+                              )}
                             >
                               <PostCard
                                 post={post}
