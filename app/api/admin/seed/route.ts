@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+
+// ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
+const seedModuleEnum = z.enum(["all", "contacts", "tasks", "projects", "sponsors"]);
+
+const seedRequestSchema = z.object({
+  module: seedModuleEnum.default("all"),
+  count: z.number().int().min(1).max(100).default(10),
+});
+
+const clearRequestSchema = z.object({
+  module: z.enum(["contacts", "tasks", "projects", "sponsors"]),
+});
 
 // ---------------------------------------------------------------------------
 // Stable UUIDs for fixture data (deterministic so ON CONFLICT works)
@@ -697,21 +712,23 @@ export const POST = withErrorHandler(async function POST(req: NextRequest) {
   const authError = authenticate(req);
   if (authError) return authError;
 
-  // Parse request body for module + count
-  let module: SeedModule = "all";
-  let count = 10;
-
+  // Parse + validate request body
+  let body: Record<string, unknown> = {};
   try {
-    const body = await req.json();
-    if (body.module && ["all", "contacts", "tasks", "projects", "sponsors"].includes(body.module)) {
-      module = body.module;
-    }
-    if (typeof body.count === "number" && body.count > 0 && body.count <= 100) {
-      count = body.count;
-    }
+    body = await req.json();
   } catch {
-    // No body or invalid JSON — use defaults (seed all with 10 records)
+    // No body — defaults will apply via Zod
   }
+
+  const parsed = seedRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
+
+  const { module, count } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -760,5 +777,51 @@ export const POST = withErrorHandler(async function POST(req: NextRequest) {
     count,
     total_seeded: totalSeeded,
     details: results,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/admin/seed — clear all records from a specific module table
+// ---------------------------------------------------------------------------
+
+const MODULE_TABLES: Record<string, string> = {
+  contacts: "contacts",
+  tasks: "tasks",
+  projects: "pipeline_items",
+  sponsors: "sponsors",
+};
+
+export const DELETE = withErrorHandler(async function DELETE(req: NextRequest) {
+  const authError = authenticate(req);
+  if (authError) return authError;
+
+  const body = await req.json();
+  const parsed = clearRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
+
+  const { module } = parsed.data;
+  const table = MODULE_TABLES[module];
+  const supabase = createServiceClient();
+
+  // Count before delete
+  const { count: beforeCount } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true });
+
+  const { error } = await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+  if (error) {
+    return NextResponse.json({ error: `Failed to clear ${module}: ${error.message}` }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    module,
+    deleted: beforeCount ?? 0,
   });
 });

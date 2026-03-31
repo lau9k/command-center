@@ -10,6 +10,7 @@ import {
   ListTodo,
   FolderKanban,
   Award,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,18 +22,37 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type SeedModule = "all" | "contacts" | "tasks" | "projects" | "sponsors";
+type ClearableModule = Exclude<SeedModule, "all">;
+
+interface ModuleDetail {
+  seeded: number;
+  error?: string;
+}
 
 interface SeedResult {
   module: SeedModule;
+  action: "seed" | "clear";
   success: boolean;
   count: number;
   message: string;
+  details?: Record<string, ModuleDetail>;
   timestamp: string;
 }
 
@@ -85,6 +105,7 @@ const COUNT_OPTIONS = [5, 10, 25, 50];
 export function SeedRunner() {
   const [count, setCount] = useState(10);
   const [running, setRunning] = useState<SeedModule | null>(null);
+  const [clearing, setClearing] = useState<ClearableModule | null>(null);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<SeedResult[]>([]);
 
@@ -114,9 +135,11 @@ export function SeedRunner() {
 
         const result: SeedResult = {
           module,
+          action: "seed",
           success: true,
           count: data.total_seeded ?? 0,
           message: `Seeded ${data.total_seeded ?? 0} records`,
+          details: data.details,
           timestamp: new Date().toISOString(),
         };
 
@@ -128,6 +151,7 @@ export function SeedRunner() {
 
         const result: SeedResult = {
           module,
+          action: "seed",
           success: false,
           count: 0,
           message,
@@ -143,6 +167,55 @@ export function SeedRunner() {
     },
     [count],
   );
+
+  const clearModule = useCallback(async (module: ClearableModule) => {
+    setClearing(module);
+
+    try {
+      const res = await fetch("/api/admin/seed", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ module }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Clear operation failed");
+      }
+
+      const result: SeedResult = {
+        module,
+        action: "clear",
+        success: true,
+        count: data.deleted ?? 0,
+        message: `Cleared ${data.deleted ?? 0} ${module} records`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setResults((prev) => [result, ...prev]);
+      toast.success(result.message);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred";
+
+      const result: SeedResult = {
+        module,
+        action: "clear",
+        success: false,
+        count: 0,
+        message,
+        timestamp: new Date().toISOString(),
+      };
+
+      setResults((prev) => [result, ...prev]);
+      toast.error(message);
+    } finally {
+      setClearing(null);
+    }
+  }, []);
+
+  const isBusy = running !== null || clearing !== null;
 
   return (
     <div className="space-y-6">
@@ -162,7 +235,7 @@ export function SeedRunner() {
                 variant={count === n ? "default" : "outline"}
                 size="sm"
                 onClick={() => setCount(n)}
-                disabled={running !== null}
+                disabled={isBusy}
               >
                 {n} records
               </Button>
@@ -182,6 +255,13 @@ export function SeedRunner() {
         </div>
       )}
 
+      {clearing && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Clearing {clearing}…
+        </div>
+      )}
+
       {/* Module buttons */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {SEED_MODULES.map((mod) => (
@@ -195,11 +275,11 @@ export function SeedRunner() {
                 {mod.description}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex gap-2">
               <Button
-                className="w-full"
+                className="flex-1"
                 onClick={() => runSeed(mod.key)}
-                disabled={running !== null}
+                disabled={isBusy}
               >
                 {running === mod.key ? (
                   <>
@@ -213,6 +293,39 @@ export function SeedRunner() {
                   </>
                 )}
               </Button>
+              {mod.key !== "all" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      disabled={isBusy}
+                      title={`Clear all ${mod.label}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Clear all {mod.label.toLowerCase()}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all {mod.label.toLowerCase()} records.
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => clearModule(mod.key as ClearableModule)}
+                      >
+                        Clear {mod.label}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -223,26 +336,35 @@ export function SeedRunner() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Action Log</CardTitle>
-            <CardDescription>
-              Recent seed operations
-            </CardDescription>
+            <CardDescription>Recent seed operations</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {results.map((r, i) => (
                 <div
                   key={`${r.timestamp}-${i}`}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="rounded-md border p-3 space-y-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <Badge variant={r.success ? "default" : "destructive"}>
-                      {r.success ? "Success" : "Failed"}
-                    </Badge>
-                    <span className="text-sm">{r.message}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={r.success ? "default" : "destructive"}>
+                        {r.success ? (r.action === "clear" ? "Cleared" : "Seeded") : "Failed"}
+                      </Badge>
+                      <span className="text-sm">{r.message}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(r.timestamp).toLocaleTimeString()}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(r.timestamp).toLocaleTimeString()}
-                  </span>
+                  {r.details && (
+                    <div className="flex flex-wrap gap-2 ml-1">
+                      {Object.entries(r.details).map(([mod, detail]) => (
+                        <Badge key={mod} variant="outline" className="text-xs">
+                          {mod}: {detail.seeded}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
