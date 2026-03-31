@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx scripts/seed-demo-data.ts",
     "test": "vitest run",
+    "test:ci": "vitest run --reporter=default",
     "test:watch": "vitest"
   },
   "dependencies": {
