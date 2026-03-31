@@ -61,7 +61,14 @@ async function callUnifiedSmartRecall(
   const response = await client.memory.smartRecall(
     options as unknown as Parameters<typeof client.memory.smartRecall>[0]
   );
-  return response.data as unknown as UnifiedSmartRecallResponse | null;
+  const data = response.data as unknown as UnifiedSmartRecallResponse | null;
+  if (data) {
+    // Ensure records is always an array — the API may return a non-array value
+    if (!Array.isArray(data.records)) {
+      data.records = [];
+    }
+  }
+  return data;
 }
 
 // ---------------------------------------------------------------------------

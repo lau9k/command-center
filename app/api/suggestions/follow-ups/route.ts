@@ -180,14 +180,14 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
     // Process recall results which include raw properties
     type RecallData = {
-      memories?: Array<{
-        record_id?: string;
+      records?: Array<{
+        recordId?: string;
         properties?: Record<string, string>;
         text?: string;
       }>;
     };
 
-    const memories = (recallResult as RecallData)?.memories ?? [];
+    const memories = (recallResult as RecallData)?.records ?? [];
     const seenEmails = new Set<string>();
 
     for (const mem of memories) {
