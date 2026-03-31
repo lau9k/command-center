@@ -1,6 +1,7 @@
 import { TodaysFocusWidget } from "@/components/home/TodaysFocusWidget";
 import type { FocusTask, StaleContact } from "@/components/home/TodaysFocusWidget";
 import { DailyBriefingWidget } from "@/components/home/daily-briefing";
+import { DailyBriefingPanel } from "@/components/home/DailyBriefingPanel";
 import { MemoryHealthWidget } from "@/components/home/memory-health-widget";
 import { SessionPromptButton } from "@/components/dashboard/SessionPromptButton";
 import { ProjectSummaryCards } from "@/components/dashboard/ProjectSummaryCards";
@@ -128,6 +129,11 @@ export default async function DashboardPage() {
           Overview of tasks, content, contacts, and activity across all projects
         </p>
       </div>
+
+      {/* 0. Daily Briefing Panel — overdue, momentum, anomalies, action */}
+      <WidgetErrorBoundary name="Daily Briefing Panel">
+        <DailyBriefingPanel />
+      </WidgetErrorBoundary>
 
       {/* 1. Today's Focus + Session Prompt */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
