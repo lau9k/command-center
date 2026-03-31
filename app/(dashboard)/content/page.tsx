@@ -3,6 +3,7 @@ import { startOfMonth, endOfMonth } from "date-fns";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getQueryClient } from "@/lib/query-client";
 import { ContentPageShell } from "./ContentPageShell";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
 import type { ContentPost, Project } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,9 @@ export default async function ContentPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      <div className="flex justify-end">
+        <ExportCsvButton module="content" />
+      </div>
       <ContentPageShell />
     </HydrationBoundary>
   );

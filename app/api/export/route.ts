@@ -16,7 +16,7 @@ const ALLOWED_TABLES = [
   "projects",
 ] as const;
 
-const ALLOWED_MODULES = ["tasks", "contacts", "pipeline", "finance"] as const;
+const ALLOWED_MODULES = ["tasks", "contacts", "pipeline", "finance", "content", "sponsors", "conversations"] as const;
 
 const ExportParamsSchema = z.object({
   table: z.enum(ALLOWED_TABLES),

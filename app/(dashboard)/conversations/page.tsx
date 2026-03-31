@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getQueryClient } from "@/lib/query-client";
 import type { Conversation } from "@/lib/types/database";
 import { ConversationList } from "@/components/conversations/ConversationList";
+import { ExportCsvButton } from "@/components/shared/export-csv-button";
 
 export const dynamic = "force-dynamic";
 
@@ -68,11 +69,14 @@ export default async function ConversationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Conversations</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Emails, meetings, and messages linked to your contacts
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Conversations</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Emails, meetings, and messages linked to your contacts
+          </p>
+        </div>
+        <ExportCsvButton module="conversations" />
       </div>
 
       <HydrationBoundary state={dehydrate(queryClient)}>
