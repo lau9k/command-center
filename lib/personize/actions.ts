@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import client from "./client";
 import type {
   SmartGuidelinesResponse,
-  SmartRecallResult,
+  SmartRecallUnifiedResult,
   GenerateWithContextResult,
   PersonizeContextResult,
   PersonizeContact,
@@ -30,7 +30,7 @@ interface UnifiedSmartRecallResponse {
   success: boolean;
   answer?: string;
   records?: SmartRecallRecord[];
-  memories?: SmartRecallResult["memories"];
+  memories?: SmartRecallRecord[];
   /** @deprecated Mapped from answer for backward compatibility with smartDigest callers. */
   compiledContext?: string;
   properties?: Record<string, string>;
@@ -89,7 +89,7 @@ export async function smartRecall(
     session_id?: string;
     response_detail?: "full" | "summary";
   }
-): Promise<SmartRecallResult | null> {
+): Promise<SmartRecallUnifiedResult | null> {
   try {
     const { email, collectionIds, identifiers, session_id, response_detail } = options ?? {};
 
@@ -107,7 +107,7 @@ export async function smartRecall(
       ...(session_id ? { session_id } : {}),
       ...(response_detail ? { response_detail } : {}),
     });
-    return data as SmartRecallResult | null;
+    return data as SmartRecallUnifiedResult | null;
   } catch (error) {
     console.error("[Personize] smartRecall failed:", error);
     return null;
