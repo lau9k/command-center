@@ -230,7 +230,7 @@ export function BufferCalendar({
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-l-lg",
                 viewMode === "week"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -242,7 +242,7 @@ export function BufferCalendar({
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-r-lg",
                 viewMode === "month"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -304,7 +304,7 @@ export function BufferCalendar({
           {/* New Post */}
           <Button
             size="sm"
-            className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+            className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
           >
             <Plus className="mr-1 size-4" />
             New Post
@@ -315,7 +315,7 @@ export function BufferCalendar({
       {/* Loading skeleton */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <div className="size-6 animate-spin rounded-full border-2 border-border border-t-[#3B82F6]" />
+          <div className="size-6 animate-spin rounded-full border-2 border-border border-t-blue-500 dark:border-t-blue-400" />
         </div>
       )}
 
@@ -398,7 +398,7 @@ function WeekView({
               key={day.toISOString()}
               className={cn(
                 "border-r border-border px-2 py-2 text-center last:border-r-0",
-                today && "bg-[#3B82F6]/5"
+                today && "bg-blue-500/5 dark:bg-blue-400/5"
               )}
             >
               <span className="text-xs font-medium uppercase text-muted-foreground">
@@ -407,7 +407,7 @@ function WeekView({
               <div
                 className={cn(
                   "mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full text-sm font-medium",
-                  today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                  today ? "bg-blue-500 dark:bg-blue-400 text-white" : "text-foreground"
                 )}
               >
                 {format(day, "d")}
@@ -455,9 +455,9 @@ function WeekView({
                       {...provided.droppableProps}
                       className={cn(
                         "min-h-[48px] border-r border-border p-0.5 last:border-r-0 transition-colors",
-                        today && "border-l-2 border-l-[#3B82F6] bg-[#3B82F6]/5",
+                        today && "border-l-2 border-l-blue-500 dark:border-l-blue-400 bg-blue-500/5 dark:bg-blue-400/5",
                         snapshot.isDraggingOver &&
-                          "bg-[#3B82F6]/10"
+                          "bg-blue-500/10 dark:bg-blue-400/10"
                       )}
                     >
                       {cellPosts.map((post, index) => (
@@ -539,15 +539,15 @@ function MonthView({
                   {...provided.droppableProps}
                   className={cn(
                     "flex min-h-[110px] flex-col bg-card p-2 transition-colors",
-                    today && "bg-[#3B82F6]/5",
+                    today && "bg-blue-500/5 dark:bg-blue-400/5",
                     !inRange && "opacity-40",
-                    snapshot.isDraggingOver && "bg-[#3B82F6]/10"
+                    snapshot.isDraggingOver && "bg-blue-500/10 dark:bg-blue-400/10"
                   )}
                 >
                   <span
                     className={cn(
                       "mb-1.5 flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                      today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                      today ? "bg-blue-500 dark:bg-blue-400 text-white" : "text-foreground"
                     )}
                   >
                     {format(day, "d")}

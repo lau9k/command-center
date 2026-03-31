@@ -97,7 +97,7 @@ export function PostDetailDrawer({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={post.image_url}
-                alt={post.title ?? ""}
+                alt={post.title || "Post image"}
                 className="w-full object-cover"
               />
             </div>
@@ -119,7 +119,7 @@ export function PostDetailDrawer({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={url}
-                    alt=""
+                    alt={post.title || "Post image"}
                     className="h-full w-full object-cover"
                   />
                 </div>

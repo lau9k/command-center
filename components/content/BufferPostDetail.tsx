@@ -154,7 +154,7 @@ export function BufferPostDetail({
               {Object.entries(engagement).map(([key, value]) => (
                 <div
                   key={key}
-                  className="rounded-lg border border-border bg-[#0A0A0A] p-3 text-center"
+                  className="rounded-lg border border-border bg-neutral-950 dark:bg-neutral-900 p-3 text-center"
                 >
                   <div className="text-lg font-semibold text-foreground tabular-nums">
                     {typeof value === "number"
@@ -187,7 +187,7 @@ export function BufferPostDetail({
             {post.status !== "scheduled" && (
               <Button
                 size="sm"
-                className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+                className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
                 disabled={updating}
                 onClick={() => handleStatusChange("scheduled")}
               >

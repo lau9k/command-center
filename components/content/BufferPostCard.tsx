@@ -62,8 +62,8 @@ export function BufferPostCard({
         className={cn(
           "group flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors",
           "bg-card hover:bg-accent/50",
-          "dark:bg-[#1A1A1A] dark:hover:bg-[#222]",
-          isDragging && "shadow-lg ring-2 ring-[#3B82F6]/40"
+          "dark:bg-neutral-900 dark:hover:bg-neutral-800",
+          isDragging && "shadow-lg ring-2 ring-blue-500/40 dark:ring-blue-400/40"
         )}
       >
         {platforms[0] && (
@@ -84,8 +84,8 @@ export function BufferPostCard({
       className={cn(
         "group flex w-full flex-col rounded-lg p-3 text-left transition-colors",
         "bg-card hover:bg-accent/50 border border-border",
-        "dark:bg-[#1A1A1A] dark:hover:bg-[#222] dark:border-[#2A2A2A]",
-        isDragging && "shadow-lg ring-2 ring-[#3B82F6]/40",
+        "dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-800",
+        isDragging && "shadow-lg ring-2 ring-blue-500/40 dark:ring-blue-400/40",
         "min-w-[280px] max-w-[320px]"
       )}
     >
@@ -106,7 +106,7 @@ export function BufferPostCard({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={post.image_url}
-              alt=""
+              alt={post.title || "Post image"}
               className="size-full object-cover"
             />
           </div>

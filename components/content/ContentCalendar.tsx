@@ -30,12 +30,12 @@ type ContentPostWithProject = ContentPost & {
   projects: { id: string; name: string; color: string | null } | null;
 };
 
-const PLATFORM_COLORS: Record<string, string> = {
-  linkedin: "#0A66C2",
-  twitter: "#1DA1F2",
-  youtube: "#FF0000",
-  instagram: "#E4405F",
-  tiktok: "#000000",
+const PLATFORM_BG_CLASSES: Record<string, string> = {
+  linkedin: "bg-blue-700 dark:bg-blue-500",
+  twitter: "bg-sky-500 dark:bg-sky-400",
+  youtube: "bg-red-600 dark:bg-red-500",
+  instagram: "bg-pink-500 dark:bg-pink-400",
+  tiktok: "bg-black dark:bg-white",
 };
 
 const FILTER_DEFS: FilterDefinition[] = [
@@ -176,7 +176,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-l-lg",
                 viewMode === "week"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -188,7 +188,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-r-lg",
                 viewMode === "month"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -230,7 +230,7 @@ export function ContentCalendar({ initialPosts }: ContentCalendarProps) {
 
         <Button
           size="sm"
-          className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+          className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
           onClick={() => {
             // Placeholder for create flow
           }}
@@ -305,7 +305,7 @@ function WeekView({
                 className={cn(
                   "flex size-6 items-center justify-center rounded-full text-xs font-medium",
                   today
-                    ? "bg-[#3B82F6] text-white"
+                    ? "bg-blue-500 dark:bg-blue-400 text-white"
                     : "text-foreground"
                 )}
               >
@@ -372,7 +372,7 @@ function MonthView({
                 className={cn(
                   "mb-1 flex size-6 items-center justify-center rounded-full text-xs font-medium",
                   today
-                    ? "bg-[#3B82F6] text-white"
+                    ? "bg-blue-500 dark:bg-blue-400 text-white"
                     : "text-foreground"
                 )}
               >
@@ -408,7 +408,7 @@ function PostPill({
   compact?: boolean;
   onClick: () => void;
 }) {
-  const color = PLATFORM_COLORS[post.platform ?? ""] ?? "#666666";
+  const bgClass = PLATFORM_BG_CLASSES[post.platform ?? ""] ?? "bg-gray-500 dark:bg-gray-400";
 
   return (
     <button
@@ -416,9 +416,9 @@ function PostPill({
       onClick={onClick}
       className={cn(
         "w-full truncate rounded-md text-left text-xs font-medium text-white transition-opacity hover:opacity-80",
-        compact ? "px-1.5 py-0.5" : "px-2 py-1"
+        compact ? "px-1.5 py-0.5" : "px-2 py-1",
+        bgClass
       )}
-      style={{ backgroundColor: color }}
       title={post.title ?? "Untitled"}
     >
       {post.title ?? "Untitled"}
@@ -512,7 +512,7 @@ function PostDetail({
         <Button
           variant="ghost"
           size="sm"
-          className="text-[#EF4444] hover:bg-[#EF4444]/10 hover:text-[#EF4444]"
+          className="text-red-500 dark:text-red-400 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400"
           onClick={() => onDelete(post.id)}
         >
           Delete Post

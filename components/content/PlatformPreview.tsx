@@ -1,7 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/types/database";
+import { PLATFORM_LABELS } from "@/lib/types/database";
+
+const PLATFORM_BG_CLASSES: Record<string, string> = {
+  twitter: "bg-sky-500 dark:bg-sky-400",
+  linkedin: "bg-blue-700 dark:bg-blue-500",
+};
 import { Heart, MessageCircle, Repeat2, Share, ThumbsUp, Send } from "lucide-react";
 
 interface PlatformPreviewProps {
@@ -31,19 +36,19 @@ function TwitterPreview({ body, imageUrl }: { body: string; imageUrl?: string })
             </div>
           )}
           <div className="mt-3 flex items-center justify-between text-muted-foreground">
-            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-[#1DA1F2]">
+            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-sky-500 dark:hover:text-sky-400">
               <MessageCircle className="size-4" />
               <span>0</span>
             </button>
-            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-[#22C55E]">
+            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-green-500 dark:hover:text-green-400">
               <Repeat2 className="size-4" />
               <span>0</span>
             </button>
-            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-[#EF4444]">
+            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-red-500 dark:hover:text-red-400">
               <Heart className="size-4" />
               <span>0</span>
             </button>
-            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-[#1DA1F2]">
+            <button type="button" className="flex items-center gap-1.5 text-xs hover:text-sky-500 dark:hover:text-sky-400">
               <Share className="size-4" />
             </button>
           </div>
@@ -98,15 +103,14 @@ function LinkedInPreview({ body, imageUrl }: { body: string; imageUrl?: string }
 }
 
 export function PlatformPreview({ platform, body, imageUrl }: PlatformPreviewProps) {
-  const color = PLATFORM_COLORS[platform] ?? "#666";
+  const bgClass = PLATFORM_BG_CLASSES[platform] ?? "bg-gray-500 dark:bg-gray-400";
   const label = PLATFORM_LABELS[platform] ?? platform;
 
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
         <span
-          className="size-2.5 rounded-full"
-          style={{ backgroundColor: color }}
+          className={cn("size-2.5 rounded-full", bgClass)}
         />
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label} Preview
@@ -146,7 +150,7 @@ export function PlatformCharacterCount({ length, platform }: PlatformCharacterCo
     <span
       className={cn(
         "text-xs tabular-nums",
-        isOver ? "text-[#EF4444] font-medium" : "text-muted-foreground"
+        isOver ? "text-red-500 dark:text-red-400 font-medium" : "text-muted-foreground"
       )}
     >
       {length}/{limit}

@@ -23,8 +23,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { PlatformPreview, PlatformCharacterCount } from "@/components/content/PlatformPreview";
-import { PLATFORM_COLORS, PLATFORM_LABELS } from "@/lib/types/database";
+import { PLATFORM_LABELS } from "@/lib/types/database";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
+
+const PLATFORM_BG_CLASSES: Record<string, string> = {
+  twitter: "bg-sky-500 dark:bg-sky-400",
+  linkedin: "bg-blue-700 dark:bg-blue-500",
+  instagram: "bg-pink-500 dark:bg-pink-400",
+  tiktok: "bg-cyan-400 dark:bg-cyan-300",
+  telegram: "bg-sky-600 dark:bg-sky-500",
+  youtube: "bg-red-600 dark:bg-red-500",
+  reddit: "bg-orange-600 dark:bg-orange-500",
+  bluesky: "bg-blue-500 dark:bg-blue-400",
+  facebook: "bg-blue-600 dark:bg-blue-500",
+};
 
 const ALL_PLATFORMS = ["twitter", "linkedin", "instagram", "tiktok", "telegram", "youtube"];
 const PUBLISH_PLATFORMS = ["twitter", "linkedin", "facebook", "reddit", "bluesky"];
@@ -194,7 +206,7 @@ export function PostEditor({ post }: PostEditorProps) {
           </Button>
           <Button
             size="sm"
-            className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+            className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
             onClick={() => handleSave(scheduledDate ? "scheduled" : "ready")}
             disabled={saving || (!body.trim() && !title.trim())}
           >
@@ -308,7 +320,7 @@ export function PostEditor({ post }: PostEditorProps) {
                 <div className="mt-3 flex flex-wrap gap-2">
                   {ALL_PLATFORMS.map((p) => {
                     const selected = selectedPlatforms.includes(p);
-                    const color = PLATFORM_COLORS[p];
+                    const bgClass = PLATFORM_BG_CLASSES[p] ?? "bg-gray-500 dark:bg-gray-400";
                     return (
                       <button
                         key={p}
@@ -317,14 +329,12 @@ export function PostEditor({ post }: PostEditorProps) {
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                           selected
-                            ? "border-transparent text-white"
+                            ? cn("border-transparent text-white", bgClass)
                             : "border-border text-muted-foreground hover:border-ring"
                         )}
-                        style={selected ? { backgroundColor: color } : undefined}
                       >
                         <span
-                          className="size-2 rounded-full"
-                          style={{ backgroundColor: selected ? "white" : color }}
+                          className={cn("size-2 rounded-full", selected ? "bg-white" : bgClass)}
                         />
                         {PLATFORM_LABELS[p]}
                       </button>
@@ -459,8 +469,7 @@ export function PostEditor({ post }: PostEditorProps) {
                     onCheckedChange={() => togglePublishPlatform(platform)}
                   />
                   <span
-                    className="size-2.5 rounded-full"
-                    style={{ backgroundColor: PLATFORM_COLORS[platform] }}
+                    className={cn("size-2.5 rounded-full", PLATFORM_BG_CLASSES[platform] ?? "bg-gray-500 dark:bg-gray-400")}
                   />
                   <span className="text-sm font-medium">
                     {PLATFORM_LABELS[platform] ?? platform}
