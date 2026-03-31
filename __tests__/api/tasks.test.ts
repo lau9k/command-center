@@ -15,6 +15,10 @@ async function getRankedHandler() {
   return await import("@/app/api/tasks/ranked/route");
 }
 
+async function getIdRouteHandlers() {
+  return await import("@/app/api/tasks/[id]/route");
+}
+
 async function getBulkHandler() {
   return await import("@/app/api/tasks/bulk/route");
 }
@@ -96,6 +100,53 @@ describe("POST /api/tasks", () => {
     const res = await POST(req);
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe("PATCH /api/tasks/[id]", () => {
+  beforeEach(() => {
+    resetAllTables();
+    resetIdCounter();
+  });
+
+  it("updates a task", async () => {
+    const id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const updated = makeTask({ id, title: "Updated title", status: "in_progress" });
+    setTableData("tasks", [updated]);
+
+    const { PATCH } = await getIdRouteHandlers();
+    const req = new NextRequest(`https://localhost/api/tasks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "in_progress" }),
+      headers: { "content-type": "application/json" },
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ id }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data).toBeDefined();
+  });
+});
+
+describe("DELETE /api/tasks/[id]", () => {
+  beforeEach(() => {
+    resetAllTables();
+    resetIdCounter();
+  });
+
+  it("removes a task", async () => {
+    const id = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+    setTableData("tasks", []);
+
+    const { DELETE } = await getIdRouteHandlers();
+    const req = new NextRequest(`https://localhost/api/tasks/${id}`, {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, { params: Promise.resolve({ id }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
   });
 });
 
