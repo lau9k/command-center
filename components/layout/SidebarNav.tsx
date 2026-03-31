@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Bell,
   Calendar,
   CheckSquare,
   Coins,
   DollarSign,
   FileText,
   FolderOpen,
+  Kanban,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -29,6 +31,8 @@ const modules = [
   { label: "Conversations", href: "/conversations", icon: MessageSquare },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Pipeline", href: "/pipeline", icon: Kanban },
+  { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
