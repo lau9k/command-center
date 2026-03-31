@@ -14,8 +14,6 @@ import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import { BulkActionBar } from "@/components/content/BulkActionBar";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
-import { colors } from "@/lib/design-tokens";
-
 const VALID_PLATFORMS = new Set<string>([
   "linkedin",
   "twitter",
@@ -24,11 +22,11 @@ const VALID_PLATFORMS = new Set<string>([
   "tiktok",
 ]);
 
-const COLUMNS: { id: ContentPostStatus; label: string; color: string }[] = [
-  { id: "draft", label: "Draft", color: colors.text.tertiary },
-  { id: "ready", label: "Ready", color: colors.accent.yellow },
-  { id: "scheduled", label: "Scheduled", color: colors.accent.blue },
-  { id: "published", label: "Published", color: colors.accent.green },
+const COLUMNS: { id: ContentPostStatus; label: string; dotClass: string }[] = [
+  { id: "draft", label: "Draft", dotClass: "bg-gray-500 dark:bg-gray-400" },
+  { id: "ready", label: "Ready", dotClass: "bg-yellow-500 dark:bg-yellow-400" },
+  { id: "scheduled", label: "Scheduled", dotClass: "bg-blue-500 dark:bg-blue-400" },
+  { id: "published", label: "Published", dotClass: "bg-green-500 dark:bg-green-400" },
 ];
 
 const STATUS_TRANSITIONS: Record<ContentPostStatus, ContentPostStatus | null> = {
@@ -253,8 +251,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               {/* Column header */}
               <div className="mb-3 flex items-center gap-2">
                 <div
-                  className="size-2.5 rounded-full"
-                  style={{ backgroundColor: column.color }}
+                  className={`size-2.5 rounded-full ${column.dotClass}`}
                 />
                 <h3 className="text-sm font-semibold text-foreground">
                   {column.label}
@@ -449,7 +446,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={url}
-                        alt=""
+                        alt={drawerPost.title || "Content image"}
                         className="h-full w-full object-cover"
                       />
                     </div>

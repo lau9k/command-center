@@ -10,10 +10,10 @@ interface MemoryHealthData {
   status: "healthy" | "degraded" | "error";
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  healthy: "#22C55E",
-  degraded: "#EAB308",
-  error: "#EF4444",
+const STATUS_CONFIG: Record<string, { dot: string; badgeBg: string; badgeText: string }> = {
+  healthy: { dot: "bg-green-500", badgeBg: "bg-green-500/10", badgeText: "text-green-600 dark:text-green-400" },
+  degraded: { dot: "bg-yellow-500", badgeBg: "bg-yellow-500/10", badgeText: "text-yellow-600 dark:text-yellow-400" },
+  error: { dot: "bg-red-500", badgeBg: "bg-red-500/10", badgeText: "text-red-600 dark:text-red-400" },
 };
 
 function formatSyncTime(iso: string | null): string {
@@ -84,16 +84,15 @@ export function MemoryHealthWidget() {
 
   if (!data) return null;
 
-  const statusColor = STATUS_COLORS[data.status];
+  const statusStyle = STATUS_CONFIG[data.status];
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-      <Brain className="size-4 text-[#A855F7]" />
+      <Brain className="size-4 text-purple-500 dark:text-purple-400" />
 
       {/* Status dot */}
       <div
-        className="size-2 shrink-0 rounded-full"
-        style={{ backgroundColor: statusColor }}
+        className={`size-2 shrink-0 rounded-full ${statusStyle?.dot ?? "bg-gray-500"}`}
         title={`Memory status: ${data.status}`}
       />
 
@@ -107,11 +106,7 @@ export function MemoryHealthWidget() {
       </div>
 
       <span
-        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-        style={{
-          backgroundColor: `${statusColor}15`,
-          color: statusColor,
-        }}
+        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusStyle?.badgeBg ?? "bg-gray-500/10"} ${statusStyle?.badgeText ?? "text-gray-500"}`}
       >
         {data.status}
       </span>

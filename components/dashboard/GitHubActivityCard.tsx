@@ -68,7 +68,7 @@ export function GitHubActivityCard() {
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <GitPullRequest className="size-4 text-[#A855F7]" />
+          <GitPullRequest className="size-4 text-purple-500 dark:text-purple-400" />
           <h2 className="text-sm font-semibold text-foreground">GitHub Activity</h2>
         </div>
         <Button

@@ -36,10 +36,10 @@ function formatDueDate(date: string): string {
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critical: "#EF4444",
-  high: "#F97316",
-  medium: "#EAB308",
-  low: "#22C55E",
+  critical: "bg-red-500 dark:bg-red-400",
+  high: "bg-orange-500 dark:bg-orange-400",
+  medium: "bg-yellow-500 dark:bg-yellow-400",
+  low: "bg-green-500 dark:bg-green-400",
 };
 
 export function DailyBriefingWidget() {
@@ -73,11 +73,11 @@ export function DailyBriefingWidget() {
         className="flex w-full items-center gap-2 p-4 text-left"
       >
         {expanded ? (
-          <ChevronDown className="size-4 text-[#F97316]" />
+          <ChevronDown className="size-4 text-orange-500 dark:text-orange-400" />
         ) : (
-          <ChevronRight className="size-4 text-[#F97316]" />
+          <ChevronRight className="size-4 text-orange-500 dark:text-orange-400" />
         )}
-        <Sun className="size-4 text-[#F97316]" />
+        <Sun className="size-4 text-orange-500 dark:text-orange-400" />
         <h2 className="text-sm font-semibold text-foreground">Daily Briefing</h2>
         <span className="ml-auto text-xs text-muted-foreground">
           {loading ? (
@@ -139,11 +139,7 @@ export function DailyBriefingWidget() {
                     }}
                   >
                     <div
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor:
-                          PRIORITY_COLORS[t.priority] ?? "#6B7280",
-                      }}
+                      className={`size-1.5 shrink-0 rounded-full ${PRIORITY_COLORS[t.priority] ?? "bg-gray-500"}`}
                     />
                     <span className="truncate text-foreground">{t.title}</span>
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
@@ -158,7 +154,7 @@ export function DailyBriefingWidget() {
           {/* Overdue Tasks */}
           {briefing.overdueTasks.length > 0 && (
             <div>
-              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#EF4444]">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-red-500 dark:text-red-400">
                 <AlertTriangle className="size-3" />
                 Overdue
               </div>
@@ -175,11 +171,7 @@ export function DailyBriefingWidget() {
                     }}
                   >
                     <div
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor:
-                          PRIORITY_COLORS[t.priority] ?? "#6B7280",
-                      }}
+                      className={`size-1.5 shrink-0 rounded-full ${PRIORITY_COLORS[t.priority] ?? "bg-gray-500"}`}
                     />
                     <span className="truncate text-foreground">{t.title}</span>
                   </div>
@@ -222,7 +214,7 @@ export function DailyBriefingWidget() {
           {/* Overdue Invoices */}
           {briefing.overdueInvoices.length > 0 && (
             <div>
-              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#EF4444]">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-red-500 dark:text-red-400">
                 <Receipt className="size-3" />
                 Overdue Invoices
               </div>
@@ -239,7 +231,7 @@ export function DailyBriefingWidget() {
                     }}
                   >
                     <span className="truncate text-foreground">{inv.title}</span>
-                    <span className="ml-auto shrink-0 text-xs font-medium text-[#EF4444]">
+                    <span className="ml-auto shrink-0 text-xs font-medium text-red-500 dark:text-red-400">
                       ${inv.amount.toLocaleString()}
                     </span>
                   </div>
