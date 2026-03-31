@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -111,25 +111,16 @@ function SkeletonList({ rows = 3 }: { rows?: number }) {
 }
 
 export function ProjectOverview({ projectId }: { projectId: string }) {
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useQuery<OverviewData>({
+    queryKey: ["projects", projectId, "overview"],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/overview`);
+      if (!res.ok) throw new Error("Failed to fetch project overview");
+      return res.json() as Promise<OverviewData>;
+    },
+  });
 
-  useEffect(() => {
-    async function fetchOverview() {
-      try {
-        const res = await fetch(`/api/projects/${projectId}/overview`);
-        if (res.ok) {
-          const json = await res.json() as OverviewData;
-          setData(json);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchOverview();
-  }, [projectId]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

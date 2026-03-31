@@ -1,48 +1,78 @@
-import Link from "next/link";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Project } from "@/lib/types/database";
+import { getQueryClient } from "@/lib/query-client";
+import { ProjectsListClient } from "@/components/projects/projects-list-client";
+import type { ProjectWithTaskCount } from "@/components/projects/projects-list-client";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ClipboardList, FolderOpen } from "lucide-react";
-import { statusBadgeClass } from "@/lib/design-tokens";
+  ClipboardList,
+  Layers,
+  FileText,
+  FolderOpen,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-interface ProjectWithTaskCount extends Project {
-  task_count: number;
-}
-
 export default async function ProjectsListPage() {
   const supabase = createServiceClient();
+  const queryClient = getQueryClient();
 
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("*")
-    .order("created_at", { ascending: true })
-    .returns<Project[]>();
+  // Prefetch projects with task counts into the query client
+  await queryClient.prefetchQuery({
+    queryKey: ["projects", "list"],
+    queryFn: async () => {
+      const { data: projects, error } = await supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .returns<Project[]>();
 
-  // Fetch task counts per project in parallel
-  const projectsWithCounts: ProjectWithTaskCount[] = [];
-  if (projects && projects.length > 0) {
-    const countPromises = projects.map((p) =>
-      supabase
-        .from("tasks")
-        .select("id", { count: "exact", head: true })
-        .eq("project_id", p.id)
-    );
-    const countResults = await Promise.all(countPromises);
-    for (let i = 0; i < projects.length; i++) {
-      projectsWithCounts.push({
-        ...projects[i],
+      if (error) {
+        console.error("[Projects] query error:", error.message);
+        return [];
+      }
+
+      const typedProjects = projects ?? [];
+
+      // Fetch task counts per project in parallel
+      if (typedProjects.length === 0) return [] as ProjectWithTaskCount[];
+
+      const countPromises = typedProjects.map((p) =>
+        supabase
+          .from("tasks")
+          .select("id", { count: "exact", head: true })
+          .eq("project_id", p.id)
+      );
+      const countResults = await Promise.all(countPromises);
+
+      return typedProjects.map((p, i) => ({
+        ...p,
         task_count: countResults[i].count ?? 0,
-      });
-    }
-  }
+      })) as ProjectWithTaskCount[];
+    },
+  });
+
+  // Fetch cross-project KPIs in parallel
+  const [
+    { count: openTaskCount },
+    { count: pipelineItemCount },
+    { count: contentPostCount },
+  ] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["todo", "in_progress"]),
+    supabase
+      .from("pipeline_items")
+      .select("id", { count: "exact", head: true }),
+    supabase
+      .from("content_posts")
+      .select("id", { count: "exact", head: true }),
+  ]);
+
+  const projects =
+    queryClient.getQueryData<ProjectWithTaskCount[]>(["projects", "list"]) ?? [];
+  const projectCount = projects.length;
 
   return (
     <div className="space-y-6">
@@ -53,52 +83,49 @@ export default async function ProjectsListPage() {
         </p>
       </div>
 
-      {projectsWithCounts.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {projectsWithCounts.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`}>
-              <Card className="transition-colors hover:bg-muted/50 cursor-pointer h-full">
-                <CardHeader className="flex flex-row items-start justify-between pb-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className="h-3 w-3 rounded-full shrink-0"
-                      style={{ backgroundColor: project.color ?? "#6B7280" }}
-                    />
-                    <CardTitle className="text-base truncate">
-                      {project.name}
-                    </CardTitle>
-                  </div>
-                  <Badge className={statusBadgeClass[project.status] ?? ""}>
-                    {project.status}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {project.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ClipboardList className="h-4 w-4" />
-                    <span>
-                      {project.task_count} task{project.task_count !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Open Tasks</p>
+            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-1 text-lg font-bold text-foreground">
+            {openTaskCount ?? 0}
+          </p>
         </div>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-sm text-muted-foreground">
-              No projects found. Create your first project to get started.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Pipeline Items</p>
+            <Layers className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-1 text-lg font-bold text-foreground">
+            {pipelineItemCount ?? 0}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Content Posts</p>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-1 text-lg font-bold text-foreground">
+            {contentPostCount ?? 0}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Projects</p>
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-1 text-lg font-bold text-foreground">
+            {projectCount}
+          </p>
+        </div>
+      </div>
+
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ProjectsListClient />
+      </HydrationBoundary>
     </div>
   );
 }
