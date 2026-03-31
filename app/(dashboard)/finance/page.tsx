@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceEmptyState } from "./FinanceEmptyState";
 import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";
 import { ConnectedAccounts } from "@/components/finance/ConnectedAccounts";
+import { PlaidConnectBanner } from "@/components/finance/PlaidConnectBanner";
 import { PlaidSyncButton } from "@/components/finance/PlaidSyncButton";
 import { ImportCsvButton } from "@/components/finance/ImportCsvButton";
 import { getQueryClient } from "@/lib/query-client";
@@ -86,6 +87,13 @@ export default async function FinancePage() {
   const snapshots =
     queryClient.getQueryData<BalanceSnapshot[]>(["finance", "snapshots"]) ?? [];
 
+  const { count: plaidItemCount } = await supabase
+    .from("plaid_items")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
+
+  const hasPlaidAccounts = (plaidItemCount ?? 0) > 0;
+
   const hasData =
     transactions.length > 0 || debts.length > 0 || snapshots.length > 0;
 
@@ -103,6 +111,8 @@ export default async function FinancePage() {
           <PlaidSyncButton />
         </div>
       </div>
+
+      {!hasPlaidAccounts && <PlaidConnectBanner />}
 
       <ConnectedAccounts />
 

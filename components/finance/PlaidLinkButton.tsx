@@ -30,7 +30,7 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
 
         setLinkToken(data.link_token);
       } catch {
-        console.error("Failed to fetch link token");
+        // Failed to fetch link token — button will remain disabled
       }
     }
 
