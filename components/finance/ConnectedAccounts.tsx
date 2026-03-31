@@ -72,7 +72,7 @@ export function ConnectedAccounts() {
       const data = await res.json();
       setItems(data.items ?? []);
     } catch {
-      console.error("Failed to fetch connected accounts");
+      // Failed to fetch connected accounts — show empty state
     } finally {
       setLoading(false);
     }
