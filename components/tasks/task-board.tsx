@@ -16,6 +16,7 @@ import { CalendarIcon, Tag, User, FileText } from "lucide-react";
 import { sanitizeText } from "@/lib/sanitize";
 import { TaskActionButtons } from "./TaskActionButtons";
 import { useGovernanceCheck, type GovernanceMap } from "@/lib/hooks/useGovernanceCheck";
+import { updateTaskStatus } from "@/lib/actions/tasks";
 
 const COLUMNS: { status: TaskStatus; label: string; dotClass: string; borderClass: string }[] = [
   { status: "todo", label: "To Do", dotClass: "bg-blue-500", borderClass: "border-l-blue-500" },
@@ -216,12 +217,7 @@ export function TaskBoard() {
       );
 
       try {
-        const res = await fetch(`/api/tasks/${taskId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        });
-        if (!res.ok) throw new Error("Failed to update");
+        await updateTaskStatus(taskId, newStatus);
         toast.success(
           newStatus === "done" ? "Task completed" : "Status updated"
         );

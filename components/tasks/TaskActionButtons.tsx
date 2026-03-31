@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { TaskWithProject } from "@/lib/types/database";
+import { markTaskDone } from "@/lib/actions/tasks";
 
 interface TaskActionButtonsProps {
   task: TaskWithProject;
@@ -128,12 +129,7 @@ export function TaskActionButtons({ task }: TaskActionButtonsProps) {
     );
 
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "done" }),
-      });
-      if (!res.ok) throw new Error("Failed to update");
+      await markTaskDone(task.id);
       toast.success("Marked as sent");
     } catch {
       queryClient.setQueryData(["tasks", "list"], previous);

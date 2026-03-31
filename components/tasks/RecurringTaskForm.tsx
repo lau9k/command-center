@@ -20,6 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { TaskPriority, TaskWithProject } from "@/lib/types/database";
+import {
+  createRecurringTask,
+  updateRecurringTask,
+} from "@/lib/actions/tasks";
 
 interface ProjectOption {
   id: string;
@@ -96,24 +100,15 @@ export function RecurringTaskForm({
         recurrence_rule: form.recurrence_rule,
         project_id: form.project_id || null,
         priority: form.priority,
-        is_recurring_template: true,
         status: "todo" as const,
       };
 
-      const url = isEditing
-        ? `/api/tasks/recurring/${task.id}`
-        : "/api/tasks/recurring";
-      const method = isEditing ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        onSubmit();
+      if (isEditing) {
+        await updateRecurringTask(task.id, payload);
+      } else {
+        await createRecurringTask(payload);
       }
+      onSubmit();
     } finally {
       setSaving(false);
     }

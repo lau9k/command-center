@@ -42,6 +42,12 @@ import type {
   TaskPriority,
   TaskOutreachStatus,
 } from "@/lib/types/database";
+import {
+  updateTaskFields,
+  updateTaskStatus,
+  deleteTask,
+  batchUpdateOutreachStatus,
+} from "@/lib/actions/tasks";
 
 /* ─── helpers ─── */
 
@@ -192,15 +198,10 @@ export function OutreachQueue() {
       );
 
       try {
-        const res = await fetch(`/api/tasks/${task.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            outreach_status: outreachStatus,
-            ...(outreachStatus === "sent" ? { sent_at: sentAt } : {}),
-          }),
+        await updateTaskFields(task.id, {
+          outreach_status: outreachStatus,
+          ...(outreachStatus === "sent" ? { sent_at: sentAt } : {}),
         });
-        if (!res.ok) throw new Error("Failed to update");
         toast.success(`Marked as ${OUTREACH_STATUS_CONFIG[outreachStatus].label}`);
       } catch {
         queryClient.setQueryData(["tasks", "list"], previous);
@@ -225,12 +226,7 @@ export function OutreachQueue() {
       );
 
       try {
-        const res = await fetch(`/api/tasks/${task.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        });
-        if (!res.ok) throw new Error("Failed to update");
+        await updateTaskStatus(task.id, newStatus);
         toast.success(
           newStatus === "done" ? "Marked as sent" : "Marked as pending"
         );
@@ -254,10 +250,7 @@ export function OutreachQueue() {
       );
 
       try {
-        const res = await fetch(`/api/tasks/${task.id}`, {
-          method: "DELETE",
-        });
-        if (!res.ok) throw new Error("Failed to delete");
+        await deleteTask(task.id);
         toast.success("Task deleted");
       } catch {
         queryClient.setQueryData(["tasks", "list"], previous);
@@ -293,16 +286,7 @@ export function OutreachQueue() {
       );
 
       try {
-        const res = await fetch("/api/tasks/batch-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            taskIds,
-            outreach_status: outreachStatus,
-            ...(sentAt ? { sent_at: sentAt } : {}),
-          }),
-        });
-        if (!res.ok) throw new Error("Failed to update");
+        await batchUpdateOutreachStatus(taskIds, outreachStatus, sentAt);
         toast.success(
           `Updated ${taskIds.length} task${taskIds.length > 1 ? "s" : ""} to ${OUTREACH_STATUS_CONFIG[outreachStatus].label}`
         );
