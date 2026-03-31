@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   MessageSquare,
   Search,
@@ -81,53 +81,60 @@ const channelConfig: Record<string, { label: string; icon: React.ReactNode; clas
   },
 };
 
-interface ConversationListProps {
-  initialConversations: ConversationWithContact[];
-  kpis: {
-    total: number;
-    thisWeek: number;
-    uniqueContacts: number;
-    channels: number;
-  };
+async function fetchConversations(): Promise<ConversationWithContact[]> {
+  const res = await fetch("/api/conversations?limit=50");
+  if (!res.ok) return [];
+  const json = await res.json();
+  return json.data ?? [];
 }
 
-export function ConversationList({ initialConversations, kpis }: ConversationListProps) {
+async function fetchChannelCounts(): Promise<Record<string, number>> {
+  const res = await fetch("/api/conversations?limit=50");
+  if (!res.ok) return { all: 0 };
+  const json = await res.json();
+  return json.channel_counts ?? { all: 0 };
+}
+
+export function ConversationList() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [conversations, setConversations] = useState<ConversationWithContact[]>(initialConversations);
+  const { data: conversations = [] } = useQuery<ConversationWithContact[]>({
+    queryKey: ["conversations", "list"],
+    queryFn: fetchConversations,
+  });
+
+  const { data: channelCounts = { all: 0 } } = useQuery<Record<string, number>>({
+    queryKey: ["conversations", "channel_counts"],
+    queryFn: fetchChannelCounts,
+  });
+
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithContact | null>(null);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [channelFilter, setChannelFilter] = useState<string>(searchParams.get("channel") ?? "all");
   const [isSearching, setIsSearching] = useState(false);
+  const [kpiPeriod, setKpiPeriod] = useState<"week" | "all">("week");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync filter state to URL query params
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (channelFilter && channelFilter !== "all") params.set("channel", channelFilter);
-    if (search.trim()) params.set("q", search.trim());
-    const qs = params.toString();
-    router.replace(qs ? `?${qs}` : "/conversations", { scroll: false });
-  }, [channelFilter, search, router]);
+  // Compute KPIs from cached data
+  const kpis = useMemo(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  // Channel counts from current data
-  const channelCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: conversations.length };
-    for (const c of conversations) {
-      const ch = c.channel ?? "other";
-      counts[ch] = (counts[ch] ?? 0) + 1;
-    }
-    // Group non-primary channels into "other" for the tab count
-    const primaryChannels = new Set(["email", "slack", "telegram"]);
-    let otherCount = 0;
-    for (const [k, v] of Object.entries(counts)) {
-      if (k !== "all" && !primaryChannels.has(k)) {
-        otherCount += v;
-      }
-    }
-    counts.other = otherCount;
-    return counts;
+    const thisWeek = conversations.filter((c) => {
+      const date = c.last_message_at ?? c.created_at;
+      return new Date(date) >= oneWeekAgo;
+    }).length;
+
+    const uniqueContacts = new Set(
+      conversations.filter((c) => c.contact_id).map((c) => c.contact_id)
+    ).size;
+
+    const channels = new Set(
+      conversations.filter((c) => c.channel).map((c) => c.channel)
+    ).size;
+
+    return { total: conversations.length, thisWeek, uniqueContacts, channels };
   }, [conversations]);
 
   const filteredConversations = useMemo(() => {
@@ -155,23 +162,6 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
     return result;
   }, [conversations, channelFilter, search]);
 
-  const fetchConversations = useCallback(async (source?: string, searchTerm?: string) => {
-    try {
-      const params = new URLSearchParams();
-      params.set("limit", "50");
-      if (source && source !== "all" && source !== "other") params.set("source", source);
-      if (searchTerm) params.set("search", searchTerm);
-
-      const res = await fetch(`/api/conversations?${params}`);
-      if (res.ok) {
-        const json = await res.json();
-        setConversations(json.data ?? []);
-      }
-    } catch {
-      toast.error("Failed to fetch conversations");
-    }
-  }, []);
-
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearch(value);
@@ -183,24 +173,27 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
       if (value.trim().length >= 3) {
         searchTimeoutRef.current = setTimeout(() => {
           setIsSearching(true);
-          fetchConversations(channelFilter, value).finally(() => setIsSearching(false));
-        }, 500);
-      } else if (!value.trim()) {
-        fetchConversations(channelFilter);
+          // Search is done client-side from cached data, resolve immediately
+          setIsSearching(false);
+        }, 300);
       }
     },
-    [fetchConversations, channelFilter]
+    []
   );
 
   const handleChannelFilterChange = useCallback(
     (value: string) => {
       setChannelFilter(value);
-      fetchConversations(value, search);
+      const params = new URLSearchParams();
+      if (value && value !== "all") params.set("channel", value);
+      if (search.trim()) params.set("q", search.trim());
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : "/conversations", { scroll: false });
     },
-    [fetchConversations, search]
+    [search, router]
   );
 
-  if (conversations.length === 0 && initialConversations.length === 0) {
+  if (conversations.length === 0) {
     return (
       <SharedEmptyState
         icon={<MessageSquare className="size-12" />}
@@ -210,34 +203,62 @@ export function ConversationList({ initialConversations, kpis }: ConversationLis
     );
   }
 
+  const isWeek = kpiPeriod === "week";
+
   return (
     <>
       {/* KPI Strip */}
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <KpiCard
-          label="Total Conversations"
-          value={kpis.total}
-          subtitle="all time"
-          icon={<MessageSquare className="size-5" />}
-        />
-        <KpiCard
-          label="This Week"
-          value={kpis.thisWeek}
-          subtitle="recent activity"
-          icon={<Clock className="size-5" />}
-        />
-        <KpiCard
-          label="Unique Contacts"
-          value={kpis.uniqueContacts}
-          subtitle="linked contacts"
-          icon={<Users className="size-5" />}
-        />
-        <KpiCard
-          label="Channels"
-          value={kpis.channels}
-          subtitle="active sources"
-          icon={<Calendar className="size-5" />}
-        />
+      <section className="space-y-3">
+        <div className="flex items-center gap-1 rounded-md border bg-muted/50 p-0.5 w-fit">
+          <button
+            type="button"
+            className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+              isWeek
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setKpiPeriod("week")}
+          >
+            This week
+          </button>
+          <button
+            type="button"
+            className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+              !isWeek
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setKpiPeriod("all")}
+          >
+            All time
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <KpiCard
+            label="Total Conversations"
+            value={isWeek ? kpis.thisWeek : kpis.total}
+            subtitle={isWeek ? "this week" : "all time"}
+            icon={<MessageSquare className="size-5" />}
+          />
+          <KpiCard
+            label={isWeek ? "This Week" : "All Conversations"}
+            value={isWeek ? kpis.thisWeek : kpis.total}
+            subtitle={isWeek ? "recent activity" : "total"}
+            icon={<Clock className="size-5" />}
+          />
+          <KpiCard
+            label="Unique Contacts"
+            value={kpis.uniqueContacts}
+            subtitle="linked contacts"
+            icon={<Users className="size-5" />}
+          />
+          <KpiCard
+            label="Channels"
+            value={kpis.channels}
+            subtitle="active sources"
+            icon={<Calendar className="size-5" />}
+          />
+        </div>
       </section>
 
       {/* Channel Filter Tabs */}
