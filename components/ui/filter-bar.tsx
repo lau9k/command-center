@@ -59,12 +59,12 @@ function FilterDropdown({
         onClick={() => setOpen((o) => !o)}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-ring hover:text-foreground",
-          selected.length > 0 && "border-[#3B82F6]/50 text-foreground"
+          selected.length > 0 && "border-blue-500/50 text-foreground"
         )}
       >
         {filter.label}
         {selected.length > 0 && (
-          <span className="ml-0.5 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[10px] font-medium text-white leading-none">
+          <span className="ml-0.5 rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-medium text-white leading-none">
             {selected.length}
           </span>
         )}
@@ -86,7 +86,7 @@ function FilterDropdown({
                 className={cn(
                   "flex size-4 shrink-0 items-center justify-center rounded border",
                   selected.includes(opt.value)
-                    ? "border-[#3B82F6] bg-[#3B82F6]"
+                    ? "border-blue-500 bg-blue-500"
                     : "border-border"
                 )}
               >

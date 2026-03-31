@@ -67,20 +67,20 @@ const STATUS_CONFIG: Record<
   healthy: {
     label: "Connected",
     icon: <CheckCircle className="size-3.5" />,
-    badgeClass: "bg-[#22C55E]/20 text-[#22C55E]",
-    dotClass: "bg-[#22C55E]",
+    badgeClass: "bg-green-500/20 text-green-500",
+    dotClass: "bg-green-500",
   },
   degraded: {
     label: "Degraded",
     icon: <AlertTriangle className="size-3.5" />,
-    badgeClass: "bg-[#EAB308]/20 text-[#EAB308]",
-    dotClass: "bg-[#EAB308]",
+    badgeClass: "bg-yellow-500/20 text-yellow-500",
+    dotClass: "bg-yellow-500",
   },
   down: {
     label: "Disconnected",
     icon: <XCircle className="size-3.5" />,
-    badgeClass: "bg-[#EF4444]/20 text-[#EF4444]",
-    dotClass: "bg-[#EF4444]",
+    badgeClass: "bg-red-500/20 text-red-500",
+    dotClass: "bg-red-500",
   },
   unknown: {
     label: "Unknown",
@@ -156,7 +156,7 @@ function IntegrationCardItem({
           <p className="font-medium text-foreground/70">Errors</p>
           <p className="font-mono">
             {integration.error ? (
-              <span className="text-[#EF4444]" title={integration.error}>
+              <span className="text-red-500" title={integration.error}>
                 1
               </span>
             ) : (
@@ -244,7 +244,7 @@ export function IntegrationHealthGrid() {
   if (error) {
     return (
       <div className="rounded-lg border border-border bg-card p-6 text-center">
-        <XCircle className="mx-auto size-8 text-[#EF4444]" />
+        <XCircle className="mx-auto size-8 text-red-500" />
         <p className="mt-2 text-sm text-foreground">
           Failed to load integration health
         </p>
@@ -271,7 +271,7 @@ export function IntegrationHealthGrid() {
             Overall: {overallConfig.label}
           </span>
           {data.syncErrors24h > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs text-[#EF4444]">
+            <span className="inline-flex items-center gap-1 text-xs text-red-500">
               <AlertTriangle className="size-3.5" />
               {data.syncErrors24h} sync error{data.syncErrors24h !== 1 ? "s" : ""} (24h)
             </span>
