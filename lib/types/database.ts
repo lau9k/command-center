@@ -58,6 +58,7 @@ export type ContactSource = "manual" | "referral" | "website" | "linkedin" | "ot
 export type NotificationType = "task" | "alert" | "info" | "signal";
 export type TaskFeedbackAction = "approved" | "rejected" | "edited";
 export type MemoryType = "contact" | "meeting" | "email" | "content" | "task";
+export type PersonizeSyncStatus = "pending" | "synced" | "failed" | "skipped";
 export type ContentPostStatus = "draft" | "ready" | "scheduled" | "published" | "failed";
 export type ContentItemStatus = "draft" | "scheduled" | "published" | "failed";
 export type ContentItemPlatform = "twitter" | "telegram" | "linkedin" | "bluesky" | "instagram" | "facebook" | "reddit";
@@ -97,6 +98,8 @@ export interface Task {
   outreach_status?: TaskOutreachStatus;
   sent_at?: string | null;
   response_notes?: string | null;
+  personize_sync_status?: PersonizeSyncStatus;
+  personize_synced_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -130,6 +133,8 @@ export interface Contact {
   last_contact_date: string | null;
   merged_into_id: string | null;
   checked_in_at?: string | null;
+  personize_sync_status?: PersonizeSyncStatus;
+  personize_synced_at?: string | null;
   created_at: string;
   updated_at: string;
   // Personize-specific fields (present when sourced from Personize SDK)
@@ -153,6 +158,8 @@ export interface PipelineItem {
   entity_id: string | null;
   sort_order: number;
   metadata: Record<string, unknown>;
+  personize_sync_status?: PersonizeSyncStatus;
+  personize_synced_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -210,6 +217,8 @@ export interface ContentPost {
   published_at: string | null;
   engagement: Record<string, unknown>;
   buffer_id: string | null;
+  personize_sync_status?: PersonizeSyncStatus;
+  personize_synced_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -648,6 +657,8 @@ export interface Meeting {
   new_contacts: MeetingContact[];
   status: MeetingStatus;
   meeting_date: string | null;
+  personize_sync_status?: PersonizeSyncStatus;
+  personize_synced_at?: string | null;
   created_at: string;
   updated_at: string;
 }
