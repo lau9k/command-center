@@ -124,7 +124,7 @@ describe("POST /api/ingest/tasks", () => {
     const { POST } = await getIngestTasks();
     const req = new NextRequest("https://localhost/api/ingest/tasks", {
       method: "POST",
-      body: JSON.stringify({ title: "Fix bug" }),
+      body: JSON.stringify({ external_id: "task-1", title: "Fix bug" }),
       headers: VALID_HEADERS,
     });
     const res = await POST(req);
@@ -176,8 +176,8 @@ describe("POST /api/ingest/transactions", () => {
     const req = new NextRequest("https://localhost/api/ingest/transactions", {
       method: "POST",
       body: JSON.stringify({
-        date: "2025-03-01",
-        description: "Payment received",
+        external_id: "txn-1",
+        name: "Payment received",
         amount: 500,
       }),
       headers: VALID_HEADERS,
@@ -236,6 +236,7 @@ describe("POST /api/ingest/conversations", () => {
     const req = new NextRequest("https://localhost/api/ingest/conversations", {
       method: "POST",
       body: JSON.stringify({
+        external_id: "conv-1",
         contact_email: "alice@example.com",
         summary: "Discussed project timeline",
       }),
