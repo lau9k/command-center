@@ -29,20 +29,20 @@ interface SyncHistoryTableProps {
 
 const STATUS_STYLES: Record<string, { icon: React.ReactNode; badge: string }> = {
   success: {
-    icon: <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />,
-    badge: "bg-[#22C55E]/10 text-[#22C55E]",
+    icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
+    badge: "bg-green-500/10 text-green-500",
   },
   error: {
-    icon: <AlertCircle className="h-3.5 w-3.5 text-[#EF4444]" />,
-    badge: "bg-[#EF4444]/10 text-[#EF4444]",
+    icon: <AlertCircle className="h-3.5 w-3.5 text-red-500" />,
+    badge: "bg-red-500/10 text-red-500",
   },
   partial: {
-    icon: <Clock className="h-3.5 w-3.5 text-[#F59E0B]" />,
-    badge: "bg-[#F59E0B]/10 text-[#F59E0B]",
+    icon: <Clock className="h-3.5 w-3.5 text-amber-500" />,
+    badge: "bg-amber-500/10 text-amber-500",
   },
   running: {
-    icon: <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#6366f1]" />,
-    badge: "bg-[#6366f1]/10 text-[#6366f1]",
+    icon: <RefreshCw className="h-3.5 w-3.5 animate-spin text-indigo-500" />,
+    badge: "bg-indigo-500/10 text-indigo-500",
   },
 };
 
@@ -207,8 +207,8 @@ export function SyncHistoryTable({
                     </tr>
                     {expanded && entry.error_message && (
                       <tr>
-                        <td colSpan={6} className="bg-[#EF4444]/5 px-6 py-3">
-                          <p className="text-xs font-medium text-[#EF4444]">
+                        <td colSpan={6} className="bg-red-500/5 px-6 py-3">
+                          <p className="text-xs font-medium text-red-500">
                             Error details
                           </p>
                           <p className="mt-1 font-mono text-xs text-muted-foreground">

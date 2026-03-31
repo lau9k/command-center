@@ -78,10 +78,10 @@ const taskStatusConfig: Record<
 };
 
 const priorityBadgeClass: Record<string, string> = {
-  critical: "bg-[#EF4444]/20 text-[#EF4444]",
-  high: "bg-[#F97316]/20 text-[#F97316]",
-  medium: "bg-[#EAB308]/20 text-[#EAB308]",
-  low: "bg-[#6B7280]/20 text-[#6B7280]",
+  critical: "bg-red-500/20 text-red-500",
+  high: "bg-orange-500/20 text-orange-500",
+  medium: "bg-yellow-500/20 text-yellow-500",
+  low: "bg-gray-500/20 text-gray-500",
 };
 
 function SkeletonCard() {

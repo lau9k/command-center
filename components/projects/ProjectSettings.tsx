@@ -27,16 +27,17 @@ import {
 import { ChevronDown, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+/** Tailwind-aligned hex values used in inline styles (color swatch backgroundColor) */
 const COLOR_PALETTE = [
-  { label: "Blue", value: "#3B82F6" },
-  { label: "Purple", value: "#8B5CF6" },
-  { label: "Green", value: "#22C55E" },
-  { label: "Orange", value: "#F97316" },
-  { label: "Red", value: "#EF4444" },
-  { label: "Pink", value: "#EC4899" },
-  { label: "Teal", value: "#14B8A6" },
-  { label: "Yellow", value: "#EAB308" },
-  { label: "Gray", value: "#6B7280" },
+  { label: "Blue", value: "#3B82F6" }, // blue-500
+  { label: "Purple", value: "#8B5CF6" }, // violet-500
+  { label: "Green", value: "#22C55E" }, // green-500
+  { label: "Orange", value: "#F97316" }, // orange-500
+  { label: "Red", value: "#EF4444" }, // red-500
+  { label: "Pink", value: "#EC4899" }, // pink-500
+  { label: "Teal", value: "#14B8A6" }, // teal-500
+  { label: "Yellow", value: "#EAB308" }, // yellow-500
+  { label: "Gray", value: "#6B7280" }, // gray-500
 ];
 
 const STATUS_OPTIONS = [
