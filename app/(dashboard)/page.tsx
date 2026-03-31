@@ -20,6 +20,7 @@ import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
 import { FollowUpSuggestions } from "@/components/home/FollowUpSuggestions";
 import { WidgetErrorBoundary } from "@/components/shared/WidgetErrorBoundary";
+import { DataFreshnessIndicator } from "@/components/home/DataFreshnessIndicator";
 import { EnrichmentCoverageCard } from "@/components/home/EnrichmentCoverageCard";
 import type { EnrichmentStats } from "@/app/api/contacts/enrichment-stats/route";
 
@@ -154,6 +155,9 @@ export default async function DashboardPage() {
 
       {/* 3. Post-Meeting Notifications */}
       <MeetingNotificationList meetings={stats.pendingMeetings} />
+
+      {/* 3b. Data Freshness Indicators */}
+      <DataFreshnessIndicator />
 
       {/* 4. Module Health Overview */}
       <ModuleHealthOverview
