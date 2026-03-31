@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
-    include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
-    setupFiles: ["test/setup.ts"],
+    include: ["__tests__/**/*.test.ts", "test/**/*.test.ts", "test/**/*.test.tsx"],
+    setupFiles: ["test/setup.ts", "__tests__/helpers/setup.ts"],
   },
   resolve: {
     alias: {
