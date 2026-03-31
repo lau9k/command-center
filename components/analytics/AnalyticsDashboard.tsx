@@ -32,6 +32,16 @@ function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString()}`;
 }
 
+/** Tailwind-aligned chart color constants for recharts fill/stroke props */
+const CHART_COLORS = {
+  green: "#22C55E", // green-500
+  blue: "#3B82F6", // blue-500
+  indigo: "#6366F1", // indigo-500
+  violet: "#8B5CF6", // violet-500
+  red: "#EF4444", // red-500
+  amber: "#F59E0B", // amber-500
+} as const;
+
 function formatLabel(s: unknown): string {
   return String(s)
     .replace(/_/g, " ")
@@ -82,8 +92,8 @@ const TaskCompletionChart = dynamic(
             >
               <defs>
                 <linearGradient id="taskGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#22C55E" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#22C55E" stopOpacity={0.05} />
+                  <stop offset="0%" stopColor={CHART_COLORS.green} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={CHART_COLORS.green} stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -122,11 +132,11 @@ const TaskCompletionChart = dynamic(
               <Area
                 type="monotone"
                 dataKey="count"
-                stroke="#22C55E"
+                stroke={CHART_COLORS.green}
                 strokeWidth={2}
                 fill="url(#taskGrad)"
                 dot={false}
-                activeDot={{ r: 4, fill: "#22C55E" }}
+                activeDot={{ r: 4, fill: CHART_COLORS.green }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -208,7 +218,7 @@ const PipelineFunnelChart = dynamic(
               <Bar
                 dataKey="count"
                 name="Deals"
-                fill="#6366f1"
+                fill={CHART_COLORS.indigo}
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -281,7 +291,7 @@ const ContentCadenceChart = dynamic(
               <Bar
                 dataKey="count"
                 name="Posts"
-                fill="#8b5cf6"
+                fill={CHART_COLORS.violet}
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -366,13 +376,13 @@ const IncomeExpensesChart = dynamic(
               <Bar
                 dataKey="income"
                 name="Income"
-                fill="#22C55E"
+                fill={CHART_COLORS.green}
                 radius={[4, 4, 0, 0]}
               />
               <Bar
                 dataKey="expenses"
                 name="Expenses"
-                fill="#EF4444"
+                fill={CHART_COLORS.red}
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
@@ -513,7 +523,7 @@ export default function AnalyticsDashboard() {
           value={kpis.totalTasks}
           subtitle={`${kpis.completedTasks} completed · ${kpis.overdueTasks} overdue`}
           icon={<CheckCircle2 className="size-5" />}
-          accentColor="#22C55E"
+          accentColor={CHART_COLORS.green}
           sparkline={
             comparison && (
               <PeriodComparison
@@ -529,7 +539,7 @@ export default function AnalyticsDashboard() {
           value={kpis.totalContacts}
           subtitle={`${kpis.newContactsThisMonth} new this month`}
           icon={<Users className="size-5" />}
-          accentColor="#3B82F6"
+          accentColor={CHART_COLORS.blue}
           sparkline={
             comparison && (
               <PeriodComparison
@@ -545,7 +555,7 @@ export default function AnalyticsDashboard() {
           value={kpis.totalDeals}
           subtitle={`${formatCurrency(kpis.totalDealValue)} total value`}
           icon={<Layers className="size-5" />}
-          accentColor="#6366F1"
+          accentColor={CHART_COLORS.indigo}
           sparkline={
             comparison && (
               <PeriodComparison
@@ -565,7 +575,7 @@ export default function AnalyticsDashboard() {
               .join(" · ") || "no posts"
           )}
           icon={<FileText className="size-5" />}
-          accentColor="#8B5CF6"
+          accentColor={CHART_COLORS.violet}
           sparkline={
             comparison && (
               <PeriodComparison
@@ -581,7 +591,7 @@ export default function AnalyticsDashboard() {
           value={formatCurrency(kpis.netWorth)}
           subtitle="income minus expenses"
           icon={<Wallet className="size-5" />}
-          accentColor="#F59E0B"
+          accentColor={CHART_COLORS.amber}
           sparkline={
             comparison && (
               <PeriodComparison

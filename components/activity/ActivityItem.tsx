@@ -32,21 +32,21 @@ const entityIconMap: Record<string, LucideIcon> = {
 };
 
 const entityColorMap: Record<string, string> = {
-  contact: "text-[#22C55E] bg-[#22C55E]/10",
-  task: "text-[#3B82F6] bg-[#3B82F6]/10",
-  conversation: "text-[#A855F7] bg-[#A855F7]/10",
-  sponsor: "text-[#F97316] bg-[#F97316]/10",
-  transaction: "text-[#EAB308] bg-[#EAB308]/10",
-  content_post: "text-[#A855F7] bg-[#A855F7]/10",
+  contact: "text-green-500 bg-green-500/10",
+  task: "text-blue-500 bg-blue-500/10",
+  conversation: "text-purple-500 bg-purple-500/10",
+  sponsor: "text-orange-500 bg-orange-500/10",
+  transaction: "text-yellow-500 bg-yellow-500/10",
+  content_post: "text-purple-500 bg-purple-500/10",
 };
 
 const sourceBadgeClass: Record<string, string> = {
   manual: "bg-muted text-muted-foreground",
-  webhook: "bg-[#3B82F6]/15 text-[#3B82F6]",
-  n8n: "bg-[#F97316]/15 text-[#F97316]",
-  granola: "bg-[#22C55E]/15 text-[#22C55E]",
-  plaid: "bg-[#EAB308]/15 text-[#EAB308]",
-  personize: "bg-[#A855F7]/15 text-[#A855F7]",
+  webhook: "bg-blue-500/15 text-blue-500",
+  n8n: "bg-orange-500/15 text-orange-500",
+  granola: "bg-green-500/15 text-green-500",
+  plaid: "bg-yellow-500/15 text-yellow-500",
+  personize: "bg-purple-500/15 text-purple-500",
 };
 
 const actionVerbs: Record<string, string> = {

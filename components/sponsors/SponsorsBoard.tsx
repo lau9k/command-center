@@ -8,12 +8,21 @@ import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { SponsorColumn } from "./SponsorColumn";
 import type { Sponsor, SponsorStatus } from "@/lib/types/database";
 
+/** Tailwind-aligned hex values used in inline styles (SponsorColumn backgroundColor) */
+const STAGE_COLORS = {
+  gray: "#6B7280", // gray-500
+  blue: "#3B82F6", // blue-500
+  amber: "#F59E0B", // amber-500
+  emerald: "#10B981", // emerald-500
+  red: "#EF4444", // red-500
+} as const;
+
 const COLUMNS: { id: SponsorStatus; label: string; color: string }[] = [
-  { id: "not_contacted", label: "Not Contacted", color: "#6B7280" },
-  { id: "contacted", label: "Contacted", color: "#3B82F6" },
-  { id: "negotiating", label: "Negotiating", color: "#F59E0B" },
-  { id: "confirmed", label: "Confirmed", color: "#10B981" },
-  { id: "declined", label: "Declined", color: "#EF4444" },
+  { id: "not_contacted", label: "Not Contacted", color: STAGE_COLORS.gray },
+  { id: "contacted", label: "Contacted", color: STAGE_COLORS.blue },
+  { id: "negotiating", label: "Negotiating", color: STAGE_COLORS.amber },
+  { id: "confirmed", label: "Confirmed", color: STAGE_COLORS.emerald },
+  { id: "declined", label: "Declined", color: STAGE_COLORS.red },
 ];
 
 function formatCurrency(amount: number): string {

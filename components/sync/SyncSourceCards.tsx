@@ -47,10 +47,10 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  success: "text-[#22C55E]",
-  error: "text-[#EF4444]",
-  partial: "text-[#F59E0B]",
-  running: "text-[#6366f1]",
+  success: "text-green-500",
+  error: "text-red-500",
+  partial: "text-amber-500",
+  running: "text-indigo-500",
 };
 
 function computeSourceStats(entries: SyncLogEntry[]): SourceStats[] {
