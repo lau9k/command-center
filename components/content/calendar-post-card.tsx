@@ -39,8 +39,8 @@ export function CalendarPostCard({
       className={cn(
         "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left transition-colors",
         "bg-card hover:bg-accent/50",
-        "dark:bg-[#1A1A1A] dark:hover:bg-[#222]",
-        isDragging && "shadow-lg ring-2 ring-[#3B82F6]/40"
+        "dark:bg-neutral-900 dark:hover:bg-neutral-800",
+        isDragging && "shadow-lg ring-2 ring-blue-500/40 dark:ring-blue-400/40"
       )}
     >
       {/* Project color indicator */}

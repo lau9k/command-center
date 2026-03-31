@@ -11,8 +11,8 @@ interface CalendarEmptyProps {
 export function CalendarEmpty({ viewMode = "month" }: CalendarEmptyProps) {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
-      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-[#3B82F6]/10">
-        <CalendarPlus className="size-8 text-[#3B82F6]" />
+      <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-blue-500/10 dark:bg-blue-400/10">
+        <CalendarPlus className="size-8 text-blue-500 dark:text-blue-400" />
       </div>
       <h3 className="mb-1 text-base font-semibold text-foreground">
         No posts scheduled
@@ -24,7 +24,7 @@ export function CalendarEmpty({ viewMode = "month" }: CalendarEmptyProps) {
       <Button
         asChild
         size="sm"
-        className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+        className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
       >
         <Link href="/content/editor">
           <Plus className="mr-1 size-4" />

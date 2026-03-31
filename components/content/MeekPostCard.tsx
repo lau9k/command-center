@@ -5,13 +5,24 @@ import { Clock } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ContentPost } from "@/lib/types/database";
-import { PLATFORM_COLORS } from "@/lib/types/database";
 
 const STATUS_PILL: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: "bg-[#666666]/20", text: "text-[#666666]", label: "Draft" },
-  scheduled: { bg: "bg-[#3B82F6]/20", text: "text-[#3B82F6]", label: "Scheduled" },
-  published: { bg: "bg-[#22C55E]/20", text: "text-[#22C55E]", label: "Published" },
-  failed: { bg: "bg-[#EF4444]/20", text: "text-[#EF4444]", label: "Failed" },
+  draft: { bg: "bg-gray-500/20 dark:bg-gray-400/20", text: "text-gray-500 dark:text-gray-400", label: "Draft" },
+  scheduled: { bg: "bg-blue-500/20 dark:bg-blue-400/20", text: "text-blue-500 dark:text-blue-400", label: "Scheduled" },
+  published: { bg: "bg-green-500/20 dark:bg-green-400/20", text: "text-green-500 dark:text-green-400", label: "Published" },
+  failed: { bg: "bg-red-500/20 dark:bg-red-400/20", text: "text-red-500 dark:text-red-400", label: "Failed" },
+};
+
+const PLATFORM_BG_CLASSES: Record<string, string> = {
+  twitter: "bg-sky-500 dark:bg-sky-400",
+  linkedin: "bg-blue-700 dark:bg-blue-500",
+  instagram: "bg-pink-500 dark:bg-pink-400",
+  tiktok: "bg-cyan-400 dark:bg-cyan-300",
+  telegram: "bg-sky-600 dark:bg-sky-500",
+  youtube: "bg-red-600 dark:bg-red-500",
+  reddit: "bg-orange-600 dark:bg-orange-500",
+  bluesky: "bg-blue-500 dark:bg-blue-400",
+  facebook: "bg-blue-600 dark:bg-blue-500",
 };
 
 interface MeekPostCardProps {
@@ -39,8 +50,7 @@ export function MeekPostCard({ post, onClick, compact = false }: MeekPostCardPro
           {platforms.map((p) => (
             <span
               key={p}
-              className="size-2 rounded-full shrink-0"
-              style={{ backgroundColor: PLATFORM_COLORS[p] ?? "#666" }}
+              className={cn("size-2 rounded-full shrink-0", PLATFORM_BG_CLASSES[p] ?? "bg-gray-500 dark:bg-gray-400")}
             />
           ))}
           <span className="truncate text-xs text-foreground">{post.title ?? displayCaption}</span>
@@ -60,7 +70,7 @@ export function MeekPostCard({ post, onClick, compact = false }: MeekPostCardPro
         {imageUrl && (
           <div className="size-12 shrink-0 overflow-hidden rounded-md bg-accent">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageUrl} alt="" className="size-full object-cover" />
+            <img src={imageUrl} alt={post.title || "Post image"} className="size-full object-cover" />
           </div>
         )}
 
@@ -76,8 +86,7 @@ export function MeekPostCard({ post, onClick, compact = false }: MeekPostCardPro
               {platforms.map((p) => (
                 <span
                   key={p}
-                  className="size-2.5 rounded-full"
-                  style={{ backgroundColor: PLATFORM_COLORS[p] ?? "#666" }}
+                  className={cn("size-2.5 rounded-full", PLATFORM_BG_CLASSES[p] ?? "bg-gray-500 dark:bg-gray-400")}
                   title={p}
                 />
               ))}

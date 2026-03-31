@@ -18,11 +18,11 @@ import { PostCard } from "./PostCard";
 import { PostDetailDrawer } from "./PostDetailDrawer";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
 
-const COLUMNS: { id: ContentPostStatus; label: string; color: string }[] = [
-  { id: "draft", label: "Draft", color: "#666666" },
-  { id: "ready", label: "Ready", color: "#EAB308" },
-  { id: "scheduled", label: "Scheduled", color: "#3B82F6" },
-  { id: "published", label: "Published", color: "#22C55E" },
+const COLUMNS: { id: ContentPostStatus; label: string; colorClass: string }[] = [
+  { id: "draft", label: "Draft", colorClass: "bg-gray-500 dark:bg-gray-400" },
+  { id: "ready", label: "Ready", colorClass: "bg-yellow-500 dark:bg-yellow-400" },
+  { id: "scheduled", label: "Scheduled", colorClass: "bg-blue-500 dark:bg-blue-400" },
+  { id: "published", label: "Published", colorClass: "bg-green-500 dark:bg-green-400" },
 ];
 
 const COLUMN_LABELS: Record<string, string> = Object.fromEntries(
@@ -259,8 +259,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div
-                      className="size-2.5 rounded-full"
-                      style={{ backgroundColor: column.color }}
+                      className={cn("size-2.5 rounded-full", column.colorClass)}
                     />
                     <h3 className="text-sm font-semibold text-foreground">
                       {column.label}
@@ -279,7 +278,7 @@ export function ContentKanban({ initialPosts }: ContentKanbanProps) {
                       {...provided.droppableProps}
                       className={cn(
                         "flex min-h-[200px] flex-col gap-2 rounded-lg border border-border bg-background p-2 transition-colors",
-                        snapshot.isDraggingOver && "border-[#3B82F6]/30 bg-[#3B82F6]/5"
+                        snapshot.isDraggingOver && "border-blue-500/30 dark:border-blue-400/30 bg-blue-500/5 dark:bg-blue-400/5"
                       )}
                     >
                       {items.map((post, index) => (

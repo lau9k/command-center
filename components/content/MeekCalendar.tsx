@@ -22,9 +22,20 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { ContentPost } from "@/lib/types/database";
-import { PLATFORM_COLORS } from "@/lib/types/database";
 import { MeekPostCard } from "./MeekPostCard";
 import { MeekComposer } from "./MeekComposer";
+
+const PLATFORM_BG_CLASSES: Record<string, string> = {
+  twitter: "bg-sky-500 dark:bg-sky-400",
+  linkedin: "bg-blue-700 dark:bg-blue-500",
+  instagram: "bg-pink-500 dark:bg-pink-400",
+  tiktok: "bg-cyan-400 dark:bg-cyan-300",
+  telegram: "bg-sky-600 dark:bg-sky-500",
+  youtube: "bg-red-600 dark:bg-red-500",
+  reddit: "bg-orange-600 dark:bg-orange-500",
+  bluesky: "bg-blue-500 dark:bg-blue-400",
+  facebook: "bg-blue-600 dark:bg-blue-500",
+};
 
 type ViewMode = "week" | "month";
 
@@ -144,17 +155,17 @@ export function MeekCalendar({ initialPosts, projectId }: MeekCalendarProps) {
     <div className="space-y-4">
       {/* Stats strip */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5 rounded-lg bg-[#666666]/10 px-3 py-1.5 text-sm">
+        <div className="flex items-center gap-1.5 rounded-lg bg-gray-500/10 dark:bg-gray-400/10 px-3 py-1.5 text-sm">
           <span className="font-semibold text-muted-foreground">{draftCount}</span>
           <span className="text-xs text-muted-foreground">Drafts</span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-[#3B82F6]/10 px-3 py-1.5 text-sm">
-          <span className="font-semibold text-[#3B82F6]">{scheduledCount}</span>
-          <span className="text-xs text-[#3B82F6]">Scheduled</span>
+        <div className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 dark:bg-blue-400/10 px-3 py-1.5 text-sm">
+          <span className="font-semibold text-blue-500 dark:text-blue-400">{scheduledCount}</span>
+          <span className="text-xs text-blue-500 dark:text-blue-400">Scheduled</span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-lg bg-[#22C55E]/10 px-3 py-1.5 text-sm">
-          <span className="font-semibold text-[#22C55E]">{publishedCount}</span>
-          <span className="text-xs text-[#22C55E]">Published</span>
+        <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 dark:bg-green-400/10 px-3 py-1.5 text-sm">
+          <span className="font-semibold text-green-500 dark:text-green-400">{publishedCount}</span>
+          <span className="text-xs text-green-500 dark:text-green-400">Published</span>
         </div>
       </div>
 
@@ -169,7 +180,7 @@ export function MeekCalendar({ initialPosts, projectId }: MeekCalendarProps) {
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-l-lg",
                 viewMode === "week"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -181,7 +192,7 @@ export function MeekCalendar({ initialPosts, projectId }: MeekCalendarProps) {
               className={cn(
                 "px-3 py-1.5 text-sm font-medium transition-colors rounded-r-lg",
                 viewMode === "month"
-                  ? "bg-[#3B82F6] text-white"
+                  ? "bg-blue-500 dark:bg-blue-400 text-white"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -223,7 +234,7 @@ export function MeekCalendar({ initialPosts, projectId }: MeekCalendarProps) {
 
         <Button
           size="sm"
-          className="bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90"
+          className="bg-blue-500 dark:bg-blue-400 text-white hover:bg-blue-500/90 dark:hover:bg-blue-400/90"
           onClick={openNewComposer}
         >
           <Plus className="mr-1 size-4" />
@@ -300,7 +311,7 @@ function WeekView({
               <span
                 className={cn(
                   "flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                  today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                  today ? "bg-blue-500 dark:bg-blue-400 text-white" : "text-foreground"
                 )}
               >
                 {format(day, "d")}
@@ -397,7 +408,7 @@ function MonthView({
               <span
                 className={cn(
                   "mb-1 flex size-6 items-center justify-center rounded-full text-xs font-medium",
-                  today ? "bg-[#3B82F6] text-white" : "text-foreground"
+                  today ? "bg-blue-500 dark:bg-blue-400 text-white" : "text-foreground"
                 )}
               >
                 {format(day, "d")}
@@ -409,14 +420,13 @@ function MonthView({
                   {dayPosts.slice(0, 4).map((post) => {
                     const platforms = post.platforms ?? [];
                     const primaryPlatform = platforms[0] ?? post.platform;
-                    const color = primaryPlatform
-                      ? PLATFORM_COLORS[primaryPlatform] ?? "#666"
-                      : "#666";
+                    const bgClass = primaryPlatform
+                      ? PLATFORM_BG_CLASSES[primaryPlatform] ?? "bg-gray-500 dark:bg-gray-400"
+                      : "bg-gray-500 dark:bg-gray-400";
                     return (
                       <div
                         key={post.id}
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: color }}
+                        className={cn("size-2 rounded-full", bgClass)}
                         title={post.title ?? post.caption ?? "Post"}
                       />
                     );

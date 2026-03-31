@@ -43,7 +43,7 @@ export function PostCard({
     <div
       className={cn(
         "group rounded-lg border border-border bg-card p-3 transition-colors hover:border-ring",
-        selected && "border-[#3B82F6] bg-[#3B82F6]/5"
+        selected && "border-blue-500 dark:border-blue-400 bg-blue-500/5 dark:bg-blue-400/5"
       )}
     >
       <div className="flex items-start gap-2">
@@ -65,7 +65,7 @@ export function PostCard({
           className={cn(
             "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
             selected
-              ? "border-[#3B82F6] bg-[#3B82F6]"
+              ? "border-blue-500 dark:border-blue-400 bg-blue-500 dark:bg-blue-400"
               : "border-border hover:border-ring"
           )}
         >
@@ -94,7 +94,7 @@ export function PostCard({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={thumbnail}
-                alt=""
+                alt={post.title || "Post image"}
                 className="h-full w-full object-cover"
               />
             </div>
