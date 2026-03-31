@@ -85,7 +85,7 @@ type PriorityType = "low" | "medium" | "high" | "urgent"
 const priorityColors: Record<PriorityType, string> = {
   low: statusBadgeClass.draft,
   medium: statusBadgeClass.ready,
-  high: "bg-[#F97316]/20 text-[#F97316]",
+  high: "bg-orange-500/20 text-orange-500",
   urgent: statusBadgeClass.failed,
 }
 

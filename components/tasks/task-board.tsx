@@ -17,11 +17,11 @@ import { sanitizeText } from "@/lib/sanitize";
 import { TaskActionButtons } from "./TaskActionButtons";
 import { useGovernanceCheck, type GovernanceMap } from "@/lib/hooks/useGovernanceCheck";
 
-const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: "todo", label: "To Do", color: "#3B82F6" },
-  { status: "in_progress", label: "In Progress", color: "#EAB308" },
-  { status: "done", label: "Done", color: "#22C55E" },
-  { status: "blocked", label: "Blocked", color: "#EF4444" },
+const COLUMNS: { status: TaskStatus; label: string; dotClass: string; borderClass: string }[] = [
+  { status: "todo", label: "To Do", dotClass: "bg-blue-500", borderClass: "border-l-blue-500" },
+  { status: "in_progress", label: "In Progress", dotClass: "bg-yellow-500", borderClass: "border-l-yellow-500" },
+  { status: "done", label: "Done", dotClass: "bg-green-500", borderClass: "border-l-green-500" },
+  { status: "blocked", label: "Blocked", dotClass: "bg-red-500", borderClass: "border-l-red-500" },
 ];
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
@@ -242,7 +242,8 @@ export function TaskBoard() {
               key={col.status}
               status={col.status}
               label={col.label}
-              color={col.color}
+              dotClass={col.dotClass}
+              borderClass={col.borderClass}
               tasks={tasksByStatus[col.status]}
               onCardClick={setSelectedTask}
               governanceMap={governanceMap}
