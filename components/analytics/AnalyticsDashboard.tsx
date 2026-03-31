@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Users,
@@ -22,51 +23,6 @@ const PERIOD_LABELS: Record<Period, string> = {
   "30d": "30 Days",
   "90d": "90 Days",
 };
-
-const PERIOD_DAYS: Record<Period, number> = { "7d": 7, "30d": 30, "90d": 90 };
-
-/** Map selected period → wider period to fetch for comparison data */
-const EXTENDED_PERIOD: Record<Period, Period> = {
-  "7d": "30d",
-  "30d": "90d",
-  "90d": "90d",
-};
-
-interface PeriodDeltas {
-  completedTasks: { current: number; previous: number };
-  contentPosts: { current: number; previous: number };
-}
-
-function splitTrendByDate<T extends { date?: string; week?: string }>(
-  data: T[],
-  periodDays: number
-): { current: T[]; previous: T[] } {
-  const now = new Date();
-  const periodStart = new Date(now);
-  periodStart.setDate(periodStart.getDate() - periodDays);
-  const prevStart = new Date(periodStart);
-  prevStart.setDate(prevStart.getDate() - periodDays);
-
-  const current: T[] = [];
-  const previous: T[] = [];
-
-  for (const point of data) {
-    const dateStr = point.date ?? point.week;
-    if (!dateStr) continue;
-    const d = new Date(dateStr + "T00:00:00");
-    if (d >= periodStart) {
-      current.push(point);
-    } else if (d >= prevStart) {
-      previous.push(point);
-    }
-  }
-
-  return { current, previous };
-}
-
-function sumCounts(items: { count: number }[]): number {
-  return items.reduce((sum, item) => sum + item.count, 0);
-}
 
 function formatCurrency(amount: number): string {
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
@@ -496,94 +452,29 @@ function DashboardSkeleton() {
 
 // --- Main component ---
 
-interface AnalyticsDashboardProps {
-  initial: AnalyticsSummaryResponse | null;
+async function fetchAnalytics(
+  period: Period
+): Promise<AnalyticsSummaryResponse> {
+  const res = await fetch(
+    `/api/analytics/summary?period=${period}&compare=true`
+  );
+  if (!res.ok) throw new Error("Failed to fetch analytics");
+  return res.json();
 }
 
-export default function AnalyticsDashboard({
-  initial,
-}: AnalyticsDashboardProps) {
-  const [data, setData] = useState<AnalyticsSummaryResponse | null>(initial);
-  const [deltas, setDeltas] = useState<PeriodDeltas | null>(null);
-  const [loading, setLoading] = useState(!initial);
+export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState<Period>("30d");
 
-  const fetchData = useCallback(
-    (p: Period) => {
-      // Skip fetching on initial load if we have server-provided data and period is default
-      if (data === initial && p === "30d" && initial) return;
-      setLoading(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ["analytics", period],
+    queryFn: () => fetchAnalytics(period),
+  });
 
-      const extendedPeriod = EXTENDED_PERIOD[p];
-      const periodDays = PERIOD_DAYS[p];
-
-      Promise.all([
-        fetch(`/api/analytics/summary?period=${p}`).then((res) => res.json()),
-        fetch(`/api/analytics/summary?period=${extendedPeriod}`).then((res) =>
-          res.json()
-        ),
-      ])
-        .then(
-          ([current, extended]: [
-            AnalyticsSummaryResponse,
-            AnalyticsSummaryResponse,
-          ]) => {
-            setData(current);
-
-            // Split extended trend data into current and previous period
-            const taskSplit = splitTrendByDate(
-              extended.taskCompletionTrend,
-              periodDays
-            );
-            const contentSplit = splitTrendByDate(
-              extended.contentCadence,
-              periodDays
-            );
-
-            setDeltas({
-              completedTasks: {
-                current: sumCounts(taskSplit.current),
-                previous: sumCounts(taskSplit.previous),
-              },
-              contentPosts: {
-                current: sumCounts(contentSplit.current),
-                previous: sumCounts(contentSplit.previous),
-              },
-            });
-          }
-        )
-        .catch(() => {
-          setData(null);
-          setDeltas(null);
-        })
-        .finally(() => setLoading(false));
-    },
-    [data, initial]
-  );
-
-  useEffect(() => {
-    if (!initial) {
-      fetchData(period);
-      return;
-    }
-    if (period !== "30d") {
-      fetchData(period);
-    }
-  }, [period, fetchData, initial]);
-
-  if (loading) {
+  if (isLoading || !data) {
     return <DashboardSkeleton />;
   }
 
-  if (!data) {
-    return (
-      <div className="flex-1 p-6">
-        <p className="text-muted-foreground">Failed to load analytics data.</p>
-      </div>
-    );
-  }
-
-  const { kpis } = data;
+  const { kpis, comparison } = data;
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -624,10 +515,10 @@ export default function AnalyticsDashboard({
           icon={<CheckCircle2 className="size-5" />}
           accentColor="#22C55E"
           sparkline={
-            deltas && (
+            comparison && (
               <PeriodComparison
-                current={deltas.completedTasks.current}
-                previous={deltas.completedTasks.previous}
+                current={comparison.completedTasks.current}
+                previous={comparison.completedTasks.previous}
                 periodLabel={PERIOD_LABELS[period]}
               />
             )
@@ -639,6 +530,15 @@ export default function AnalyticsDashboard({
           subtitle={`${kpis.newContactsThisMonth} new this month`}
           icon={<Users className="size-5" />}
           accentColor="#3B82F6"
+          sparkline={
+            comparison && (
+              <PeriodComparison
+                current={comparison.newContacts.current}
+                previous={comparison.newContacts.previous}
+                periodLabel={PERIOD_LABELS[period]}
+              />
+            )
+          }
         />
         <KpiCard
           label="Pipeline Deals"
@@ -646,6 +546,15 @@ export default function AnalyticsDashboard({
           subtitle={`${formatCurrency(kpis.totalDealValue)} total value`}
           icon={<Layers className="size-5" />}
           accentColor="#6366F1"
+          sparkline={
+            comparison && (
+              <PeriodComparison
+                current={comparison.newDeals.current}
+                previous={comparison.newDeals.previous}
+                periodLabel={PERIOD_LABELS[period]}
+              />
+            )
+          }
         />
         <KpiCard
           label="Content Posts"
@@ -658,10 +567,10 @@ export default function AnalyticsDashboard({
           icon={<FileText className="size-5" />}
           accentColor="#8B5CF6"
           sparkline={
-            deltas && (
+            comparison && (
               <PeriodComparison
-                current={deltas.contentPosts.current}
-                previous={deltas.contentPosts.previous}
+                current={comparison.contentPosts.current}
+                previous={comparison.contentPosts.previous}
                 periodLabel={PERIOD_LABELS[period]}
               />
             )
@@ -673,6 +582,16 @@ export default function AnalyticsDashboard({
           subtitle="income minus expenses"
           icon={<Wallet className="size-5" />}
           accentColor="#F59E0B"
+          sparkline={
+            comparison && (
+              <PeriodComparison
+                current={comparison.netIncome.current}
+                previous={comparison.netIncome.previous}
+                periodLabel={PERIOD_LABELS[period]}
+                format="currency"
+              />
+            )
+          }
         />
       </div>
 
