@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
-import type { SmartRecallResult } from "@/lib/personize/types";
+import type { SmartRecallRecord } from "@/lib/personize/types";
+
+function scoreTier(score: number): "direct" | "partial" | "might" {
+  if (score >= 0.8) return "direct";
+  if (score >= 0.5) return "partial";
+  return "might";
+}
+
+function flattenRecordTexts(record: SmartRecallRecord): string[] {
+  return record.memories;
+}
 
 export async function GET(
   request: NextRequest,
@@ -39,8 +49,7 @@ export async function GET(
       ...(contact.email ? { email: contact.email } : {}),
     });
 
-    const recallData = result as SmartRecallResult | null;
-    const memories = recallData?.memories ?? [];
+    const records = result?.records ?? [];
 
     // Categorize memories into pain points, interests, and interactions
     const painPoints: string[] = [];
@@ -50,55 +59,65 @@ export async function GET(
       timestamp: string | null;
       type: string;
       score: number;
+      tier: "direct" | "partial" | "might";
     }> = [];
 
-    for (const mem of memories) {
-      const lower = mem.text.toLowerCase();
-      const isInteraction =
-        mem.type === "conversation" ||
-        mem.type === "meeting" ||
-        mem.type === "email" ||
-        !!mem.timestamp;
+    for (const record of records) {
+      const tier = scoreTier(record.score);
+      const texts = flattenRecordTexts(record);
 
-      if (
-        lower.includes("pain") ||
-        lower.includes("challenge") ||
-        lower.includes("problem") ||
-        lower.includes("struggle") ||
-        lower.includes("frustrat") ||
-        lower.includes("concern") ||
-        lower.includes("issue")
-      ) {
-        painPoints.push(mem.text);
-      } else if (
-        lower.includes("interest") ||
-        lower.includes("excited") ||
-        lower.includes("passion") ||
-        lower.includes("hobby") ||
-        lower.includes("enjoy") ||
-        lower.includes("prefer")
-      ) {
-        interests.push(mem.text);
+      for (const text of texts) {
+        const lower = text.toLowerCase();
+
+        if (
+          lower.includes("pain") ||
+          lower.includes("challenge") ||
+          lower.includes("problem") ||
+          lower.includes("struggle") ||
+          lower.includes("frustrat") ||
+          lower.includes("concern") ||
+          lower.includes("issue")
+        ) {
+          painPoints.push(text);
+        } else if (
+          lower.includes("interest") ||
+          lower.includes("excited") ||
+          lower.includes("passion") ||
+          lower.includes("hobby") ||
+          lower.includes("enjoy") ||
+          lower.includes("prefer")
+        ) {
+          interests.push(text);
+        }
       }
+
+      const props = record.properties ?? {};
+      const recordType = props.type ?? "unknown";
+      const isInteraction =
+        recordType === "conversation" ||
+        recordType === "meeting" ||
+        recordType === "email" ||
+        !!props.timestamp;
 
       if (isInteraction) {
         recentInteractions.push({
-          text: mem.text,
-          timestamp: mem.timestamp,
-          type: mem.type,
-          score: mem.score,
+          text: texts.join(" "),
+          timestamp: props.timestamp ?? null,
+          type: recordType,
+          score: record.score,
+          tier,
         });
       }
     }
 
     // Build AI summary from top-scoring direct matches
-    const directMatches = memories
-      .filter((m) => m.relevance_tier === "direct")
+    const directRecords = records
+      .filter((r) => scoreTier(r.score) === "direct")
       .slice(0, 3);
     const summary =
-      directMatches.length > 0
-        ? directMatches.map((m) => m.text).join(" ")
-        : null;
+      directRecords.length > 0
+        ? directRecords.flatMap(flattenRecordTexts).join(" ")
+        : result?.answer ?? null;
 
     return NextResponse.json({
       data: {
@@ -106,7 +125,7 @@ export async function GET(
         painPoints: painPoints.slice(0, 5),
         interests: interests.slice(0, 5),
         recentInteractions: recentInteractions.slice(0, 5),
-        totalMemories: memories.length,
+        totalRecords: records.length,
         query,
       },
     });

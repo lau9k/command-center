@@ -29,21 +29,12 @@ export interface PersonizeContextResult {
 
 export interface SmartRecallResult {
   success: boolean;
-  memories: Array<SmartRecallItem>;
+  records: Array<SmartRecallRecord>;
+  answer?: string;
+  /** @deprecated Use records instead. */
+  memories?: Array<SmartRecallRecord>;
 }
 
-export interface SmartRecallItem {
-  id: string;
-  text: string;
-  score: number;
-  relevance_tier: "direct" | "partial" | "might";
-  record_id: string | null;
-  type: string;
-  topic: string;
-  timestamp: string | null;
-}
-
-/** A record from the SmartRecall Unified response. */
 export interface SmartRecallRecord {
   recordId: string;
   displayName: string;
@@ -52,6 +43,17 @@ export interface SmartRecallRecord {
   freshness: number;
   properties: Record<string, string>;
   memories: string[];
+}
+
+/** @deprecated Use SmartRecallRecord instead. Kept for backward compatibility with components. */
+export interface SmartRecallItem {
+  id: string;
+  text: string;
+  relevance_tier: "direct" | "partial" | "might";
+  topic?: string;
+  timestamp?: string | null;
+  score: number;
+  type?: string;
 }
 
 /** Unified response from the SmartRecall / enrich API. */

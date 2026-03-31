@@ -41,7 +41,12 @@ export async function GET(
       email: contact.email,
     });
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json({
+      data: {
+        records: result?.records ?? [],
+        answer: result?.answer ?? null,
+      },
+    });
   } catch (err) {
     console.error("[API] /api/contacts/[id]/memory failed:", err);
     return NextResponse.json(
