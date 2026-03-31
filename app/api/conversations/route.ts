@@ -50,7 +50,36 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  // Compute channel counts from the full (unfiltered) set
+  const countsQuery = supabase
+    .from("conversations")
+    .select("channel");
+
+  if (contactId) {
+    countsQuery.eq("contact_id", contactId);
+  }
+
+  const { data: countRows } = await countsQuery;
+
+  const channelCounts: Record<string, number> = { all: 0 };
+  const primaryChannels = new Set(["email", "slack", "telegram"]);
+  if (countRows) {
+    channelCounts.all = countRows.length;
+    for (const row of countRows) {
+      const ch = row.channel ?? "other";
+      channelCounts[ch] = (channelCounts[ch] ?? 0) + 1;
+    }
+    // Aggregate non-primary into "other"
+    let otherCount = 0;
+    for (const [k, v] of Object.entries(channelCounts)) {
+      if (k !== "all" && !primaryChannels.has(k)) {
+        otherCount += v;
+      }
+    }
+    channelCounts.other = otherCount;
+  }
+
+  return NextResponse.json({ data, channel_counts: channelCounts });
 });
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {

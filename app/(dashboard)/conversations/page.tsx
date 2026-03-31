@@ -1,5 +1,6 @@
-import { Suspense } from "react";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getQueryClient } from "@/lib/query-client";
 import type { Conversation } from "@/lib/types/database";
 import { ConversationList } from "@/components/conversations/ConversationList";
 
@@ -16,36 +17,54 @@ interface ConversationWithContact extends Conversation {
 
 export default async function ConversationsPage() {
   const supabase = createServiceClient();
+  const queryClient = getQueryClient();
 
-  const { data, error } = await supabase
-    .from("conversations")
-    .select("*, contacts(id, name, email, company)")
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(50);
+  // Prefetch conversations list and channel counts in parallel
+  await Promise.all([
+    queryClient.prefetchQuery({
+      queryKey: ["conversations", "list"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("conversations")
+          .select("*, contacts(id, name, email, company)")
+          .order("last_message_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(50);
 
-  if (error) {
-    console.error("[Conversations] query error:", error.message);
-  }
+        if (error) {
+          return [] as ConversationWithContact[];
+        }
 
-  const conversations = (data as ConversationWithContact[]) ?? [];
+        return (data as ConversationWithContact[]) ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["conversations", "channel_counts"],
+      queryFn: async () => {
+        const { data } = await supabase
+          .from("conversations")
+          .select("channel");
 
-  // KPIs
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-  const thisWeek = conversations.filter((c) => {
-    const date = c.last_message_at ?? c.created_at;
-    return new Date(date) >= oneWeekAgo;
-  }).length;
-
-  const uniqueContactIds = new Set(
-    conversations.filter((c) => c.contact_id).map((c) => c.contact_id)
-  );
-
-  const uniqueChannels = new Set(
-    conversations.filter((c) => c.channel).map((c) => c.channel)
-  );
+        const counts: Record<string, number> = { all: 0 };
+        const primaryChannels = new Set(["email", "slack", "telegram"]);
+        if (data) {
+          counts.all = data.length;
+          for (const row of data) {
+            const ch = row.channel ?? "other";
+            counts[ch] = (counts[ch] ?? 0) + 1;
+          }
+          let otherCount = 0;
+          for (const [k, v] of Object.entries(counts)) {
+            if (k !== "all" && !primaryChannels.has(k)) {
+              otherCount += v;
+            }
+          }
+          counts.other = otherCount;
+        }
+        return counts;
+      },
+    }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -56,17 +75,9 @@ export default async function ConversationsPage() {
         </p>
       </div>
 
-      <Suspense>
-        <ConversationList
-          initialConversations={conversations}
-          kpis={{
-            total: conversations.length,
-            thisWeek,
-            uniqueContacts: uniqueContactIds.size,
-            channels: uniqueChannels.size,
-          }}
-        />
-      </Suspense>
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ConversationList />
+      </HydrationBoundary>
     </div>
   );
 }
