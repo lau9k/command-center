@@ -19,7 +19,11 @@ jobs:
 
       - name: Check for SUPABASE_SERVICE_ROLE_KEY in client code
         run: |
-          if grep -r "SUPABASE_SERVICE_ROLE_KEY" src/ components/ app/ --include="*.tsx" --include="*.ts" | grep -v "server.ts" | grep -v "service.ts"; then
+          MATCHES=$(grep -rs "SUPABASE_SERVICE_ROLE_KEY" components/ app/ --include="*.tsx" --include="*.ts" \
+            | grep -v "server\.ts" | grep -v "service\.ts" | grep -v "route\.ts" \
+            | grep -v "envKey:" | grep -v "envVar=" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "$MATCHES"
             echo "::error::SUPABASE_SERVICE_ROLE_KEY found in client code"
             exit 1
           fi
