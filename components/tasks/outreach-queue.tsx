@@ -108,13 +108,9 @@ interface OutreachKpis {
   remaining: number;
 }
 
-interface OutreachQueueProps {
-  kpis: OutreachKpis;
-}
-
 /* ─── component ─── */
 
-export function OutreachQueue({ kpis }: OutreachQueueProps) {
+export function OutreachQueue() {
   const queryClient = useQueryClient();
 
   const { data: allTasks = [] } = useQuery<TaskWithProject[]>({
@@ -128,9 +124,32 @@ export function OutreachQueue({ kpis }: OutreachQueueProps) {
     staleTime: 30_000,
   });
 
-  const outreachTasks = allTasks.filter((t) =>
-    t.tags?.some((tag) => tag.toLowerCase() === "outreach")
+  const outreachTasks = allTasks.filter(
+    (t) =>
+      t.task_type === "outreach" ||
+      t.outreach_status != null ||
+      t.tags?.some((tag) => tag.toLowerCase() === "outreach")
   );
+
+  const kpis = useMemo<OutreachKpis>(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const total = outreachTasks.length;
+    const replied = outreachTasks.filter(
+      (t) => t.outreach_status === "replied"
+    ).length;
+    const sentToday = outreachTasks.filter(
+      (t) => t.sent_at?.slice(0, 10) === today
+    ).length;
+    const remaining = outreachTasks.filter(
+      (t) => !t.outreach_status || t.outreach_status === "queued"
+    ).length;
+    return {
+      totalOutreach: total,
+      sentToday,
+      responseRate: total > 0 ? Math.round((replied / total) * 100) : 0,
+      remaining,
+    };
+  }, [outreachTasks]);
 
   const [search, setSearch] = useState("");
   const [filterOutreachStatus, setFilterOutreachStatus] = useState<string>(ALL_VALUE);
@@ -650,10 +669,15 @@ function OutreachRow({
             isDone && "line-through"
           )}
         >
-          {task.title}
+          <span>{task.contacts?.name ?? task.title}</span>
+          {task.contacts?.name && (
+            <span className="block text-xs font-normal text-muted-foreground">
+              {task.title}
+            </span>
+          )}
         </td>
         <td className="px-3 py-2.5 text-muted-foreground">
-          {task.assignee ?? "—"}
+          {task.contacts?.company ?? task.assignee ?? "—"}
         </td>
         <td className="px-3 py-2.5">
           <OutreachStatusBadge status={outreachStatus} />
