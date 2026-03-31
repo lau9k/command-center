@@ -26,6 +26,7 @@ import {
 import { RecurringTaskForm } from "./RecurringTaskForm";
 import { getNextRunDate } from "@/lib/recurring-tasks";
 import type { TaskWithProject } from "@/lib/types/database";
+import { deleteRecurringTask } from "@/lib/actions/tasks";
 
 interface ProjectOption {
   id: string;
@@ -82,12 +83,8 @@ export function RecurringTaskList({ initial, projects }: RecurringTaskListProps)
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/tasks/recurring/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-      }
+      await deleteRecurringTask(deleteTarget.id);
+      setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
     } finally {
       setDeleting(false);
       setDeleteTarget(null);

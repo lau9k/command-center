@@ -13,6 +13,10 @@ import {
 } from "@/components/ui/select";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import type { TaskStatus, TaskPriority } from "@/lib/types/database";
+import {
+  bulkUpdateTasks,
+  bulkDeleteTasks,
+} from "@/lib/actions/tasks";
 
 interface BulkActionBarProps {
   selectedIds: Set<string>;
@@ -37,14 +41,8 @@ export function BulkActionBar({
   async function handleStatusChange(status: TaskStatus) {
     setUpdating(true);
     try {
-      const res = await fetch("/api/tasks/bulk", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, updates: { status } }),
-      });
-      if (!res.ok) throw new Error("Failed to update tasks");
-      const { updated } = await res.json();
-      toast.success(`Updated status for ${updated} task${updated !== 1 ? "s" : ""}`);
+      const updated = await bulkUpdateTasks(ids, { status });
+      toast.success(`Updated status for ${updated.length} task${updated.length !== 1 ? "s" : ""}`);
       onBulkUpdate();
       onClear();
     } catch {
@@ -57,14 +55,8 @@ export function BulkActionBar({
   async function handlePriorityChange(priority: TaskPriority) {
     setUpdating(true);
     try {
-      const res = await fetch("/api/tasks/bulk", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, updates: { priority } }),
-      });
-      if (!res.ok) throw new Error("Failed to update tasks");
-      const { updated } = await res.json();
-      toast.success(`Updated priority for ${updated} task${updated !== 1 ? "s" : ""}`);
+      const updated = await bulkUpdateTasks(ids, { priority });
+      toast.success(`Updated priority for ${updated.length} task${updated.length !== 1 ? "s" : ""}`);
       onBulkUpdate();
       onClear();
     } catch {
@@ -77,12 +69,7 @@ export function BulkActionBar({
   async function handleBulkDelete() {
     setDeleting(true);
     try {
-      const res = await fetch("/api/tasks/bulk", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      });
-      if (!res.ok) throw new Error("Failed to delete tasks");
+      await bulkDeleteTasks(ids);
       toast.success(`Deleted ${count} task${count !== 1 ? "s" : ""}`);
       setDeleteOpen(false);
       onBulkUpdate();

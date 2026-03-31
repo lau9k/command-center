@@ -154,3 +154,117 @@ export async function deleteTask(id: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// ── Bulk ─────────────────────────────────────────────────
+
+export interface BulkUpdateInput {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+}
+
+export async function bulkUpdateTasks(
+  ids: string[],
+  updates: BulkUpdateInput
+): Promise<TaskWithProject[]> {
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(updates)
+    .in("id", ids)
+    .select(TASK_WITH_RELATIONS);
+
+  if (error) throw error;
+
+  return (data ?? []) as TaskWithProject[];
+}
+
+export async function bulkDeleteTasks(ids: string[]): Promise<number> {
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .delete()
+    .in("id", ids)
+    .select("id");
+
+  if (error) throw error;
+
+  return data?.length ?? 0;
+}
+
+export async function batchUpdateOutreachStatus(
+  taskIds: string[],
+  outreachStatus: TaskOutreachStatus,
+  sentAt?: string | null
+): Promise<TaskWithProject[]> {
+  const supabase = createServiceClient();
+
+  const updates: UpdateTaskInput = {
+    outreach_status: outreachStatus,
+    sent_at:
+      outreachStatus === "sent" && !sentAt
+        ? new Date().toISOString()
+        : sentAt ?? undefined,
+  };
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(updates)
+    .in("id", taskIds)
+    .select(TASK_WITH_RELATIONS);
+
+  if (error) throw error;
+
+  return (data ?? []) as TaskWithProject[];
+}
+
+// ── Recurring ────────────────────────────────────────────
+
+export async function deleteRecurringTask(id: string): Promise<void> {
+  const supabase = createServiceClient();
+
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("is_recurring_template")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!task?.is_recurring_template) {
+    throw new Error("Task is not a recurring template");
+  }
+
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function updateRecurringTask(
+  id: string,
+  input: UpdateTaskInput
+): Promise<TaskWithProject> {
+  const supabase = createServiceClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("tasks")
+    .select("is_recurring_template")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!existing?.is_recurring_template) {
+    throw new Error("Task is not a recurring template");
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(input)
+    .eq("id", id)
+    .select(TASK_WITH_RELATIONS)
+    .single();
+
+  if (error) throw error;
+
+  return data as TaskWithProject;
+}
