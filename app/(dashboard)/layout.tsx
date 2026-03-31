@@ -1,5 +1,6 @@
 import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { Header } from "@/components/layout/Header";
+import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { CommandPaletteProvider } from "@/components/search/CommandPaletteProvider";
@@ -62,6 +63,7 @@ export default async function DashboardLayout({
   return (
     <AuthProvider>
       <CommandPaletteProvider>
+        <KeyboardShortcuts />
         <div className="flex h-screen">
           <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
