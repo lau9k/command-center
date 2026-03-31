@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx scripts/seed-demo-data.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:ci": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
