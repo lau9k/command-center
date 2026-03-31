@@ -12,6 +12,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const search = searchParams.get("search");
   const type = searchParams.get("type");
+  const contactId = searchParams.get("contact_id");
 
   let query = supabase
     .from("tasks")
@@ -37,6 +38,10 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
   if (type) {
     query = query.eq("task_type", type);
+  }
+
+  if (contactId) {
+    query = query.eq("contact_id", contactId);
   }
 
   const { data, error } = await query;

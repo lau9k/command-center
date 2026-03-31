@@ -12,8 +12,12 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ContactAvatar } from "@/components/contacts/ContactAvatar";
 import { ContactMemoryTimeline } from "@/components/contacts/ContactMemoryTimeline";
+import { ContactQuickActions } from "@/components/contacts/ContactQuickActions";
+import { ContactTasksTab } from "@/components/contacts/ContactTasksTab";
+import { ContactInteractionsTab } from "@/components/contacts/ContactInteractionsTab";
 import { pipelineQualifiedBadgeClass } from "@/lib/design-tokens";
 import type { DossierContact } from "@/app/api/contacts/[id]/dossier/route";
 
@@ -117,8 +121,33 @@ export function ContactDetailClient({ contact }: ContactDetailClientProps) {
         </div>
       </div>
 
-      {/* Memory Timeline */}
-      <ContactMemoryTimeline contactId={contact.id} />
+      {/* Quick Actions */}
+      <ContactQuickActions
+        contactId={contact.id}
+        contactEmail={contact.email}
+        contactName={contact.name}
+      />
+
+      {/* Tabbed Content */}
+      <Tabs defaultValue="overview">
+        <TabsList variant="line">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="interactions">Interactions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <ContactMemoryTimeline contactId={contact.id} />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <ContactTasksTab contactId={contact.id} />
+        </TabsContent>
+
+        <TabsContent value="interactions">
+          <ContactInteractionsTab contactId={contact.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
