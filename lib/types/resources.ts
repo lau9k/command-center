@@ -7,6 +7,7 @@ export type ResourceStatus = "active" | "archived";
 
 export interface Resource {
   id: string;
+  user_id: string | null;
   project_id: string | null;
   title: string;
   description: string | null;
