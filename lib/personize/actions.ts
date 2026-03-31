@@ -4,7 +4,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import client from "./client";
 import type {
   SmartGuidelinesResponse,
-  SmartDigestResponse,
   SmartRecallResult,
   GenerateWithContextResult,
   PersonizeContextResult,
@@ -13,6 +12,61 @@ import type {
 } from "./types";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
+// ---------------------------------------------------------------------------
+// Local types for unified SmartRecall API response
+// ---------------------------------------------------------------------------
+
+interface SmartRecallRecord {
+  recordId: string;
+  displayName?: string;
+  email?: string;
+  properties?: Record<string, string>;
+  score?: number;
+  text?: string;
+}
+
+interface UnifiedSmartRecallResponse {
+  success: boolean;
+  answer?: string;
+  records?: SmartRecallRecord[];
+  memories?: SmartRecallResult["memories"];
+  /** @deprecated Mapped from answer for backward compatibility with smartDigest callers. */
+  compiledContext?: string;
+  properties?: Record<string, string>;
+}
+
+interface SmartRecallIdentifier {
+  type?: string;
+  recordIds?: string[];
+  email?: string;
+  collectionIds?: string[];
+}
+
+/** Unified SmartRecall options (extends SDK's SmartRecallOptions with new fields). */
+interface UnifiedSmartRecallOptions {
+  message: string;
+  identifiers?: SmartRecallIdentifier[];
+  session_id?: string;
+  response_detail?: "full" | "summary";
+}
+
+/**
+ * Call the unified smartRecall API. The SDK types haven't been updated yet,
+ * so we cast through Record to pass the new fields.
+ */
+async function callUnifiedSmartRecall(
+  options: UnifiedSmartRecallOptions
+): Promise<UnifiedSmartRecallResponse | null> {
+  const response = await client.memory.smartRecall(
+    options as unknown as Parameters<typeof client.memory.smartRecall>[0]
+  );
+  return response.data as unknown as UnifiedSmartRecallResponse | null;
+}
+
+// ---------------------------------------------------------------------------
+// Core functions
+// ---------------------------------------------------------------------------
 
 export async function getSmartGuidelines(
   query: string
@@ -26,21 +80,111 @@ export async function getSmartGuidelines(
   }
 }
 
+export async function smartRecall(
+  query: string,
+  options?: {
+    email?: string;
+    collectionIds?: string[];
+    identifiers?: SmartRecallIdentifier[];
+    session_id?: string;
+    response_detail?: "full" | "summary";
+  }
+): Promise<SmartRecallResult | null> {
+  try {
+    const { email, collectionIds, identifiers, session_id, response_detail } = options ?? {};
+
+    const builtIdentifiers: SmartRecallIdentifier[] = identifiers ?? [];
+    if (email && !identifiers) {
+      builtIdentifiers.push({ email });
+    }
+    if (collectionIds && !identifiers) {
+      builtIdentifiers.push({ collectionIds });
+    }
+
+    const data = await callUnifiedSmartRecall({
+      message: query,
+      ...(builtIdentifiers.length > 0 ? { identifiers: builtIdentifiers } : {}),
+      ...(session_id ? { session_id } : {}),
+      ...(response_detail ? { response_detail } : {}),
+    });
+    return data as SmartRecallResult | null;
+  } catch (error) {
+    console.error("[Personize] smartRecall failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Get a full digest for a contact using unified smartRecall with response_detail:"full".
+ * Replaces the legacy smartDigest function.
+ */
+export async function getContactDigest(
+  query: string,
+  options?: { email?: string; record_id?: string }
+): Promise<UnifiedSmartRecallResponse | null> {
+  try {
+    const identifiers: SmartRecallIdentifier[] = [];
+    if (options?.email) {
+      identifiers.push({ email: options.email });
+    }
+    if (options?.record_id) {
+      identifiers.push({ recordIds: [options.record_id] });
+    }
+
+    return callUnifiedSmartRecall({
+      message: query,
+      ...(identifiers.length > 0 ? { identifiers } : {}),
+      response_detail: "full",
+    });
+  } catch (error) {
+    console.error("[Personize] getContactDigest failed:", error);
+    return null;
+  }
+}
+
+/**
+ * @deprecated Use getContactDigest instead. Kept for backward compatibility.
+ */
+export async function smartDigest(
+  query: string,
+  options?: { email?: string; record_id?: string; token_budget?: number }
+): Promise<UnifiedSmartRecallResponse | null> {
+  const { token_budget: _token_budget, ...rest } = options ?? {};
+  const result = await getContactDigest(query, rest);
+  if (!result) return null;
+  return {
+    ...result,
+    compiledContext: result.answer,
+    properties: result.records?.[0]?.properties,
+  };
+}
+
+export async function assembleContext(
+  taskDescription: string,
+  contactQuery?: string
+): Promise<PersonizeContextResult> {
+  const [guidelines, recall] = await Promise.all([
+    getSmartGuidelines(taskDescription),
+    smartRecall(taskDescription, contactQuery ? { email: contactQuery } : undefined),
+  ]);
+
+  return { guidelines, memories: null, recall };
+}
+
 export async function generateWithPersonizeContext(
   prompt: string,
   contactQuery?: string
 ): Promise<GenerateWithContextResult> {
-  const { guidelines, memories } = await assembleContext(
-    prompt,
-    contactQuery
-  );
+  const { guidelines, recall } = await assembleContext(prompt, contactQuery);
+
+  const recallData = recall as unknown as UnifiedSmartRecallResponse | null;
 
   const systemParts = [
     guidelines
       ? `## Guidelines\n${guidelines.compiledContext}`
       : "",
-    memories
-      ? `## Relevant Memories\n${memories.compiledContext}`
+    recallData?.answer
+      ? `## Relevant Context\n${recallData.answer}`
       : "",
   ].filter(Boolean);
 
@@ -57,79 +201,30 @@ export async function generateWithPersonizeContext(
     const text =
       response.content[0].type === "text" ? response.content[0].text : "";
 
-    return { text, personizeContext: { guidelines, memories } };
+    return { text, personizeContext: { guidelines, memories: null } };
   } catch (error) {
     console.error("[Personize] generateWithPersonizeContext failed:", error);
-    return { text: "", personizeContext: { guidelines, memories } };
+    return { text: "", personizeContext: { guidelines, memories: null } };
   }
 }
 
 export async function memorize(
   content: string,
-  tags: string[]
+  tags: string[],
+  email?: string
 ): Promise<boolean> {
   try {
     await client.memory.memorize({
       content,
       tags,
       enhanced: true,
+      ...(email ? { email } : {}),
     });
     return true;
   } catch (error) {
     console.error("[Personize] memorize failed:", error);
     return false;
   }
-}
-
-export async function smartRecall(
-  query: string,
-  options?: { email?: string; collectionIds?: string[] }
-): Promise<SmartRecallResult | null> {
-  try {
-    const response = await client.memory.smartRecall({
-      query,
-      fast_mode: true,
-      min_score: 0.3,
-      ...options,
-    });
-    return response.data as SmartRecallResult | null;
-  } catch (error) {
-    console.error("[Personize] smartRecall failed:", error);
-    return null;
-  }
-}
-
-export async function smartDigest(
-  query: string,
-  options?: { email?: string; record_id?: string; token_budget?: number }
-): Promise<SmartDigestResponse | null> {
-  try {
-    const { token_budget = 2000, ...rest } = options ?? {};
-    const response = await client.memory.smartDigest({
-      token_budget,
-      include_properties: true,
-      ...rest,
-    });
-    return response.data ?? null;
-  } catch (error) {
-    console.error("[Personize] smartDigest failed:", error);
-    return null;
-  }
-}
-
-export async function assembleContext(
-  taskDescription: string,
-  contactQuery?: string
-): Promise<PersonizeContextResult> {
-  const [guidelines, memories, recall] = await Promise.all([
-    getSmartGuidelines(taskDescription),
-    contactQuery
-      ? smartDigest(taskDescription, { email: contactQuery })
-      : Promise.resolve(null),
-    smartRecall(taskDescription, contactQuery ? { email: contactQuery } : undefined),
-  ]);
-
-  return { guidelines, memories, recall };
 }
 
 // ---------------------------------------------------------------------------
@@ -158,9 +253,15 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
-/** Map raw Personize record properties to our PersonizeContact shape. */
+/** Map a SmartRecall record to our PersonizeContact shape. */
 function mapRecordToContact(
-  record: { recordId?: string; record_id?: string; properties?: Record<string, string> },
+  record: {
+    recordId?: string;
+    record_id?: string;
+    displayName?: string;
+    email?: string;
+    properties?: Record<string, string>;
+  },
   index: number
 ): PersonizeContact {
   const props = record.properties ?? {};
@@ -170,8 +271,8 @@ function mapRecordToContact(
   return {
     id: recordId,
     record_id: recordId,
-    name: props.full_name ?? props.name ?? "Unknown",
-    email: props.email ?? null,
+    name: record.displayName ?? props.full_name ?? props.name ?? "Unknown",
+    email: record.email ?? props.email ?? null,
     phone: props.phone ?? null,
     company: props.company_name ?? props.company ?? null,
     role: props.job_title ?? props.title ?? null,
@@ -196,7 +297,7 @@ function mapRecordToContact(
 
 /**
  * Search contacts from the Personize Contact collection.
- * Uses `memory.search()` with pagination.
+ * Uses unified smartRecall with type:"contact" identifier for semantic search.
  */
 export async function searchContacts(
   query?: string,
@@ -209,34 +310,20 @@ export async function searchContacts(
   if (cached) return cached;
 
   try {
-    // If there's a text query, use smartRecall for semantic search
     if (query) {
-      const recallResponse = await client.memory.smartRecall({
-        collectionIds: [CONTACTS_COLLECTION_ID],
-        query,
-        min_score: 0.3,
-        fast_mode: true,
+      const data = await callUnifiedSmartRecall({
+        message: query,
+        identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
       });
-
-      const recallData = recallResponse.data as {
-        memories?: Array<{
-          record_id?: string;
-          recordId?: string;
-          properties?: Record<string, string>;
-        }>;
-      } | null;
-
-      const memories = recallData?.memories ?? [];
+      const records = data?.records ?? [];
       const seen = new Set<string>();
       const queryContacts: PersonizeContact[] = [];
 
-      for (const mem of memories) {
-        const rid = mem.record_id ?? mem.recordId;
+      for (const rec of records) {
+        const rid = rec.recordId;
         if (!rid || seen.has(rid)) continue;
         seen.add(rid);
-        if (mem.properties) {
-          queryContacts.push(mapRecordToContact({ recordId: rid, properties: mem.properties }, queryContacts.length));
-        }
+        queryContacts.push(mapRecordToContact(rec, queryContacts.length));
       }
 
       const queryResult: ContactSearchResult = {
@@ -259,14 +346,13 @@ export async function searchContacts(
       page,
     });
     const data = response.data as {
-      records?: Array<{ recordId?: string; record_id?: string; properties?: Record<string, string> }>;
+      records?: Array<{ recordId?: string; record_id?: string; displayName?: string; email?: string; properties?: Record<string, string> }>;
       total?: number;
     } | null;
 
     const records = data?.records ?? [];
     const contacts = records.map((r, i) => mapRecordToContact(r, i));
 
-    // Sort by priority_score descending by default
     if (sort === "priority_score" || !sort) {
       contacts.sort((a, b) => b.priority_score - a.priority_score);
     } else if (sort === "name") {
@@ -297,7 +383,7 @@ export async function searchContacts(
 }
 
 /**
- * Get a single contact's full detail with AI-compiled summary via smartDigest.
+ * Get a single contact's full detail using smartRecall with recordIds + response_detail:"full".
  */
 export async function getContactById(
   recordId: string
@@ -307,26 +393,21 @@ export async function getContactById(
   if (cached) return cached;
 
   try {
-    const response = await client.memory.smartDigest({
-      record_id: recordId,
-      token_budget: 2000,
-      include_properties: true,
+    const data = await callUnifiedSmartRecall({
+      message: recordId,
+      identifiers: [{ recordIds: [recordId] }],
+      response_detail: "full",
     });
-
-    const data = response.data as {
-      recordId?: string;
-      record_id?: string;
-      properties?: Record<string, string>;
-      compiledContext?: string;
-    } | null;
-
     if (!data) return null;
 
+    const rec = data.records?.[0];
+    if (!rec) return null;
+
     const contact = mapRecordToContact(
-      { recordId: data.recordId ?? data.record_id ?? recordId, properties: data.properties },
+      { recordId: rec.recordId ?? recordId, displayName: rec.displayName, email: rec.email, properties: rec.properties },
       0
     );
-    const summary = data.compiledContext ?? "";
+    const summary = data.answer ?? "";
 
     const result = { contact, summary };
     setCache(cacheKey, result);
@@ -340,7 +421,6 @@ export async function getContactById(
 /**
  * Batch-fetch memory counts for a list of contacts.
  * Returns a Map of record_id → memory count.
- * Uses memory.search per record in parallel (bounded concurrency).
  */
 export async function batchGetMemoryCounts(
   recordIds: string[]
@@ -351,7 +431,6 @@ export async function batchGetMemoryCounts(
 
   const counts = new Map<string, number>();
 
-  // Batch in groups of 10 for bounded concurrency
   const BATCH_SIZE = 10;
   for (let i = 0; i < recordIds.length; i += BATCH_SIZE) {
     const batch = recordIds.slice(i, i + BATCH_SIZE);
@@ -384,8 +463,7 @@ export async function batchGetMemoryCounts(
 }
 
 /**
- * Semantic search across contacts using smartRecall.
- * Returns ranked contacts by relevance.
+ * Semantic search across contacts using unified smartRecall with type:"contact" + response_detail:"summary".
  */
 export async function recallContacts(
   query: string
@@ -395,56 +473,42 @@ export async function recallContacts(
   if (cached) return cached;
 
   try {
-    const response = await client.memory.smartRecall({
-      collectionIds: [CONTACTS_COLLECTION_ID],
-      query,
-      min_score: 0.3,
-      fast_mode: true,
+    const data = await callUnifiedSmartRecall({
+      message: query,
+      identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
+      response_detail: "summary",
     });
+    const records = data?.records ?? [];
 
-    const data = response.data as {
-      memories?: Array<{
-        record_id?: string;
-        recordId?: string;
-        properties?: Record<string, string>;
-        score?: number;
-        text?: string;
-      }>;
-    } | null;
-
-    const memories = data?.memories ?? [];
-
-    // Group by record_id and take unique contacts
     const seen = new Set<string>();
     const contacts: PersonizeContact[] = [];
 
-    for (const mem of memories) {
-      const rid = mem.record_id ?? mem.recordId;
+    for (const rec of records) {
+      const rid = rec.recordId;
       if (!rid || seen.has(rid)) continue;
       seen.add(rid);
 
-      if (mem.properties) {
-        contacts.push(mapRecordToContact({ recordId: rid, properties: mem.properties }, contacts.length));
+      if (rec.properties || rec.displayName) {
+        contacts.push(mapRecordToContact(rec, contacts.length));
       } else {
-        // Create a minimal contact from the memory text
         contacts.push({
           id: rid,
           record_id: rid,
-          name: mem.text?.split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 100) ?? "Unknown",
-          email: null,
+          name: rec.text?.split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 100) ?? "Unknown",
+          email: rec.email ?? null,
           phone: null,
           company: null,
           role: null,
           job_title: null,
           has_conversation: false,
           message_count: 0,
-          priority_score: (mem.score ?? 0) * 100,
+          priority_score: (rec.score ?? 0) * 100,
           last_interaction_date: null,
           memory_count: null,
           source: "linkedin",
           status: "active",
           tags: [],
-          score: Math.round((mem.score ?? 0) * 100),
+          score: Math.round((rec.score ?? 0) * 100),
           notes: null,
           project_id: "00000000-0000-0000-0000-000000000000",
           last_contact_date: null,

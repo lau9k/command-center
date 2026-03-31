@@ -28,9 +28,17 @@ export interface PersonizeContextResult {
   recall: SmartRecallUnifiedResult | null;
 }
 
+export interface SmartRecallResult {
+  success: boolean;
+  records: Array<SmartRecallRecord>;
+  answer?: string;
+  /** @deprecated Use records instead. */
+  memories?: Array<SmartRecallRecord>;
+}
+
 export interface SmartRecallRecord {
-  displayName: string;
   recordId: string;
+  displayName: string;
   email: string | null;
   type: string;
   score: number;
@@ -41,22 +49,22 @@ export interface SmartRecallRecord {
   memories: string[];
 }
 
-/** @deprecated Use SmartRecallRecord instead. */
+/** @deprecated Use SmartRecallRecord instead. Kept for backward compatibility with components. */
 export interface SmartRecallItem {
   id: string;
   text: string;
-  score: number;
   relevance_tier: "direct" | "partial" | "might";
-  record_id: string | null;
-  type: string;
-  topic: string;
-  timestamp: string | null;
+  topic?: string;
+  timestamp?: string | null;
+  score: number;
+  type?: string;
 }
 
-/** @deprecated Use SmartRecallUnifiedResult instead. */
-export interface SmartRecallResult {
-  success: boolean;
-  memories: Array<SmartRecallItem>;
+/** Unified response from the SmartRecall / enrich API. */
+export interface SmartRecallUnifiedResult {
+  digest: string;
+  properties: Record<string, string>;
+  records: SmartRecallRecord[];
 }
 
 /** @deprecated Merged into SmartRecallUnifiedResult. */
@@ -68,20 +76,6 @@ export interface SmartDigestResult {
   compiledContext: string;
   tokenEstimate: number;
   tokenBudget: number;
-}
-
-export interface SmartRecallUnifiedResult {
-  plan: string;
-  confidence: number;
-  totalMatched: number;
-  answer: string;
-  records: SmartRecallRecord[];
-  warnings: string[];
-  suggestedActions: string[];
-  sessionId: string;
-  credits: number;
-  latency: number;
-  sources: string[];
 }
 
 export interface SmartRecallIdentifiers {

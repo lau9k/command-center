@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { Contact } from "@/lib/types/database";
-import type { SmartRecallItem, SmartDigestResult } from "@/lib/personize/types";
+import type {
+  SmartRecallRecord,
+  SmartRecallUnifiedResult,
+} from "@/lib/personize/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +27,13 @@ interface ContactDetailProps {
 
 interface DigestState {
   loading: boolean;
-  data: SmartDigestResult | null;
+  data: SmartRecallUnifiedResult | null;
   error: string | null;
 }
 
 interface RecallState {
   loading: boolean;
-  results: SmartRecallItem[];
+  results: SmartRecallRecord[];
   error: string | null;
 }
 
@@ -39,6 +42,12 @@ const tierColors: Record<string, string> = {
   partial: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
   might: "bg-muted text-muted-foreground",
 };
+
+function deriveTier(score: number): string {
+  if (score >= 0.8) return "direct";
+  if (score >= 0.5) return "partial";
+  return "might";
+}
 
 export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
   const [digest, setDigest] = useState<DigestState>({
@@ -113,8 +122,8 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
       }
 
       const json = await res.json();
-      const memories = json.data?.memories ?? [];
-      setRecall({ loading: false, results: memories, error: null });
+      const records: SmartRecallRecord[] = json.data?.records ?? [];
+      setRecall({ loading: false, results: records, error: null });
     } catch {
       setRecall({
         loading: false,
@@ -180,22 +189,58 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
               </p>
             ) : (
               <div className="space-y-3">
-                {/* Token & Memory badges */}
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {digest.data.tokenEstimate} / {digest.data.tokenBudget}{" "}
-                    tokens
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {digest.data.memories.length}{" "}
-                    {digest.data.memories.length === 1 ? "memory" : "memories"}
-                  </Badge>
+                {/* Summary */}
+                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
+                  {sanitizeText(digest.data.digest)}
                 </div>
 
-                {/* Compiled context */}
-                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
-                  {sanitizeText(digest.data.compiledContext)}
-                </div>
+                {/* Properties */}
+                {Object.keys(digest.data.properties).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {Object.entries(digest.data.properties).map(
+                      ([key, value]) => (
+                        <Badge key={key} variant="outline" className="text-xs">
+                          {key}: {value}
+                        </Badge>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Records summary */}
+                {digest.data.records.length > 0 && (
+                  <div className="space-y-2">
+                    {digest.data.records.map((record) => (
+                      <div
+                        key={record.recordId}
+                        className="rounded-md border border-border p-2 text-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {record.displayName}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">
+                              Completeness:{" "}
+                              {(record.completeness * 100).toFixed(0)}%
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Freshness:{" "}
+                              {(record.freshness * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                        {record.memories.length > 0 && (
+                          <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
+                            {record.memories.map((mem, idx) => (
+                              <li key={idx}>{mem}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -244,31 +289,46 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
               </div>
             ) : recall.results.length > 0 ? (
               <ul className="space-y-2">
-                {recall.results.map((item) => (
-                  <li
-                    key={item.id}
-                    className="rounded-md border border-border p-3 text-sm space-y-1.5"
-                  >
-                    <p>{sanitizeText(item.text)}</p>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierColors[item.relevance_tier] ?? tierColors.might}`}
-                      >
-                        {item.score.toFixed(2)}
-                      </span>
-                      {item.topic && (
-                        <Badge variant="secondary" className="text-xs">
-                          {item.topic}
-                        </Badge>
+                {recall.results.map((item) => {
+                  const tier = deriveTier(item.score);
+                  return (
+                    <li
+                      key={item.recordId}
+                      className="rounded-md border border-border p-3 text-sm space-y-1.5"
+                    >
+                      <p className="font-medium">{item.displayName}</p>
+                      {item.memories.length > 0 && (
+                        <ul className="list-disc pl-4 text-muted-foreground">
+                          {item.memories.map((mem, idx) => (
+                            <li key={idx}>{sanitizeText(mem)}</li>
+                          ))}
+                        </ul>
                       )}
-                      {item.timestamp && (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(item.timestamp).toLocaleDateString()}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierColors[tier]}`}
+                        >
+                          {item.score.toFixed(2)}
                         </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                        {item.properties.company && (
+                          <Badge variant="secondary" className="text-xs">
+                            {item.properties.company}
+                          </Badge>
+                        )}
+                        {item.properties.job_title && (
+                          <Badge variant="outline" className="text-xs">
+                            {item.properties.job_title}
+                          </Badge>
+                        )}
+                        {item.freshness > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            Freshness: {(item.freshness * 100).toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : searchQuery && !recall.loading ? (
               <p className="text-sm text-muted-foreground">
