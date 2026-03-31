@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Clock, Plus, X, RefreshCw, Sparkles } from "lucide-react";
+import { Mail, Clock, Plus, X, RefreshCw, Sparkles, CheckCircle2 } from "lucide-react";
 import type { FollowUpSuggestion } from "@/app/api/suggestions/follow-ups/route";
 
 const DISMISSED_KEY = "follow-up-suggestions-dismissed";
@@ -121,10 +121,19 @@ export function FollowUpSuggestions() {
             <h2 className="text-lg font-semibold text-foreground">Follow-Up Suggestions</h2>
           </div>
         </div>
-        <div className="px-4 pb-4">
-          <p className="text-center text-xs text-muted-foreground">
-            No follow-up suggestions right now — all contacts are recently engaged.
+        <div className="flex flex-col items-center gap-3 px-4 pb-6 pt-2 text-center">
+          <CheckCircle2 className="size-8 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">
+            No follow-ups needed right now
           </p>
+          <button
+            type="button"
+            onClick={() => void fetchSuggestions()}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <RefreshCw className="size-3" />
+            Refresh
+          </button>
         </div>
       </section>
     );
