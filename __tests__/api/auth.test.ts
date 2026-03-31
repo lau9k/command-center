@@ -38,13 +38,13 @@ describe("validateWebhookSecret", () => {
     expect(body.error).toMatch(/Invalid/i);
   });
 
-  it("returns 500 when WEBHOOK_SECRET env var is not configured", async () => {
+  it("returns 503 when WEBHOOK_SECRET env var is not configured", async () => {
     delete process.env.WEBHOOK_SECRET;
     const req = makeNextRequest({ "x-webhook-secret": "anything" });
     const result = validateWebhookSecret(req);
     expect(result).not.toBeNull();
     const body = await result!.json();
-    expect(result!.status).toBe(500);
+    expect(result!.status).toBe(503);
     expect(body.error).toMatch(/not configured/i);
   });
 });
