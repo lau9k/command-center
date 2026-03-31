@@ -19,6 +19,7 @@ import { QuickActionsBar } from "@/components/home/QuickActionsBar";
 import { OutreachFunnelCard } from "@/components/dashboard/OutreachFunnelCard";
 import { FinanceSummaryWidget } from "@/components/home/FinanceSummaryWidget";
 import { FollowUpSuggestions } from "@/components/home/FollowUpSuggestions";
+import { WidgetErrorBoundary } from "@/components/shared/WidgetErrorBoundary";
 import { EnrichmentCoverageCard } from "@/components/home/EnrichmentCoverageCard";
 import type { EnrichmentStats } from "@/app/api/contacts/enrichment-stats/route";
 
@@ -138,7 +139,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* 1b. Follow-Up Suggestions (Personize-powered) */}
-      <FollowUpSuggestions />
+      <WidgetErrorBoundary name="Follow-Up Suggestions">
+        <FollowUpSuggestions />
+      </WidgetErrorBoundary>
 
       {/* 1c. Daily Briefing */}
       <DailyBriefingWidget />
