@@ -6,24 +6,34 @@ import type { ContentPost } from "@/lib/types/database";
 
 const POST_WITH_PROJECT =
   "*, projects:project_id(id, name, color)" as const;
+const POST_WITHOUT_PROJECT = "*" as const;
 
 // ── Read ─────────────────────────────────────────────────
 
 export async function getPostById(id: string): Promise<ContentPost | null> {
   const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  let result = await supabase
     .from("content_posts")
     .select(POST_WITH_PROJECT)
     .eq("id", id)
     .single();
 
-  if (error) {
-    if (error.code === "PGRST116") return null;
-    throw error;
+  // Fall back if FK relationship not found
+  if (result.error?.message?.includes("relationship")) {
+    result = await supabase
+      .from("content_posts")
+      .select(POST_WITHOUT_PROJECT)
+      .eq("id", id)
+      .single();
   }
 
-  return data as ContentPost;
+  if (result.error) {
+    if (result.error.code === "PGRST116") return null;
+    throw result.error;
+  }
+
+  return result.data as ContentPost;
 }
 
 export interface GetPostsFilters {
@@ -45,11 +55,26 @@ export async function getPosts(
     query = query.eq("status", filters.status);
   }
 
-  const { data, error } = await query;
+  let result = await query;
 
-  if (error) throw error;
+  // Fall back if FK relationship not found
+  if (result.error?.message?.includes("relationship")) {
+    let fallback = supabase
+      .from("content_posts")
+      .select(POST_WITHOUT_PROJECT)
+      .order("scheduled_at", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
-  return (data ?? []) as ContentPost[];
+    if (filters?.status) {
+      fallback = fallback.eq("status", filters.status);
+    }
+
+    result = await fallback;
+  }
+
+  if (result.error) throw result.error;
+
+  return (result.data ?? []) as ContentPost[];
 }
 
 // ── Write ────────────────────────────────────────────────
@@ -59,15 +84,23 @@ export async function createPost(
 ): Promise<ContentPost> {
   const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  let result = await supabase
     .from("content_posts")
     .insert(input)
     .select(POST_WITH_PROJECT)
     .single();
 
-  if (error) throw error;
+  if (result.error?.message?.includes("relationship")) {
+    result = await supabase
+      .from("content_posts")
+      .insert(input)
+      .select(POST_WITHOUT_PROJECT)
+      .single();
+  }
 
-  return data as ContentPost;
+  if (result.error) throw result.error;
+
+  return result.data as ContentPost;
 }
 
 export async function updatePost(
@@ -76,16 +109,25 @@ export async function updatePost(
 ): Promise<ContentPost> {
   const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  let result = await supabase
     .from("content_posts")
     .update(updates)
     .eq("id", id)
     .select(POST_WITH_PROJECT)
     .single();
 
-  if (error) throw error;
+  if (result.error?.message?.includes("relationship")) {
+    result = await supabase
+      .from("content_posts")
+      .update(updates)
+      .eq("id", id)
+      .select(POST_WITHOUT_PROJECT)
+      .single();
+  }
 
-  return data as ContentPost;
+  if (result.error) throw result.error;
+
+  return result.data as ContentPost;
 }
 
 export async function schedulePost(

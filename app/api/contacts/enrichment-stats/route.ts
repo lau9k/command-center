@@ -46,7 +46,7 @@ async function computeEnrichmentStats(): Promise<EnrichmentStats> {
       total?: number;
     } | null;
 
-    const records = data?.records ?? [];
+    const records = Array.isArray(data?.records) ? data.records : [];
     for (const r of records) {
       if (r.properties) rawRecords.push(r.properties);
     }

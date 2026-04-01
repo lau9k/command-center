@@ -108,7 +108,7 @@ export interface HomeStatsResponse {
   totalTasksCount: number;
 }
 
-/** Safely query a table, returning a fallback on error (e.g. table doesn't exist). */
+/** Safely query a table, returning a fallback on error (e.g. table doesn't exist or FK mismatch). */
 async function safeQuery<T>(
   fn: () => PromiseLike<{ data: T | null; error: unknown }>,
   fallback: T,
@@ -116,12 +116,14 @@ async function safeQuery<T>(
   try {
     const { data, error } = await fn();
     if (error) {
-      console.error("[home-stats] query error:", error);
+      // Use warn instead of error — these are expected for missing tables/columns
+      // and fire every polling cycle, creating excessive log noise
+      console.warn("[home-stats] query fallback:", (error as { message?: string }).message ?? error);
       return fallback;
     }
     return data ?? fallback;
   } catch (err) {
-    console.error("[home-stats] unexpected error:", err);
+    console.warn("[home-stats] unexpected fallback:", (err as Error).message ?? err);
     return fallback;
   }
 }
@@ -132,12 +134,12 @@ async function safeCount(
   try {
     const { count, error } = await fn();
     if (error) {
-      console.error("[home-stats] count error:", error);
+      console.warn("[home-stats] count fallback:", (error as { message?: string }).message ?? error);
       return 0;
     }
     return count ?? 0;
   } catch (err) {
-    console.error("[home-stats] unexpected count error:", err);
+    console.warn("[home-stats] unexpected count fallback:", (err as Error).message ?? err);
     return 0;
   }
 }
