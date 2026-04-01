@@ -24,32 +24,48 @@ export default async function ContentPage() {
     queryClient.prefetchQuery({
       queryKey: ["content", "posts"],
       queryFn: async () => {
-        const { data, error } = await supabase
+        // Try with project join first; fall back to plain select if FK is missing
+        let result = await supabase
           .from("content_posts")
           .select("*, projects:project_id(id, name, color)")
           .order("scheduled_for", { ascending: false, nullsFirst: false });
-        if (error) {
-          console.error("[Content] posts query error:", error.message);
+        if (result.error?.message?.includes("relationship")) {
+          result = await supabase
+            .from("content_posts")
+            .select("*")
+            .order("scheduled_for", { ascending: false, nullsFirst: false });
+        }
+        if (result.error) {
+          console.warn("[Content] posts query fallback:", result.error.message);
           return [];
         }
-        return (data as PostWithProject[]) ?? [];
+        return (result.data as PostWithProject[]) ?? [];
       },
     }),
     queryClient.prefetchQuery({
       queryKey: ["content", "calendar"],
       queryFn: async () => {
-        const { data, error } = await supabase
+        let result = await supabase
           .from("content_posts")
           .select("*, projects:project_id(id, name, color)")
           .or(
             `and(scheduled_at.gte.${monthStart},scheduled_at.lte.${monthEnd}),and(scheduled_for.gte.${monthStart},scheduled_for.lte.${monthEnd})`
           )
           .order("scheduled_at", { ascending: true, nullsFirst: false });
-        if (error) {
-          console.error("[Content] calendar query error:", error.message);
+        if (result.error?.message?.includes("relationship")) {
+          result = await supabase
+            .from("content_posts")
+            .select("*")
+            .or(
+              `and(scheduled_at.gte.${monthStart},scheduled_at.lte.${monthEnd}),and(scheduled_for.gte.${monthStart},scheduled_for.lte.${monthEnd})`
+            )
+            .order("scheduled_at", { ascending: true, nullsFirst: false });
+        }
+        if (result.error) {
+          console.warn("[Content] calendar query fallback:", result.error.message);
           return [];
         }
-        return (data as PostWithProject[]) ?? [];
+        return (result.data as PostWithProject[]) ?? [];
       },
     }),
     queryClient.prefetchQuery({

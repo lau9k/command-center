@@ -122,7 +122,8 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
       }
 
       const json = await res.json();
-      const records: SmartRecallRecord[] = json.data?.records ?? [];
+      const rawRecords = json.data?.records;
+      const records: SmartRecallRecord[] = Array.isArray(rawRecords) ? rawRecords : [];
       setRecall({ loading: false, results: records, error: null });
     } catch {
       setRecall({

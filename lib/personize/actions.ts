@@ -357,7 +357,7 @@ export async function searchContacts(
       total?: number;
     } | null;
 
-    const records = data?.records ?? [];
+    const records = Array.isArray(data?.records) ? data.records : [];
     const contacts = records.map((r, i) => mapRecordToContact(r, i));
 
     if (sort === "priority_score" || !sort) {

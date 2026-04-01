@@ -187,7 +187,8 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
       }>;
     };
 
-    const memories = (recallResult as RecallData)?.records ?? [];
+    const rawRecords = (recallResult as RecallData)?.records;
+    const memories = Array.isArray(rawRecords) ? rawRecords : [];
     const seenEmails = new Set<string>();
 
     for (const mem of memories) {

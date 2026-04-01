@@ -35,7 +35,31 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // If the projects FK join fails, retry without it
+  if (error?.message?.includes("relationship")) {
+    let fallbackQuery = supabase
+      .from("content_posts")
+      .select("*")
+      .or(
+        `and(scheduled_at.gte.${start},scheduled_at.lte.${end}),and(scheduled_for.gte.${start},scheduled_for.lte.${end})`
+      )
+      .order("scheduled_at", { ascending: true, nullsFirst: false });
+
+    if (projectId) {
+      fallbackQuery = fallbackQuery.eq("project_id", projectId);
+    }
+    if (platform) {
+      fallbackQuery = fallbackQuery.or(
+        `platform.eq.${platform},platforms.cs.["${platform}"]`
+      );
+    }
+
+    const fallbackResult = await fallbackQuery;
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

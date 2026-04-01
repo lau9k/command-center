@@ -87,7 +87,8 @@ export function PersonizeMemories({
       }
 
       const json = await res.json();
-      const records: SmartRecallRecord[] = json.data?.records ?? [];
+      const rawRecords = json.data?.records;
+      const records: SmartRecallRecord[] = Array.isArray(rawRecords) ? rawRecords : [];
       setMemory({ loading: false, records, error: null });
     } catch {
       setMemory({
