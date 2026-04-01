@@ -19,3 +19,5 @@ export {
 
 export { CardGridSkeleton } from "./CardGridSkeleton";
 export { ChartSkeleton } from "./ChartSkeleton";
+export { ChartSuspenseSkeleton } from "./ChartSuspenseSkeleton";
+export { DataTableSkeleton } from "./DataTableSkeleton";
