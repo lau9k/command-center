@@ -216,14 +216,14 @@ export function TaskBoard() {
         )
       );
 
-      try {
-        await updateTaskStatus(taskId, newStatus);
+      const actionResult = await updateTaskStatus(taskId, newStatus);
+      if (actionResult.success) {
         toast.success(
           newStatus === "done" ? "Task completed" : "Status updated"
         );
-      } catch {
+      } else {
         queryClient.setQueryData(["tasks", "list"], previous);
-        toast.error("Failed to update status");
+        toast.error(actionResult.error ?? "Failed to update status");
       }
     },
     [tasks, queryClient]

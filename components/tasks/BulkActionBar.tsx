@@ -40,45 +40,42 @@ export function BulkActionBar({
 
   async function handleStatusChange(status: TaskStatus) {
     setUpdating(true);
-    try {
-      const updated = await bulkUpdateTasks(ids, { status });
-      toast.success(`Updated status for ${updated.length} task${updated.length !== 1 ? "s" : ""}`);
+    const result = await bulkUpdateTasks(ids, { status });
+    if (result.success && result.data) {
+      toast.success(`Updated status for ${result.data.length} task${result.data.length !== 1 ? "s" : ""}`);
       onBulkUpdate();
       onClear();
-    } catch {
-      toast.error("Failed to update tasks — try again");
-    } finally {
-      setUpdating(false);
+    } else {
+      toast.error(result.error ?? "Failed to update tasks — try again");
     }
+    setUpdating(false);
   }
 
   async function handlePriorityChange(priority: TaskPriority) {
     setUpdating(true);
-    try {
-      const updated = await bulkUpdateTasks(ids, { priority });
-      toast.success(`Updated priority for ${updated.length} task${updated.length !== 1 ? "s" : ""}`);
+    const result = await bulkUpdateTasks(ids, { priority });
+    if (result.success && result.data) {
+      toast.success(`Updated priority for ${result.data.length} task${result.data.length !== 1 ? "s" : ""}`);
       onBulkUpdate();
       onClear();
-    } catch {
-      toast.error("Failed to update tasks — try again");
-    } finally {
-      setUpdating(false);
+    } else {
+      toast.error(result.error ?? "Failed to update tasks — try again");
     }
+    setUpdating(false);
   }
 
   async function handleBulkDelete() {
     setDeleting(true);
-    try {
-      await bulkDeleteTasks(ids);
+    const result = await bulkDeleteTasks(ids);
+    if (result.success) {
       toast.success(`Deleted ${count} task${count !== 1 ? "s" : ""}`);
       setDeleteOpen(false);
       onBulkUpdate();
       onClear();
-    } catch {
-      toast.error("Failed to delete tasks — try again");
-    } finally {
-      setDeleting(false);
+    } else {
+      toast.error(result.error ?? "Failed to delete tasks — try again");
     }
+    setDeleting(false);
   }
 
   return (
