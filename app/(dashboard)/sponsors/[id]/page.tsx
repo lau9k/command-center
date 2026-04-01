@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Globe, Mail, User, ExternalLink, DollarSign } from "lucide-react";
 import { OutreachTimeline } from "@/components/sponsors/OutreachTimeline";
+import { SponsorMetrics } from "@/components/sponsors/SponsorMetrics";
+import { SponsorROI } from "@/components/sponsors/SponsorROI";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +34,10 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 function formatCurrency(amount: number, currency: string): string {
-  if (amount >= 1_000_000) return `${currency === "USD" ? "$" : currency}${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${currency === "USD" ? "$" : currency}${(amount / 1_000).toFixed(1)}K`;
-  return `${currency === "USD" ? "$" : currency}${amount.toLocaleString()}`;
+  const symbol = currency === "USD" ? "$" : currency;
+  if (amount >= 1_000_000) return `${symbol}${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `${symbol}${(amount / 1_000).toFixed(1)}K`;
+  return `${symbol}${amount.toLocaleString()}`;
 }
 
 export default async function SponsorDetailPage({
@@ -45,7 +48,7 @@ export default async function SponsorDetailPage({
   const { id } = await params;
   const serviceClient = createServiceClient();
 
-  const [{ data: sponsor, error: sponsorError }, { data: outreach, error: outreachError }] =
+  const [{ data: sponsor, error: sponsorError }, { data: outreach }] =
     await Promise.all([
       serviceClient.from("sponsors").select("*").eq("id", id).single<Sponsor>(),
       serviceClient
@@ -101,6 +104,9 @@ export default async function SponsorDetailPage({
           )}
         </div>
       </div>
+
+      {/* Sponsor KPI Metrics Cards */}
+      <SponsorMetrics sponsorId={id} />
 
       {/* Contact Info Card */}
       <Card>
@@ -160,6 +166,9 @@ export default async function SponsorDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {/* ROI Chart (collapsible) */}
+      <SponsorROI sponsorId={id} />
 
       {/* Outreach Timeline */}
       <OutreachTimeline
