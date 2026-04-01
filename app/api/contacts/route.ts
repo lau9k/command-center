@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { searchContacts, batchGetMemoryCounts } from "@/lib/personize/actions";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -115,6 +116,16 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Sync to Personize in the background — don't block the response
+  syncToPersonize({
+    table: "contacts",
+    recordId: data.id,
+    content: JSON.stringify(data),
+    email: data.email ?? undefined,
+  }).catch((err) => {
+    console.error("[API] POST /api/contacts sync error:", err);
+  });
 
   return NextResponse.json({ data }, { status: 201 });
 });

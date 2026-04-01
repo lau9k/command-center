@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateContactSchema } from "@/lib/validations";
 import { getContactById } from "@/lib/personize/actions";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export async function GET(
   request: NextRequest,
@@ -99,6 +100,16 @@ export async function PATCH(
     console.error("[API] PATCH /api/contacts/[id] error:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Sync to Personize in the background — don't block the response
+  syncToPersonize({
+    table: "contacts",
+    recordId: data.id,
+    content: JSON.stringify(data),
+    email: data.email ?? undefined,
+  }).catch((err) => {
+    console.error("[API] PATCH /api/contacts/[id] sync error:", err);
+  });
 
   return NextResponse.json({ data });
 }
