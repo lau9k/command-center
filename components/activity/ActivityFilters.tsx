@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { Search } from "lucide-react";
 import {
   FilterBar,
   type FilterDefinition,
@@ -17,6 +18,18 @@ const ENTITY_TYPE_FILTER: FilterDefinition = {
     { label: "Sponsors", value: "sponsor" },
     { label: "Transactions", value: "transaction" },
     { label: "Content", value: "content_post" },
+  ],
+};
+
+const ACTION_FILTER: FilterDefinition = {
+  id: "action",
+  label: "Action",
+  options: [
+    { label: "Created", value: "created" },
+    { label: "Updated", value: "updated" },
+    { label: "Deleted", value: "deleted" },
+    { label: "Ingested", value: "ingested" },
+    { label: "Synced", value: "synced" },
   ],
 };
 
@@ -37,8 +50,10 @@ type DateRange = "today" | "week" | "month" | "";
 
 export interface ActivityFilterState {
   entityTypes: string[];
+  actions: string[];
   sources: string[];
   dateRange: DateRange;
+  search: string;
 }
 
 interface ActivityFiltersProps {
@@ -77,20 +92,22 @@ export function getDateRangeBounds(range: DateRange): { from?: string; to?: stri
 }
 
 export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
-  const filterDefs = useMemo(() => [ENTITY_TYPE_FILTER, SOURCE_FILTER], []);
+  const filterDefs = useMemo(() => [ACTION_FILTER, ENTITY_TYPE_FILTER, SOURCE_FILTER], []);
 
   const filterValues: FilterValues = useMemo(
     () => ({
+      action: filters.actions,
       entity_type: filters.entityTypes,
       source: filters.sources,
     }),
-    [filters.entityTypes, filters.sources]
+    [filters.actions, filters.entityTypes, filters.sources]
   );
 
   const handleFilterBarChange = useCallback(
     (values: FilterValues) => {
       onChange({
         ...filters,
+        actions: values.action ?? [],
         entityTypes: values.entity_type ?? [],
         sources: values.source ?? [],
       });
@@ -101,6 +118,18 @@ export function ActivityFilters({ filters, onChange }: ActivityFiltersProps) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
+        {/* Search input */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search activity..."
+            value={filters.search}
+            onChange={(e) => onChange({ ...filters, search: e.target.value })}
+            className="h-9 w-56 rounded-lg border border-border bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+        </div>
+
         <FilterBar
           filters={filterDefs}
           values={filterValues}

@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { ActivityFeed } from "@/components/activity/ActivityFeed";
+import { ActivityTimeline } from "@/components/activity/ActivityTimeline";
 import type { ActivityLogEntry } from "@/components/activity/ActivityItem";
 
 export const revalidate = 60;
@@ -28,7 +28,7 @@ export default async function ActivityPage() {
         </p>
       </div>
 
-      <ActivityFeed initialEntries={entries} />
+      <ActivityTimeline initialEntries={entries} />
     </div>
   );
 }
