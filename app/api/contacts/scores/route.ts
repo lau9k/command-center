@@ -15,7 +15,7 @@ import {
 
 const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-  "8ef5a304-05b0-4f06-9660-fb948b9fa5d9";
+  "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
 const CACHE_USER_ID = "system";
 const CACHE_VIEW_TYPE = "relationship_scores";

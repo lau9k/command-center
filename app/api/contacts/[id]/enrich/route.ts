@@ -55,7 +55,8 @@ export async function GET(
       response_detail: "full",
     });
 
-    const records = result?.records ?? [];
+    const rawRecords = result?.records;
+    const records = Array.isArray(rawRecords) ? rawRecords : [];
 
     // Extract properties from records that have them
     const properties: Record<string, string> = {};
