@@ -6,6 +6,7 @@ import {
   FileText,
   Handshake,
   FolderOpen,
+  Calendar,
 } from "lucide-react";
 
 export type SearchEntityType =
@@ -14,7 +15,8 @@ export type SearchEntityType =
   | "pipeline"
   | "content"
   | "sponsor"
-  | "project";
+  | "project"
+  | "meeting";
 
 export interface SearchResult {
   id: string;
@@ -74,6 +76,12 @@ const ENTITY_CONFIG: Record<SearchEntityType, EntityConfig> = {
     icon: FolderOpen,
     route: "/projects",
   },
+  meeting: {
+    label: "Meeting",
+    pluralLabel: "Meetings",
+    icon: Calendar,
+    route: "/meetings",
+  },
 };
 
 export function getEntityIcon(type: SearchEntityType): LucideIcon {
@@ -98,6 +106,7 @@ export function groupSearchResults(results: SearchResult[]): SearchResultGroup[]
     "project",
     "pipeline",
     "content",
+    "meeting",
     "sponsor",
   ];
 

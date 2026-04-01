@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { GlobalSearch } from "./GlobalSearch";
+import { SearchDialog } from "./SearchDialog";
 
 interface SearchContextValue {
   isOpen: boolean;
@@ -47,7 +47,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   return (
     <SearchContext.Provider value={{ isOpen, openSearch, closeSearch }}>
       {children}
-      <GlobalSearch isOpen={isOpen} onOpenChange={setIsOpen} />
+      <SearchDialog isOpen={isOpen} onOpenChange={setIsOpen} />
     </SearchContext.Provider>
   );
 }

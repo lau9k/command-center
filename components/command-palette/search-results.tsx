@@ -2,6 +2,7 @@
 
 import { Command } from "cmdk";
 import {
+  Calendar,
   CheckSquare,
   FileText,
   Handshake,
@@ -12,7 +13,7 @@ import type { LucideIcon } from "lucide-react";
 
 export interface SearchResultItem {
   id: string;
-  type: "contact" | "pipeline" | "content" | "task" | "sponsor";
+  type: "contact" | "pipeline" | "content" | "task" | "sponsor" | "meeting";
   title: string;
   subtitle: string | null;
   href: string;
@@ -32,6 +33,7 @@ const typeConfig: Record<
   pipeline: { icon: Layers, label: "Pipeline" },
   content: { icon: FileText, label: "Content" },
   sponsor: { icon: Handshake, label: "Sponsors" },
+  meeting: { icon: Calendar, label: "Meetings" },
 };
 
 const groupHeadingClass =
@@ -48,6 +50,7 @@ function groupByType(
     "contact",
     "pipeline",
     "content",
+    "meeting",
     "sponsor",
   ];
   const groups: Partial<Record<SearchResultItem["type"], SearchResultItem[]>> =
