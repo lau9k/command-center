@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import { syncToPersonize } from "@/lib/personize/sync";
+import { syncDealToPersonize } from "@/lib/personize/sync";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
@@ -121,7 +121,7 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
       .eq("id", updates.stage_id!)
       .single();
 
-    syncToPersonize({
+    syncDealToPersonize({
       company_name: (metadata.company_name as string) ?? (item.title as string) ?? "",
       amount: (metadata.amount as number) ?? null,
       stage_name: stage?.name ?? "",
