@@ -82,13 +82,12 @@ export function RecurringTaskList({ initial, projects }: RecurringTaskListProps)
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    try {
-      await deleteRecurringTask(deleteTarget.id);
+    const result = await deleteRecurringTask(deleteTarget.id);
+    if (result.success) {
       setTasks((prev) => prev.filter((t) => t.id !== deleteTarget.id));
-    } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
     }
+    setDeleting(false);
+    setDeleteTarget(null);
   }
 
   async function handleFormSubmit() {

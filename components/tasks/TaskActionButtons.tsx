@@ -128,15 +128,14 @@ export function TaskActionButtons({ task }: TaskActionButtonsProps) {
       )
     );
 
-    try {
-      await markTaskDone(task.id);
+    const result = await markTaskDone(task.id);
+    if (result.success) {
       toast.success("Marked as sent");
-    } catch {
+    } else {
       queryClient.setQueryData(["tasks", "list"], previous);
-      toast.error("Failed to mark as sent");
-    } finally {
-      setMarkingSent(false);
+      toast.error(result.error ?? "Failed to mark as sent");
     }
+    setMarkingSent(false);
   }, [task.id, queryClient]);
 
   const buttons: ActionButton[] = [];
