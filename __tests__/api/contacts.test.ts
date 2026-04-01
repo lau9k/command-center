@@ -44,7 +44,7 @@ describe("GET /api/contacts", () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe("db error");
+    expect(body.error).toBe("Internal server error");
   });
 });
 
