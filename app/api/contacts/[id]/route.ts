@@ -3,6 +3,11 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { updateContactSchema } from "@/lib/validations";
 import { getContactById } from "@/lib/personize/actions";
 import { syncToPersonize } from "@/lib/personize/sync";
+import {
+  getContact,
+  updateContact,
+  deleteContact,
+} from "@/lib/api/contacts";
 
 export async function GET(
   request: NextRequest,
@@ -33,16 +38,10 @@ export async function GET(
 
   // Supabase fallback
   const supabase = createServiceClient();
+  const data = await getContact(supabase, id);
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    console.error("[API] GET /api/contacts/[id] error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: error.code === "PGRST116" ? 404 : 500 });
+  if (!data) {
+    return NextResponse.json({ error: "Contact not found" }, { status: 404 });
   }
 
   return NextResponse.json({ data, source: "supabase" });
@@ -61,17 +60,7 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .update(parsed.data)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[API] PUT /api/contacts/[id] error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const data = await updateContact(supabase, id, parsed.data);
 
   return NextResponse.json({ data });
 }
@@ -89,17 +78,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .update(parsed.data)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("[API] PATCH /api/contacts/[id] error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  const data = await updateContact(supabase, id, parsed.data);
 
   // Sync to Personize in the background — don't block the response
   syncToPersonize({
@@ -121,15 +100,7 @@ export async function DELETE(
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const { error } = await supabase
-    .from("contacts")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    console.error("[API] DELETE /api/contacts/[id] error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  await deleteContact(supabase, id);
 
   return NextResponse.json({ success: true });
 }

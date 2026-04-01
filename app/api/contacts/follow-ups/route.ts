@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getContactFollowUps } from "@/lib/api/contacts";
 
 interface FollowUpContact {
   id: string;
@@ -56,15 +57,11 @@ function calculateUrgency(
 export async function GET() {
   const supabase = createServiceClient();
 
-  const { data: contacts, error } = await supabase
-    .from("contacts")
-    .select("id, name, email, company, score, status, last_contact_date")
-    .is("merged_into_id", null)
-    .in("status", ["active", "lead", "customer"])
-    .order("last_contact_date", { ascending: true, nullsFirst: true });
-
-  if (error) {
-    console.error("[API] /api/contacts/follow-ups failed:", error);
+  let contacts: Awaited<ReturnType<typeof getContactFollowUps>>;
+  try {
+    contacts = await getContactFollowUps(supabase);
+  } catch {
+    console.error("[API] /api/contacts/follow-ups failed");
     return NextResponse.json(
       { error: "Failed to fetch contacts" },
       { status: 500 }
@@ -73,7 +70,7 @@ export async function GET() {
 
   const now = Date.now();
 
-  const followUps: FollowUpContact[] = (contacts ?? [])
+  const followUps: FollowUpContact[] = contacts
     .map((c) => {
       const daysSinceContact = c.last_contact_date
         ? Math.floor(
@@ -93,7 +90,7 @@ export async function GET() {
         email: c.email,
         company: c.company,
         score: c.score ?? 0,
-        status: c.status,
+        status: c.status as string,
         last_contact_date: c.last_contact_date,
         days_since_contact: daysSinceContact,
         urgency_score,
