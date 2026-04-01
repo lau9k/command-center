@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
@@ -88,16 +89,70 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   }
 
   const { id, ...updates } = parsed.data;
+  const isStageChange = updates.stage_id !== undefined;
+
+  // Set sync status to pending before the update if stage is changing
+  const updatePayload = {
+    ...updates,
+    updated_at: new Date().toISOString(),
+    ...(isStageChange ? { personize_sync_status: "pending" as const } : {}),
+  };
 
   const { data, error } = await supabase
     .from("pipeline_items")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Fire-and-forget: sync deal context to Personize on stage change
+  if (isStageChange && data) {
+    const item = data as Record<string, unknown>;
+    const metadata = (item.metadata ?? {}) as Record<string, unknown>;
+
+    // Fetch stage name for the new stage
+    const { data: stage } = await supabase
+      .from("pipeline_stages")
+      .select("name")
+      .eq("id", updates.stage_id!)
+      .single();
+
+    syncToPersonize({
+      company_name: (metadata.company_name as string) ?? (item.title as string) ?? "",
+      amount: (metadata.amount as number) ?? null,
+      stage_name: stage?.name ?? "",
+      notes: (metadata.notes as string) ?? null,
+      contact_email: (metadata.contact_email as string) ?? null,
+    }).then((synced) => {
+      if (synced) {
+        supabase
+          .from("pipeline_items")
+          .update({
+            personize_sync_status: "synced",
+            personize_synced_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .then(({ error: syncUpdateError }) => {
+            if (syncUpdateError) {
+              console.error("[Pipeline] Failed to update sync status:", syncUpdateError);
+            }
+          });
+      } else {
+        supabase
+          .from("pipeline_items")
+          .update({ personize_sync_status: "failed" })
+          .eq("id", id)
+          .then(({ error: syncUpdateError }) => {
+            if (syncUpdateError) {
+              console.error("[Pipeline] Failed to update sync status:", syncUpdateError);
+            }
+          });
+      }
+    });
   }
 
   return NextResponse.json(data);
