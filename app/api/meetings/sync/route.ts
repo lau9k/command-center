@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { logSync } from "@/lib/plaid-sync";
+import { syncToPersonize } from "@/lib/personize/sync";
 import type { MeetingAttendee, MeetingActionItem, MeetingContact } from "@/lib/types/database";
 
 // --- Granola REST API types ---
@@ -259,6 +260,18 @@ export const POST = withErrorHandler(async function POST() {
             continue;
           }
           meetingId = existing.id;
+
+          // Sync updated meeting to Personize — fire-and-forget
+          const attendeeEmail = attendees.find((a) => a.email)?.email;
+          syncToPersonize({
+            table: "meetings",
+            recordId: meetingId,
+            content: JSON.stringify({ ...meetingRow, id: meetingId }),
+            email: attendeeEmail,
+          }).catch((err) => {
+            console.error(`[MeetingsSync] Personize sync error for ${meetingId}:`, err);
+          });
+
           skipped++; // count as skipped since it was an update
         } else {
           // Insert new meeting
@@ -273,6 +286,18 @@ export const POST = withErrorHandler(async function POST() {
             continue;
           }
           meetingId = inserted.id;
+
+          // Sync new meeting to Personize — fire-and-forget
+          const newAttendeeEmail = attendees.find((a) => a.email)?.email;
+          syncToPersonize({
+            table: "meetings",
+            recordId: meetingId,
+            content: JSON.stringify({ ...meetingRow, id: meetingId }),
+            email: newAttendeeEmail,
+          }).catch((err) => {
+            console.error(`[MeetingsSync] Personize sync error for ${meetingId}:`, err);
+          });
+
           synced++;
         }
 
