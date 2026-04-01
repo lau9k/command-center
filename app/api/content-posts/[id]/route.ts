@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { updateContentPostSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { uuidParam } from "@/lib/validations";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export const PATCH = withErrorHandler(async function PATCH(
   request: NextRequest,
@@ -37,6 +38,15 @@ export const PATCH = withErrorHandler(async function PATCH(
     const status = error.code === "PGRST116" ? 404 : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
+
+  // Sync to Personize in the background — don't block the response
+  syncToPersonize({
+    table: "content_posts",
+    recordId: data.id,
+    content: JSON.stringify(data),
+  }).catch((err) => {
+    console.error(`[API] PATCH /api/content-posts/${id} sync error:`, err);
+  });
 
   return NextResponse.json(data);
 });
