@@ -2,12 +2,15 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SettingsProfile } from "./SettingsProfile";
+import { SettingsThemeToggle } from "./SettingsThemeToggle";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { DataManagement } from "@/components/settings/DataManagement";
 import { APIKeyManager } from "@/components/settings/APIKeyManager";
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs";
 import { SyncConfigPanel } from "@/components/settings/SyncConfigPanel";
+import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
+import { IntegrationHealthGrid } from "@/components/settings/IntegrationCard";
 import { SeedDemoButton } from "./SeedDemoButton";
 import { SettingsDangerZone } from "./SettingsDangerZone";
 import {
@@ -20,8 +23,14 @@ import {
   Activity,
   ShieldCheck,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { PlaidConnect } from "@/components/settings/plaid-connect";
+import { GmailConnect } from "@/components/settings/gmail-connect";
+import { GranolaSyncButton } from "@/components/settings/GranolaSyncButton";
+import { Loader2 } from "lucide-react";
 
 interface SettingsClientProps {
   email: string | null;
@@ -39,61 +48,155 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="w-full justify-start overflow-x-auto">
+        <TabsList className="flex w-full justify-start overflow-x-auto">
           <TabsTrigger value="profile" className="gap-1.5">
             <User className="h-4 w-4" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="integrations" className="gap-1.5">
-            <Puzzle className="h-4 w-4" />
-            Integrations
+            <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
           <TabsTrigger value="preferences" className="gap-1.5">
             <SlidersHorizontal className="h-4 w-4" />
-            Preferences
+            <span className="hidden sm:inline">Preferences</span>
+          </TabsTrigger>
+          <TabsTrigger value="data-sources" className="gap-1.5">
+            <Activity className="h-4 w-4" />
+            <span className="hidden sm:inline">Data Sources</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="gap-1.5">
+            <Puzzle className="h-4 w-4" />
+            <span className="hidden sm:inline">Integrations</span>
           </TabsTrigger>
           <TabsTrigger value="api-keys" className="gap-1.5">
             <Key className="h-4 w-4" />
-            API Keys
+            <span className="hidden sm:inline">API Keys</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5">
             <Bell className="h-4 w-4" />
-            Notifications
+            <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
           <TabsTrigger value="sync" className="gap-1.5">
             <RefreshCw className="h-4 w-4" />
-            Sync
+            <span className="hidden sm:inline">Sync</span>
           </TabsTrigger>
           <TabsTrigger value="data" className="gap-1.5">
             <Database className="h-4 w-4" />
-            Data
+            <span className="hidden sm:inline">Data</span>
+          </TabsTrigger>
+          <TabsTrigger value="danger" className="gap-1.5">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="hidden sm:inline">Danger Zone</span>
           </TabsTrigger>
           <Link
             href="/settings/governance"
             className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ShieldCheck className="h-4 w-4" />
-            Governance
-          </Link>
-          <Link
-            href="/settings/data-sources"
-            className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Activity className="h-4 w-4" />
-            Data Sources
+            <span className="hidden sm:inline">Governance</span>
           </Link>
         </TabsList>
 
-        {/* Profile Tab — read-only */}
+        {/* Profile Tab */}
         <TabsContent value="profile">
           <div className="rounded-lg border border-border bg-card p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Profile</h2>
               <p className="text-sm text-muted-foreground">
-                Your account information
+                Manage your display name, email, and timezone
               </p>
             </div>
             <SettingsProfile email={email} userId={userId} />
+          </div>
+        </TabsContent>
+
+        {/* Preferences Tab — Theme + Defaults */}
+        <TabsContent value="preferences">
+          <div className="space-y-6">
+            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Theme
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Choose light, dark, or follow your system preference
+                  </p>
+                </div>
+                <SettingsThemeToggle userId={userId} />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Preferences
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Customize your dashboard experience
+                </p>
+              </div>
+              <PreferencesPanel userId={userId} />
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Data Sources Tab */}
+        <TabsContent value="data-sources">
+          <div className="space-y-6">
+            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Integration Health
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Connection status and health of all integrations
+                </p>
+              </div>
+              <IntegrationHealthGrid />
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Source Health
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Real-time status of all data pipelines
+                </p>
+              </div>
+              <DataSourcesPanel />
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-foreground mb-2">
+                  Bank Accounts (Plaid)
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Connect bank accounts to automatically sync transactions
+                </p>
+                <PlaidConnect />
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-foreground mb-2">
+                  Gmail
+                </h3>
+                <Suspense
+                  fallback={
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading...
+                    </div>
+                  }
+                >
+                  <GmailConnect />
+                </Suspense>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-foreground mb-2">
+                  Granola Meetings
+                </h3>
+                <GranolaSyncButton />
+              </div>
+            </div>
           </div>
         </TabsContent>
 
@@ -109,21 +212,6 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
               </p>
             </div>
             <IntegrationsPanel />
-          </div>
-        </TabsContent>
-
-        {/* Preferences Tab */}
-        <TabsContent value="preferences">
-          <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Preferences
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Customize your dashboard experience
-              </p>
-            </div>
-            <PreferencesPanel userId={userId} />
           </div>
         </TabsContent>
 
@@ -188,7 +276,6 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
               <DataManagement />
             </div>
 
-            {/* Demo Data */}
             <div className="rounded-lg border border-border bg-card p-6 space-y-6">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">
@@ -212,19 +299,21 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
                 <SeedDemoButton />
               </div>
             </div>
+          </div>
+        </TabsContent>
 
-            {/* Danger Zone */}
-            <div className="rounded-lg border border-destructive/50 bg-card p-6 space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold text-destructive">
-                  Danger Zone
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Irreversible actions
-                </p>
-              </div>
-              <SettingsDangerZone />
+        {/* Danger Zone Tab */}
+        <TabsContent value="danger">
+          <div className="rounded-lg border border-destructive/50 bg-card p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-destructive">
+                Danger Zone
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Irreversible actions
+              </p>
             </div>
+            <SettingsDangerZone />
           </div>
         </TabsContent>
       </Tabs>

@@ -59,7 +59,11 @@ export default function DataSourcesPage() {
           <h3 className="text-sm font-medium text-foreground mb-2">
             Gmail
           </h3>
-          <Suspense>
+          <Suspense
+            fallback={
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            }
+          >
             <GmailConnect />
           </Suspense>
         </div>

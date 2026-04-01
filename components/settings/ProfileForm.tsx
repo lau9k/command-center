@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Save, Loader2 } from "lucide-react";
 
@@ -43,29 +44,89 @@ function getInitials(name: string): string {
 }
 
 export function ProfileForm({ email, userId }: ProfileFormProps) {
-  const [displayName, setDisplayName] = useState(
-    email ? email.split("@")[0] : ""
-  );
-  const [userEmail, setUserEmail] = useState(email ?? "");
+  const [displayName, setDisplayName] = useState("");
   const [timezone, setTimezone] = useState("America/New_York");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await fetch(`/api/settings?user_id=${userId}`);
+        if (res.ok) {
+          const { data } = await res.json();
+          if (data?.display_name) setDisplayName(data.display_name);
+          else if (email) setDisplayName(email.split("@")[0]);
+          if (data?.timezone) setTimezone(data.timezone);
+        } else {
+          if (email) setDisplayName(email.split("@")[0]);
+        }
+      } catch {
+        if (email) setDisplayName(email.split("@")[0]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [userId, email]);
 
   const handleSave = useCallback(async () => {
+    if (!userId) {
+      toast.error("Not signed in");
+      return;
+    }
+
     setSaving(true);
-    // Optimistic update — show success immediately
     try {
-      // Simulate save (no real API endpoint needed for demo)
-      await new Promise((r) => setTimeout(r, 600));
-      setSaved(true);
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          display_name: displayName,
+          timezone,
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error || "Failed to save");
+      }
+
       toast.success("Profile updated successfully");
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update profile"
+      );
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [userId, displayName, timezone]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full sm:max-w-xs" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -103,9 +164,9 @@ export function ProfileForm({ email, userId }: ProfileFormProps) {
           <Input
             id="profile-email"
             type="email"
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            placeholder="you@example.com"
+            value={email ?? ""}
+            disabled
+            className="bg-muted"
           />
           <p className="text-xs text-muted-foreground">
             Managed by your authentication provider
@@ -129,13 +190,13 @@ export function ProfileForm({ email, userId }: ProfileFormProps) {
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={saving} className="gap-2">
+      <Button onClick={handleSave} disabled={saving || !userId} className="gap-2">
         {saving ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Save className="h-4 w-4" />
         )}
-        {saving ? "Saving..." : saved ? "Saved" : "Save Changes"}
+        {saving ? "Saving..." : "Save Changes"}
       </Button>
     </div>
   );
