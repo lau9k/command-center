@@ -6,6 +6,7 @@ import {
   updateDeal,
   createDeal as createDealInDb,
 } from "@/lib/api/pipeline";
+import type { CreateDealInput, UpdateDealInput } from "@/lib/api/pipeline";
 import type { PipelineItem } from "@/lib/types/database";
 
 export async function moveDealStage(
@@ -24,11 +25,11 @@ export async function updateDealAmount(
 
   return updateDeal(id, {
     metadata: { ...existing, amount },
-  } as Partial<PipelineItem>);
+  });
 }
 
 export async function createDeal(
-  data: Partial<PipelineItem>
+  data: CreateDealInput
 ): Promise<PipelineItem> {
   return createDealInDb(data);
 }
