@@ -1,60 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
 import { createTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { getTasks, createTask } from "@/lib/api/tasks";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
-  const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
-  const project = searchParams.get("project");
-  const priority = searchParams.get("priority");
-  const status = searchParams.get("status");
-  const search = searchParams.get("search");
-  const type = searchParams.get("type");
-  const contactId = searchParams.get("contact_id");
+  try {
+    const data = await getTasks({
+      projectId: searchParams.get("project") ?? undefined,
+      priority: searchParams.get("priority") ?? undefined,
+      status: searchParams.get("status") ?? undefined,
+      search: searchParams.get("search") ?? undefined,
+      type: searchParams.get("type") ?? undefined,
+      contactId: searchParams.get("contact_id") ?? undefined,
+    });
 
-  let query = supabase
-    .from("tasks")
-    .select("*, projects(id, name, color), contacts(name, email, company, linkedin_url)")
-    .order("priority", { ascending: true })
-    .order("due_date", { ascending: true, nullsFirst: false });
-
-  if (project) {
-    query = query.eq("project_id", project);
+    return NextResponse.json({ data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String((error as { message?: string }).message ?? "Internal server error");
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (priority) {
-    query = query.eq("priority", priority);
-  }
-
-  if (status) {
-    query = query.eq("status", status);
-  }
-
-  if (search) {
-    query = query.ilike("title", `%${search}%`);
-  }
-
-  if (type) {
-    query = query.eq("task_type", type);
-  }
-
-  if (contactId) {
-    query = query.eq("contact_id", contactId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ data });
 });
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  const supabase = createServiceClient();
   const body = await request.json();
 
   const parsed = createTaskSchema.safeParse(body);
@@ -62,15 +31,11 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert(parsed.data)
-    .select("*, projects(id, name, color), contacts(name, email, company, linkedin_url)")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const data = await createTask(parsed.data);
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String((error as { message?: string }).message ?? "Internal server error");
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json({ data }, { status: 201 });
 });
