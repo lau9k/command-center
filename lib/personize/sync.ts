@@ -245,7 +245,7 @@ export async function syncDealToPersonize(context: SyncDealContext): Promise<boo
 
     return await memorize(content, tags, context.contact_email ?? undefined);
   } catch (error) {
-    console.error("[Personize] syncToPersonize failed:", error);
+    console.error("[Personize] syncDealToPersonize failed:", error);
     return false;
   }
 }
