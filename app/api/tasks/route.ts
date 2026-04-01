@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const supabase = createServiceClient();
@@ -71,6 +72,26 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Sync to Personize in the background — don't block the response.
+  // Email resolution: use the linked contact's email if available (via contact_id join),
+  // otherwise no email is passed (Personize will store without contact association).
+  const contactEmail = (data.contacts as { email?: string } | null)?.email ?? undefined;
+  syncToPersonize({
+    table: "tasks",
+    recordId: data.id,
+    content: JSON.stringify({
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      status: data.status,
+      due_date: data.due_date,
+      project_id: data.project_id,
+    }),
+    email: contactEmail,
+  }).catch((err) => {
+    console.error("[API] POST /api/tasks sync error:", err);
+  });
 
   return NextResponse.json({ data }, { status: 201 });
 });

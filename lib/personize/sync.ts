@@ -1,7 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import client from "./client";
 import { memorize } from "./actions";
-import type { PersonizeSyncStatus } from "@/lib/types/database";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,66 +47,6 @@ const RATE_LIMIT_MS = 400;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Update a record's personize_sync_status and personize_synced_at in Supabase.
- */
-async function updateSyncStatus(
-  table: string,
-  recordId: string,
-  status: PersonizeSyncStatus,
-  syncedAt?: string
-): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
-    .from(table)
-    .update({
-      personize_sync_status: status,
-      ...(syncedAt ? { personize_synced_at: syncedAt } : {}),
-    })
-    .eq("id", recordId);
-
-  if (error) {
-    console.error("[Personize] Failed to update sync status", {
-      table,
-      recordId,
-      status,
-      error: error.message,
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Single-record sync
-// ---------------------------------------------------------------------------
-
-/**
- * Sync a single record to Personize and update its status in Supabase.
- *
- * Expects the record's `personize_sync_status` to already be 'pending' (set by the caller).
- * On success → 'synced' with timestamp. On failure → 'failed'.
- * Never throws — errors are logged with full context.
- */
-export async function syncToPersonize(
-  table: string,
-  recordId: string,
-  content: string,
-  email: string
-): Promise<void> {
-  try {
-    await client.memory.memorize({
-      content,
-      email,
-      enhanced: true,
-    });
-
-    await updateSyncStatus(table, recordId, "synced", new Date().toISOString());
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[Personize] Sync failed", { table, recordId, email, error: message });
-    await updateSyncStatus(table, recordId, "failed");
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +238,7 @@ export async function bulkSyncToPersonize(
  * Sync a pipeline deal's context to Personize via the memorize helper.
  * Fire-and-forget — never throws.
  */
-export async function syncToPersonize(context: SyncDealContext): Promise<boolean> {
+export async function syncDealToPersonize(context: SyncDealContext): Promise<boolean> {
   try {
     const content = JSON.stringify(context);
     const tags = ["pipeline", "deal-stage-change", context.stage_name];
