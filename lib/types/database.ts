@@ -147,6 +147,16 @@ export interface Contact {
   memory_count?: number | null;
 }
 
+export interface PipelineStage {
+  id: string;
+  pipeline_id: string;
+  project_id: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+  color: string | null;
+}
+
 export interface PipelineItem {
   id: string;
   pipeline_id: string;
