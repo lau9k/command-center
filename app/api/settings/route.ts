@@ -6,6 +6,8 @@ import { z } from "zod";
 const updatePreferencesSchema = z.object({
   theme: z.enum(["light", "dark", "system"]).optional(),
   default_project_filter: z.string().uuid().nullable().optional(),
+  display_name: z.string().max(100).optional(),
+  timezone: z.string().max(100).optional(),
 });
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
