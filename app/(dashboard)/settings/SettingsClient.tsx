@@ -7,7 +7,6 @@ import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { PreferencesPanel } from "@/components/settings/PreferencesPanel";
 import { DataManagement } from "@/components/settings/DataManagement";
 import { APIKeyManager } from "@/components/settings/APIKeyManager";
-import { NotificationPrefs } from "@/components/settings/NotificationPrefs";
 import { SyncConfigPanel } from "@/components/settings/SyncConfigPanel";
 import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { IntegrationHealthGrid } from "@/components/settings/IntegrationCard";
@@ -69,10 +68,13 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
             <Key className="h-4 w-4" />
             <span className="hidden sm:inline">API Keys</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1.5">
+          <Link
+            href="/settings/notifications"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
+          </Link>
           <TabsTrigger value="sync" className="gap-1.5">
             <RefreshCw className="h-4 w-4" />
             <span className="hidden sm:inline">Sync</span>
@@ -230,20 +232,6 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
           </div>
         </TabsContent>
 
-        {/* Notifications Tab */}
-        <TabsContent value="notifications">
-          <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Notification Preferences
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Control how and when you receive notifications
-              </p>
-            </div>
-            <NotificationPrefs />
-          </div>
-        </TabsContent>
 
         {/* Sync Configuration Tab */}
         <TabsContent value="sync">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Save, Loader2 } from "lucide-react";
 
@@ -14,56 +15,93 @@ interface NotificationCategory {
 
 interface NotificationChannels {
   email: boolean;
-  push: boolean;
   inApp: boolean;
 }
 
 const CATEGORIES: NotificationCategory[] = [
   {
-    id: "tasks",
-    label: "Tasks",
-    description: "Task assignments, due dates, and updates",
+    id: "task_reminders",
+    label: "Task Reminders",
+    description: "Due dates, assignments, and overdue alerts",
   },
   {
-    id: "contacts",
-    label: "Contacts",
+    id: "pipeline_updates",
+    label: "Pipeline Updates",
+    description: "Deal stage changes and pipeline activity",
+  },
+  {
+    id: "contact_activity",
+    label: "Contact Activity",
     description: "New contacts, status changes, and enrichment",
   },
   {
-    id: "pipeline",
-    label: "Pipeline",
-    description: "Deal stage changes and pipeline updates",
+    id: "content_publishing",
+    label: "Content Publishing",
+    description: "Scheduled posts, reviews, and publish confirmations",
   },
   {
-    id: "content",
-    label: "Content",
-    description: "Content publishing, scheduling, and reviews",
+    id: "meeting_reminders",
+    label: "Meeting Reminders",
+    description: "Upcoming meetings and schedule changes",
   },
   {
-    id: "finance",
-    label: "Finance",
-    description: "Invoice reminders, payments, and reports",
+    id: "sync_status",
+    label: "Sync Status Alerts",
+    description: "Data source sync successes and failures",
   },
   {
-    id: "system",
-    label: "System",
-    description: "Security alerts, maintenance, and updates",
+    id: "webhook_failures",
+    label: "Webhook Failures",
+    description: "Failed webhook deliveries and retries",
   },
 ];
 
 const DEFAULT_PREFS: Record<string, NotificationChannels> = {
-  tasks: { email: true, push: true, inApp: true },
-  contacts: { email: false, push: true, inApp: true },
-  pipeline: { email: true, push: true, inApp: true },
-  content: { email: false, push: false, inApp: true },
-  finance: { email: true, push: true, inApp: true },
-  system: { email: true, push: false, inApp: true },
+  task_reminders: { email: true, inApp: true },
+  pipeline_updates: { email: true, inApp: true },
+  contact_activity: { email: false, inApp: true },
+  content_publishing: { email: false, inApp: true },
+  meeting_reminders: { email: true, inApp: true },
+  sync_status: { email: false, inApp: true },
+  webhook_failures: { email: true, inApp: true },
 };
 
-export function NotificationPrefs() {
+interface NotificationPrefsProps {
+  userId?: string | null;
+}
+
+export function NotificationPrefs({ userId }: NotificationPrefsProps) {
   const [prefs, setPrefs] =
     useState<Record<string, NotificationChannels>>(DEFAULT_PREFS);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    async function loadPrefs() {
+      try {
+        const res = await fetch(
+          `/api/settings/notifications?user_id=${userId}`
+        );
+        if (res.ok) {
+          const { data } = await res.json();
+          if (data) {
+            setPrefs((prev) => ({ ...prev, ...data }));
+          }
+        }
+      } catch {
+        // Use defaults on failure
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPrefs();
+  }, [userId]);
 
   const handleToggle = useCallback(
     (categoryId: string, channel: keyof NotificationChannels) => {
@@ -79,24 +117,68 @@ export function NotificationPrefs() {
   );
 
   const handleSave = useCallback(async () => {
+    if (!userId) {
+      toast.error("Not signed in");
+      return;
+    }
+
     setSaving(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      const res = await fetch("/api/settings/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          notification_prefs: prefs,
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error || "Failed to save");
+      }
+
       toast.success("Notification preferences saved");
-    } catch {
-      toast.error("Failed to save preferences");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save preferences"
+      );
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [userId, prefs]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-[1fr_60px_60px] items-center gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-10 mx-auto" />
+          <Skeleton className="h-4 w-10 mx-auto" />
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[1fr_60px_60px] items-center gap-2"
+          >
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <Skeleton className="h-5 w-9 mx-auto rounded-full" />
+            <Skeleton className="h-5 w-9 mx-auto rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Header row */}
-      <div className="grid grid-cols-[1fr_60px_60px_60px] items-center gap-2 text-xs font-medium text-muted-foreground">
+      <div className="grid grid-cols-[1fr_60px_60px] items-center gap-2 text-xs font-medium text-muted-foreground">
         <div>Category</div>
         <div className="text-center">Email</div>
-        <div className="text-center">Push</div>
         <div className="text-center">In-App</div>
       </div>
 
@@ -105,7 +187,7 @@ export function NotificationPrefs() {
         {CATEGORIES.map((category) => (
           <div
             key={category.id}
-            className="grid grid-cols-[1fr_60px_60px_60px] items-center gap-2 py-3"
+            className="grid grid-cols-[1fr_60px_60px] items-center gap-2 py-3"
           >
             <div>
               <p className="text-sm font-medium text-foreground">
@@ -123,12 +205,6 @@ export function NotificationPrefs() {
             </div>
             <div className="flex justify-center">
               <Switch
-                checked={prefs[category.id]?.push ?? false}
-                onCheckedChange={() => handleToggle(category.id, "push")}
-              />
-            </div>
-            <div className="flex justify-center">
-              <Switch
                 checked={prefs[category.id]?.inApp ?? false}
                 onCheckedChange={() => handleToggle(category.id, "inApp")}
               />
@@ -137,7 +213,7 @@ export function NotificationPrefs() {
         ))}
       </div>
 
-      <Button onClick={handleSave} disabled={saving} className="gap-2">
+      <Button onClick={handleSave} disabled={saving || !userId} className="gap-2">
         {saving ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
