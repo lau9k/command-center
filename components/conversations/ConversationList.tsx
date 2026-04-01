@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { KpiCard } from "@/components/ui/kpi-card";
-import { ConversationDetailDrawer } from "./ConversationDetailDrawer";
 
 interface ConversationWithContact extends Conversation {
   contacts: {
@@ -109,7 +109,6 @@ export function ConversationList() {
     queryFn: fetchChannelCounts,
   });
 
-  const [selectedConversation, setSelectedConversation] = useState<ConversationWithContact | null>(null);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [channelFilter, setChannelFilter] = useState<string>(searchParams.get("channel") ?? "all");
   const [isSearching, setIsSearching] = useState(false);
@@ -323,58 +322,53 @@ export function ConversationList() {
               : "No summary available";
 
             return (
-              <Card
+              <Link
                 key={conversation.id}
-                className="cursor-pointer transition-colors hover:bg-accent/50"
-                onClick={() => setSelectedConversation(conversation)}
+                href={`/conversations/${conversation.id}`}
               >
-                <CardContent className="flex items-start gap-4 p-4">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium text-foreground truncate">
-                        {conversation.summary
-                          ? conversation.summary.split("\n")[0]?.slice(0, 80) ?? "Conversation"
-                          : "Conversation"}
-                      </h3>
-                      <Badge
-                        variant="outline"
-                        className={`shrink-0 gap-1 text-xs ${config.className}`}
-                      >
-                        {config.icon}
-                        {config.label}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {snippet}
-                    </p>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {conversation.contacts && (
+                <Card className="cursor-pointer transition-colors hover:bg-accent/50">
+                  <CardContent className="flex items-start gap-4 p-4">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-foreground truncate">
+                          {conversation.summary
+                            ? conversation.summary.split("\n")[0]?.slice(0, 80) ?? "Conversation"
+                            : "Conversation"}
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className={`shrink-0 gap-1 text-xs ${config.className}`}
+                        >
+                          {config.icon}
+                          {config.label}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {snippet}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {conversation.contacts && (
+                          <span className="flex items-center gap-1">
+                            <Users className="size-3" />
+                            {conversation.contacts.name}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
-                          <Users className="size-3" />
-                          {conversation.contacts.name}
+                          <Clock className="size-3" />
+                          {conversation.last_message_at
+                            ? new Date(conversation.last_message_at).toLocaleDateString()
+                            : new Date(conversation.created_at).toLocaleDateString()}
                         </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3" />
-                        {conversation.last_message_at
-                          ? new Date(conversation.last_message_at).toLocaleDateString()
-                          : new Date(conversation.created_at).toLocaleDateString()}
-                      </span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>
       )}
 
-      {/* Detail Drawer */}
-      <ConversationDetailDrawer
-        conversation={selectedConversation}
-        open={selectedConversation !== null}
-        onClose={() => setSelectedConversation(null)}
-      />
     </>
   );
 }
