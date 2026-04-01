@@ -1,4 +1,5 @@
-import { KPICards, buildKPIData } from "@/components/home/KPICards";
+import { KPICards } from "@/components/home/KPICards";
+import { buildKPIData } from "@/lib/kpi-data";
 import { QuickActions } from "@/components/home/QuickActions";
 import { RecentActivityFeed } from "@/components/home/RecentActivityFeed";
 import { WidgetErrorBoundary } from "@/components/shared/WidgetErrorBoundary";
