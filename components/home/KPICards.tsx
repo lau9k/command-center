@@ -15,6 +15,7 @@ import {
   ArrowDownRight,
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import type { KPIData } from "@/lib/kpi-data";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -26,23 +27,6 @@ const ACCENT = {
   indigo: "#6366F1",
   red: "#EF4444",
 } as const;
-
-interface KPIData {
-  totalContacts: number;
-  openDeals: number;
-  pipelineTotalValue: number;
-  tasksDueToday: number;
-  meetingsThisWeek: number;
-  contentScheduled: number;
-  unreadNotifications: number;
-  // Trend data (percentage change)
-  contactsTrend: number | null;
-  dealsTrend: number | null;
-  tasksTrend: number | null;
-  meetingsTrend: number | null;
-  contentTrend: number | null;
-  notificationsTrend: number | null;
-}
 
 interface KPICardsProps {
   initial: KPIData;
@@ -304,28 +288,5 @@ export function KPICards({ initial }: KPICardsProps) {
   );
 }
 
-/** Helper to build initial KPIData from HomeStatsResponse on the server. */
-export function buildKPIData(stats: {
-  contactsCount: number;
-  pipelineItemCount: number;
-  pipelineTotalValue: number;
-  activeTasks: number;
-  contentScheduledCount: number;
-  upcomingMeetings: { id: string }[];
-}): KPIData {
-  return {
-    totalContacts: stats.contactsCount,
-    openDeals: stats.pipelineItemCount,
-    pipelineTotalValue: stats.pipelineTotalValue,
-    tasksDueToday: stats.activeTasks,
-    meetingsThisWeek: stats.upcomingMeetings?.length ?? 0,
-    contentScheduled: stats.contentScheduledCount,
-    unreadNotifications: 0,
-    contactsTrend: null,
-    dealsTrend: null,
-    tasksTrend: null,
-    meetingsTrend: null,
-    contentTrend: null,
-    notificationsTrend: null,
-  };
-}
+// buildKPIData moved to @/lib/kpi-data.ts to avoid RSC boundary violation
+export { buildKPIData } from "@/lib/kpi-data";
