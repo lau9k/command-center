@@ -12,7 +12,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   let query = supabase
     .from("tasks")
     .select(
-      "*, projects(id, name, color), contacts(name, email, company, linkedin_url)"
+      "*, projects(id, name, color), contacts!tasks_contact_id_fkey(name, email, company, linkedin_url)"
     )
     .or(
       "task_type.eq.outreach,outreach_status.not.is.null,tags.cs.{outreach}"
