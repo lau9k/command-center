@@ -17,7 +17,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
   let query = supabase
     .from("tasks")
-    .select("*, projects(id, name, color), contacts(name, email, company, linkedin_url)")
+    .select("*, projects(id, name, color), contacts!tasks_contact_id_fkey(name, email, company, linkedin_url)")
     .order("priority", { ascending: true })
     .order("due_date", { ascending: true, nullsFirst: false });
 
@@ -66,7 +66,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const { data, error } = await supabase
     .from("tasks")
     .insert(parsed.data)
-    .select("*, projects(id, name, color), contacts(name, email, company, linkedin_url)")
+    .select("*, projects(id, name, color), contacts!tasks_contact_id_fkey(name, email, company, linkedin_url)")
     .single();
 
   if (error) {

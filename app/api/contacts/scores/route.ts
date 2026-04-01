@@ -68,7 +68,7 @@ export const GET = withErrorHandler(async function GET() {
     }>;
   } | null;
 
-  const records = data?.records ?? [];
+  const records = Array.isArray(data?.records) ? data.records : [];
 
   const contacts: ScoredContact[] = records.map((record) => {
     const props = record.properties ?? {};

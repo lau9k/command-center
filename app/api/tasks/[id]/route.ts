@@ -42,7 +42,7 @@ export async function PUT(
     .from("tasks")
     .update(parsed.data)
     .eq("id", id)
-    .select("*, projects(id, name, color), contacts(name, email, company, linkedin_url)")
+    .select("*, projects(id, name, color), contacts!tasks_contact_id_fkey(name, email, company, linkedin_url)")
     .single();
 
   if (error) {
