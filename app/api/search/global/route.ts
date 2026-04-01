@@ -22,7 +22,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const supabase = createServiceClient();
   const pattern = `%${q}%`;
 
-  const [tasks, contacts, pipeline, content, sponsors, projects] =
+  const [tasks, contacts, pipeline, content, sponsors, projects, meetings] =
     await Promise.all([
       supabase
         .from("tasks")
@@ -56,6 +56,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         .select("id, name, status")
         .ilike("name", pattern)
         .limit(5),
+      supabase
+        .from("meetings")
+        .select("id, title, meeting_date, status")
+        .ilike("title", pattern)
+        .limit(5),
     ]);
 
   const results: SearchResult[] = [];
@@ -66,7 +71,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         id: t.id,
         type: "task",
         title: t.title,
-        subtitle: [t.status, t.priority].filter(Boolean).join(" · ") || null,
+        subtitle: [t.status, t.priority].filter(Boolean).join(" \u00B7 ") || null,
         href: t.project_id ? `/projects/${t.project_id}/tasks` : "/tasks",
       });
     }
@@ -116,7 +121,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         id: c.id,
         type: "content",
         title: c.title || "Untitled Post",
-        subtitle: [c.platform, c.status].filter(Boolean).join(" · ") || null,
+        subtitle: [c.platform, c.status].filter(Boolean).join(" \u00B7 ") || null,
         href: "/content",
       });
     }
@@ -128,8 +133,28 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         id: s.id,
         type: "sponsor",
         title: s.name,
-        subtitle: [s.tier, s.status].filter(Boolean).join(" · ") || null,
+        subtitle: [s.tier, s.status].filter(Boolean).join(" \u00B7 ") || null,
         href: `/sponsors/${s.id}`,
+      });
+    }
+  }
+
+  if (meetings.data) {
+    for (const m of meetings.data) {
+      results.push({
+        id: m.id,
+        type: "meeting",
+        title: m.title,
+        subtitle:
+          [
+            m.meeting_date
+              ? new Date(m.meeting_date).toLocaleDateString()
+              : null,
+            m.status,
+          ]
+            .filter(Boolean)
+            .join(" \u00B7 ") || null,
+        href: `/meetings/${m.id}`,
       });
     }
   }
