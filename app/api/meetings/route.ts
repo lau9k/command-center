@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import type { Meeting, MeetingAction } from "@/lib/types/database";
+import { syncToPersonize } from "@/lib/personize/sync";
+import type { Meeting, MeetingAction, MeetingAttendee } from "@/lib/types/database";
+import { z } from "zod";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -83,4 +85,116 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
       hasMore: page * pageSize < total,
     },
   });
+});
+
+const attendeeSchema = z.object({
+  name: z.string(),
+  email: z.string().email().optional(),
+  company: z.string().optional(),
+});
+
+const createMeetingSchema = z.object({
+  title: z.string().min(1),
+  meeting_date: z.string().nullable().optional(),
+  attendees: z.array(attendeeSchema).optional().default([]),
+  summary: z.string().nullable().optional(),
+  decisions: z.array(z.string()).optional().default([]),
+  action_items: z.array(z.record(z.string(), z.unknown())).optional().default([]),
+  new_contacts: z.array(z.record(z.string(), z.unknown())).optional().default([]),
+  status: z.string().optional().default("pending_review"),
+});
+
+const updateMeetingSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).optional(),
+  meeting_date: z.string().nullable().optional(),
+  attendees: z.array(attendeeSchema).optional(),
+  summary: z.string().nullable().optional(),
+  decisions: z.array(z.string()).optional(),
+  action_items: z.array(z.record(z.string(), z.unknown())).optional(),
+  new_contacts: z.array(z.record(z.string(), z.unknown())).optional(),
+  status: z.string().optional(),
+});
+
+/** Extract the first attendee email for Personize sync. */
+function getPrimaryAttendeeEmail(attendees: MeetingAttendee[]): string | undefined {
+  for (const a of attendees) {
+    if (a.email) return a.email;
+  }
+  return undefined;
+}
+
+export const POST = withErrorHandler(async function POST(request: NextRequest) {
+  const supabase = createServiceClient();
+  const body = await request.json();
+
+  const parsed = createMeetingSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("meetings")
+    .insert(parsed.data)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Sync to Personize in the background — don't block the response
+  const meeting = data as Meeting;
+  syncToPersonize({
+    table: "meetings",
+    recordId: meeting.id,
+    content: JSON.stringify(data),
+    email: getPrimaryAttendeeEmail(meeting.attendees),
+  }).catch((err) => {
+    console.error("[API] POST /api/meetings sync error:", err);
+  });
+
+  return NextResponse.json({ data }, { status: 201 });
+});
+
+export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+  const supabase = createServiceClient();
+  const body = await request.json();
+
+  const parsed = updateMeetingSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid request body", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const { id, ...updates } = parsed.data;
+
+  const { data, error } = await supabase
+    .from("meetings")
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Sync to Personize in the background — don't block the response
+  const meeting = data as Meeting;
+  syncToPersonize({
+    table: "meetings",
+    recordId: meeting.id,
+    content: JSON.stringify(data),
+    email: getPrimaryAttendeeEmail(meeting.attendees),
+  }).catch((err) => {
+    console.error("[API] PATCH /api/meetings sync error:", err);
+  });
+
+  return NextResponse.json({ data });
 });

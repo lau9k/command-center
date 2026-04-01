@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createContentPostSchema, updateContentPostSchema, validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { syncToPersonize } from "@/lib/personize/sync";
 
 export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
@@ -36,6 +37,15 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Sync to Personize in the background — don't block the response
+  syncToPersonize({
+    table: "content_posts",
+    recordId: data.id,
+    content: JSON.stringify(data),
+  }).catch((err) => {
+    console.error("[API] POST /api/content-posts sync error:", err);
+  });
+
   return NextResponse.json(data, { status: 201 });
 });
 
@@ -60,6 +70,15 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Sync to Personize in the background — don't block the response
+  syncToPersonize({
+    table: "content_posts",
+    recordId: data.id,
+    content: JSON.stringify(data),
+  }).catch((err) => {
+    console.error("[API] PATCH /api/content-posts sync error:", err);
+  });
 
   return NextResponse.json(data);
 });
