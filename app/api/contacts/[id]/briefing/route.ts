@@ -171,7 +171,8 @@ export async function GET(
         properties = digest.properties ?? {};
       }
 
-      const records = recall?.records ?? [];
+      const rawRecords = recall?.records;
+      const records = Array.isArray(rawRecords) ? rawRecords : [];
 
       // Flatten records into memory entries with score-based tiers
       const flatMemories = records.flatMap((r) => {

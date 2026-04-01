@@ -49,7 +49,8 @@ export async function GET(
       ...(contact.email ? { email: contact.email } : {}),
     });
 
-    const records = result?.records ?? [];
+    const rawRecords = result?.records;
+    const records = Array.isArray(rawRecords) ? rawRecords : [];
 
     // Categorize memories into pain points, interests, and interactions
     const painPoints: string[] = [];

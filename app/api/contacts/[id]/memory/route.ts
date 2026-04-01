@@ -43,7 +43,7 @@ export async function GET(
 
     return NextResponse.json({
       data: {
-        records: result?.records ?? [],
+        records: Array.isArray(result?.records) ? result.records : [],
         answer: result?.answer ?? null,
       },
     });
