@@ -69,8 +69,10 @@ export function ActivityFeed({ initialEntries }: ActivityFeedProps) {
   const [entries, setEntries] = useState<ActivityLogEntry[]>(initialEntries);
   const [filters, setFilters] = useState<ActivityFilterState>({
     entityTypes: [],
+    actions: [],
     sources: [],
     dateRange: "",
+    search: "",
   });
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -162,7 +164,7 @@ export function ActivityFeed({ initialEntries }: ActivityFeedProps) {
 
   const grouped = groupByDate(entries);
   const hasFilters =
-    filters.entityTypes.length > 0 || filters.sources.length > 0 || filters.dateRange !== "";
+    filters.entityTypes.length > 0 || filters.actions.length > 0 || filters.sources.length > 0 || filters.dateRange !== "" || filters.search.trim() !== "";
 
   return (
     <div className="space-y-4">
