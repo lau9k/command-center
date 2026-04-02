@@ -242,6 +242,11 @@ const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
   "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
+// Diagnostic: log if env var overrides the default (helps detect wrong Vercel env vars)
+if (process.env.PERSONIZE_CONTACTS_COLLECTION_ID && process.env.PERSONIZE_CONTACTS_COLLECTION_ID !== "5686312a-7ab7-4cef-897c-576bfeb92aec") {
+  console.warn(`[Personize] CONTACTS_COLLECTION_ID from env: ${CONTACTS_COLLECTION_ID} (expected: 5686312a-7ab7-4cef-897c-576bfeb92aec)`);
+}
+
 /** Simple in-memory cache with TTL. */
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -345,6 +350,7 @@ export async function searchContacts(
     }
 
     // No query — list all contacts with pagination
+    console.warn(`[Personize] searchContacts listing: collectionId=${CONTACTS_COLLECTION_ID}, page=${page}, pageSize=${pageSize}`);
     const response = await client.memory.search({
       type: "Contact",
       collectionIds: [CONTACTS_COLLECTION_ID],
@@ -358,6 +364,7 @@ export async function searchContacts(
     } | null;
 
     const records = Array.isArray(data?.records) ? data.records : [];
+    console.warn(`[Personize] searchContacts result: total=${data?.total ?? "undefined"}, records=${records.length}`);
     const contacts = records.map((r, i) => mapRecordToContact(r, i));
 
     if (sort === "priority_score" || !sort) {
