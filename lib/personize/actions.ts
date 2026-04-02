@@ -242,10 +242,6 @@ const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
   "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
-// Diagnostic: log if env var overrides the default (helps detect wrong Vercel env vars)
-if (process.env.PERSONIZE_CONTACTS_COLLECTION_ID && process.env.PERSONIZE_CONTACTS_COLLECTION_ID !== "5686312a-7ab7-4cef-897c-576bfeb92aec") {
-  console.warn(`[Personize] CONTACTS_COLLECTION_ID from env: ${CONTACTS_COLLECTION_ID} (expected: 5686312a-7ab7-4cef-897c-576bfeb92aec)`);
-}
 
 /** Simple in-memory cache with TTL. */
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
@@ -349,23 +345,23 @@ export async function searchContacts(
       return queryResult;
     }
 
-    // No query — list all contacts with pagination
-    console.warn(`[Personize] searchContacts listing: collectionId=${CONTACTS_COLLECTION_ID}, page=${page}, pageSize=${pageSize}`);
-    const response = await client.memory.search({
-      type: "Contact",
-      collectionIds: [CONTACTS_COLLECTION_ID],
-      returnRecords: true,
-      pageSize,
-      page,
+    // No query — list all contacts via smartRecall
+    const data = await callUnifiedSmartRecall({
+      message: "list all contacts",
+      identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
+      response_detail: "summary",
     });
-    const data = response.data as {
-      records?: Array<{ recordId?: string; record_id?: string; displayName?: string; email?: string; properties?: Record<string, string> }>;
-      total?: number;
-    } | null;
+    const records = data?.records ?? [];
 
-    const records = Array.isArray(data?.records) ? data.records : [];
-    console.warn(`[Personize] searchContacts result: total=${data?.total ?? "undefined"}, records=${records.length}`);
-    const contacts = records.map((r, i) => mapRecordToContact(r, i));
+    const seen = new Set<string>();
+    const contacts: PersonizeContact[] = [];
+
+    for (const rec of records) {
+      const rid = rec.recordId;
+      if (!rid || seen.has(rid)) continue;
+      seen.add(rid);
+      contacts.push(mapRecordToContact(rec, contacts.length));
+    }
 
     if (sort === "priority_score" || !sort) {
       contacts.sort((a, b) => b.priority_score - a.priority_score);
@@ -379,13 +375,12 @@ export async function searchContacts(
       });
     }
 
-    const total = data?.total ?? contacts.length;
     const result: ContactSearchResult = {
       contacts,
-      total,
-      page,
-      pageSize,
-      hasMore: page * pageSize < total,
+      total: contacts.length,
+      page: 1,
+      pageSize: contacts.length,
+      hasMore: false,
     };
 
     setCache(cacheKey, result);
