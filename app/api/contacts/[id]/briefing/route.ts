@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smartDigest, smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 
 interface BriefingInteraction {
   text: string;
@@ -103,7 +104,7 @@ export async function GET(
 ) {
   const { id } = await params;
   const supabase = createServiceClient();
-  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
+  const personizeId = isPersonizeId(id);
 
   // Fetch contact — from Supabase for UUID IDs, or construct from Personize for REC# IDs
   let contact: {
@@ -116,7 +117,7 @@ export async function GET(
     record_id: string | null;
   };
 
-  if (isPersonizeId) {
+  if (personizeId) {
     // For Personize-sourced contacts, we don't have a Supabase record.
     // Build a minimal contact object from the ID and let Personize enrich it.
     const decodedId = decodeURIComponent(id);

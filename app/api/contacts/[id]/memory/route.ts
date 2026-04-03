@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 
 export async function GET(
   _request: NextRequest,
@@ -14,32 +15,33 @@ export async function GET(
   }
 
   const { id } = await params;
-  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
-  let contactName = "contact";
-  let contactEmail: string | null = null;
-
-  if (isPersonizeId) {
-    contactName = "contact details";
-  } else {
-    const supabase = createServiceClient();
-    const { data: contact, error } = await supabase
-      .from("contacts")
-      .select("email, name")
-      .eq("id", id)
-      .single();
-
-    if (error || !contact) {
-      return NextResponse.json(
-        { error: "Contact not found" },
-        { status: 404 }
-      );
-    }
-    contactName = contact.name;
-    contactEmail = contact.email;
+  if (isPersonizeId(id)) {
+    return NextResponse.json({
+      data: {
+        records: [],
+        answer: null,
+      },
+    });
   }
 
-  if (!isPersonizeId && !contactEmail) {
+  const supabase = createServiceClient();
+  const { data: contact, error } = await supabase
+    .from("contacts")
+    .select("email, name")
+    .eq("id", id)
+    .single();
+
+  if (error || !contact) {
+    return NextResponse.json(
+      { error: "Contact not found" },
+      { status: 404 }
+    );
+  }
+  const contactName = contact.name;
+  const contactEmail: string | null = contact.email;
+
+  if (!contactEmail) {
     return NextResponse.json(
       { error: "Contact has no email — cannot query Personize" },
       { status: 422 }
