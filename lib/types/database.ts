@@ -1,4 +1,4 @@
-export type IngestEventStatus = "received" | "processing" | "processed" | "failed" | "dead_letter";
+export type IngestEventStatus = "received" | "processing" | "processed" | "failed" | "dead_letter" | "retryable";
 
 export interface IngestEvent {
   id: string;
@@ -13,6 +13,13 @@ export interface IngestEvent {
   attempt_count: number;
   last_error: string | null;
   processed_at: string | null;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  lease_expires_at: string | null;
+  next_retry_at: string | null;
+  last_failed_at: string | null;
+  last_error_code: string | null;
+  updated_at: string;
 }
 
 export type EventStatus = "planning" | "confirmed" | "in_progress" | "completed" | "cancelled";
