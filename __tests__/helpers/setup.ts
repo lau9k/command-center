@@ -121,7 +121,14 @@ const mockSupabase = {
   from: vi.fn((table: string) => getMockBuilder(table)),
   auth: {
     getUser: vi.fn().mockResolvedValue({
-      data: { user: { id: "test-user-id", email: "test@example.com" } },
+      data: {
+        user: {
+          id: "test-user-id",
+          email: "test@example.com",
+          aud: "authenticated",
+          role: "authenticated",
+        },
+      },
     }),
   },
 };

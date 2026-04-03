@@ -5,7 +5,7 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 import { syncDealToPersonize } from "@/lib/personize/sync";
 
-export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const pipelineId = searchParams.get("pipeline_id");
@@ -52,7 +52,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request: NextReq
   });
 }));
 
-export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 

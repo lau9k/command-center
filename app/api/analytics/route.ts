@@ -51,7 +51,7 @@ function parseDealValue(metadata: Record<string, unknown> | null): number {
   return 0;
 }
 
-export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const periodParam = searchParams.get("period") || "30d";

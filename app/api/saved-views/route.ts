@@ -4,7 +4,7 @@ import { createSavedViewSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -29,7 +29,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request: NextReq
   return NextResponse.json({ data });
 }));
 
-export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 

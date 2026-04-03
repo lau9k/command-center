@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(withAuth(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const [projectsResult, tasksResult] = await Promise.all([

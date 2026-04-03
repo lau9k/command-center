@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 
 const querySchema = z.object({
   q: z.string().min(1).max(500).optional(),
@@ -23,30 +24,31 @@ export async function GET(
   const parsed = querySchema.safeParse({ q: searchParams.get("q") || undefined });
   const query = parsed.success ? parsed.data.q : undefined;
 
-  // For Personize-native contacts (record IDs), use record_id directly
-  const isPersonizeId = id.startsWith("REC#") || id.length > 36;
-
-  let contactName = "contact";
-  let contactEmail: string | null = null;
-
-  if (!isPersonizeId) {
-    const supabase = createServiceClient();
-    const { data: contact, error } = await supabase
-      .from("contacts")
-      .select("email, name, record_id")
-      .eq("id", id)
-      .single();
-
-    if (error || !contact) {
-      return NextResponse.json(
-        { error: "Contact not found" },
-        { status: 404 }
-      );
-    }
-
-    contactName = contact.name;
-    contactEmail = contact.email;
+  if (isPersonizeId(id)) {
+    return NextResponse.json({
+      data: {
+        recall: { query: null, records: [], answer: null },
+        properties: {},
+      },
+    });
   }
+
+  const supabase = createServiceClient();
+  const { data: contact, error } = await supabase
+    .from("contacts")
+    .select("email, name, record_id")
+    .eq("id", id)
+    .single();
+
+  if (error || !contact) {
+    return NextResponse.json(
+      { error: "Contact not found" },
+      { status: 404 }
+    );
+  }
+
+  const contactName = contact.name;
+  const contactEmail = contact.email;
 
   try {
     const recallQuery = query ?? contactName;
