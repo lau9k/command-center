@@ -76,17 +76,31 @@ interface UnifiedSmartRecallOptions {
 async function callUnifiedSmartRecall(
   options: UnifiedSmartRecallOptions
 ): Promise<UnifiedSmartRecallResponse | null> {
-  const response = await (client as unknown as {
-    smartRecallUnified: (data: UnifiedSmartRecallOptions) => Promise<UnifiedSmartRecallResponse>;
-  }).smartRecallUnified(options);
-  const data = response ?? null;
-  if (data) {
-    // Ensure records is always an array — the API may return a non-array value
-    if (!Array.isArray(data.records)) {
-      data.records = [];
+  console.warn("[Personize:diag] callUnifiedSmartRecall input:", JSON.stringify(options));
+  console.warn("[Personize:diag] smartRecallUnified method exists:", typeof (client as Record<string, unknown>).smartRecallUnified);
+
+  try {
+    const response = await (client as unknown as {
+      smartRecallUnified: (data: UnifiedSmartRecallOptions) => Promise<UnifiedSmartRecallResponse>;
+    }).smartRecallUnified(options);
+
+    console.warn("[Personize:diag] raw response type:", typeof response);
+    console.warn("[Personize:diag] raw response keys:", response ? Object.keys(response) : "null");
+    console.warn("[Personize:diag] raw response preview:", JSON.stringify(response).slice(0, 500));
+
+    const data = response ?? null;
+    if (data) {
+      console.warn("[Personize:diag] records type:", typeof data.records, "isArray:", Array.isArray(data.records), "length:", Array.isArray(data.records) ? data.records.length : "N/A");
+      if (!Array.isArray(data.records)) {
+        data.records = [];
+      }
     }
+    return data;
+  } catch (error) {
+    console.error("[Personize:diag] smartRecallUnified THREW:", error instanceof Error ? error.message : String(error));
+    console.error("[Personize:diag] error stack:", error instanceof Error ? error.stack : "no stack");
+    throw error;
   }
-  return data;
 }
 
 // ---------------------------------------------------------------------------
