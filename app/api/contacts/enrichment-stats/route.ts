@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import client from "@/lib/personize/client";
-import {
-  getCachedContext,
-  setCachedContext,
-  isCacheFresh,
-  computeInputHash,
-} from "@/lib/ai/cache";
-
-const SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000000";
-const VIEW_TYPE = "enrichment_stats";
-const MODEL_MODE = "fast";
-const CACHE_TTL_MINUTES = 60;
+import { createServiceClient } from "@/lib/supabase/service";
 
 const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
   "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
+const PERSONIZE_API_BASE = "https://agent.personize.ai";
+const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Legacy enrichment breakdown (used by EnrichmentCoverageCard) */
 export interface EnrichmentStats {
   total: number;
   has_email: number;
@@ -26,119 +24,120 @@ export interface EnrichmentStats {
   generated_at: string;
 }
 
-async function computeEnrichmentStats(): Promise<EnrichmentStats> {
-  const rawRecords: Array<Record<string, string>> = [];
-  let page = 1;
-  const pageSize = 100;
-  let hasMore = true;
+/** KPI response shape for contacts page */
+export interface EnrichmentKpis {
+  totalContacts: number;
+  withMemories: number;
+  withProperties: number;
+  lastUpdated: string;
+}
 
-  while (hasMore) {
-    const response = await client.memory.search({
-      type: "Contact",
-      collectionIds: [CONTACTS_COLLECTION_ID],
-      returnRecords: true,
-      pageSize,
-      page,
-    });
+// ---------------------------------------------------------------------------
+// Simple in-memory cache (same pattern as actions.ts)
+// ---------------------------------------------------------------------------
 
-    const data = response.data as {
-      records?: Array<{ properties?: Record<string, string> }>;
-      total?: number;
-    } | null;
+interface CachedResponse {
+  data: EnrichmentStats;
+  kpis: EnrichmentKpis;
+  expiresAt: number;
+}
 
-    const records = Array.isArray(data?.records) ? data.records : [];
-    for (const r of records) {
-      if (r.properties) rawRecords.push(r.properties);
-    }
+let cached: CachedResponse | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-    const total = data?.total ?? 0;
-    hasMore = page * pageSize < total;
-    page++;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-    if (page > 100) break;
+async function fetchPropertyCount(
+  propertyName: string,
+  limit = 1
+): Promise<number> {
+  try {
+    const response = await fetch(
+      `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${PERSONIZE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          collectionId: CONTACTS_COLLECTION_ID,
+          conditions: [{ propertyName, operator: "exists" }],
+          limit,
+        }),
+      }
+    );
+    if (!response.ok) return 0;
+    const data = (await response.json()) as {
+      data?: { total?: number; records?: unknown[] };
+    };
+    return data?.data?.total ?? data?.data?.records?.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+export const GET = withErrorHandler(async function GET() {
+  // Return cached data if fresh
+  if (cached && Date.now() < cached.expiresAt) {
+    return NextResponse.json({ data: cached.data, kpis: cached.kpis });
   }
 
-  let hasEmail = 0;
-  let hasLinkedin = 0;
-  let hasGmail = 0;
-  let hasApollo = 0;
+  // 1. Get total contacts from Personize (pageSize: 1 to read total without pulling all records)
+  const searchResponse = await client.memory.search({
+    collectionIds: [CONTACTS_COLLECTION_ID],
+    pageSize: 1,
+    page: 1,
+  });
 
-  for (const props of rawRecords) {
-    if (props.email && props.email.trim() !== "") hasEmail++;
-    if (props.linkedin_url && props.linkedin_url.trim() !== "") hasLinkedin++;
-    if (
-      props.gmail_context_stored === "true" ||
-      props.gmail_context_stored === "True"
-    )
-      hasGmail++;
-    if (props.apollo_enriched === "true" || props.apollo_enriched === "True")
-      hasApollo++;
-  }
+  const searchData = (searchResponse?.data ?? searchResponse) as {
+    totalMatched?: number;
+  };
+  const totalContacts = searchData?.totalMatched ?? 0;
 
-  return {
-    total: rawRecords.length,
+  // 2. Query Supabase memory_stats for contacts with memories
+  const supabase = createServiceClient();
+  const { count: withMemories } = await supabase
+    .from("memory_stats")
+    .select("id", { count: "exact", head: true })
+    .gt("count", 0);
+
+  // 3. Fetch property counts in parallel for enrichment breakdown
+  const [hasEmail, hasLinkedin, hasGmail, hasApollo] = await Promise.all([
+    fetchPropertyCount("email"),
+    fetchPropertyCount("linkedin_url"),
+    fetchPropertyCount("gmail_context_stored"),
+    fetchPropertyCount("apollo_enriched"),
+  ]);
+
+  const now = new Date().toISOString();
+
+  // Legacy enrichment breakdown (EnrichmentCoverageCard)
+  const data: EnrichmentStats = {
+    total: totalContacts,
     has_email: hasEmail,
     has_linkedin: hasLinkedin,
     has_gmail: hasGmail,
     has_apollo: hasApollo,
-    generated_at: new Date().toISOString(),
+    generated_at: now,
   };
-}
 
-export const GET = withErrorHandler(async function GET() {
-  const inputHash = computeInputHash("enrichment-stats", "v1");
+  // KPI shape for contacts page
+  const kpis: EnrichmentKpis = {
+    totalContacts,
+    withMemories: withMemories ?? 0,
+    withProperties: hasEmail, // contacts with email = primary enrichment signal
+    lastUpdated: now,
+  };
 
-  // Check cache first
-  const cached = await getCachedContext(
-    SYSTEM_USER_ID,
-    VIEW_TYPE,
-    null,
-    MODEL_MODE
-  );
+  // Cache the result
+  cached = { data, kpis, expiresAt: Date.now() + CACHE_TTL_MS };
 
-  if (cached && isCacheFresh(cached) && cached.input_hash === inputHash) {
-    return NextResponse.json({ data: cached.content as unknown as EnrichmentStats });
-  }
-
-  // Compute fresh stats
-  try {
-    const stats = await computeEnrichmentStats();
-
-    // Cache the result
-    await setCachedContext(
-      SYSTEM_USER_ID,
-      VIEW_TYPE,
-      null,
-      MODEL_MODE,
-      inputHash,
-      stats as unknown as Record<string, unknown>,
-      0,
-      CACHE_TTL_MINUTES
-    );
-
-    return NextResponse.json({ data: stats });
-  } catch (error) {
-    // If Personize is unavailable, return fallback
-    console.error("[EnrichmentStats] Failed to compute stats:", error);
-
-    // Try to return stale cache if available
-    if (cached) {
-      return NextResponse.json({
-        data: cached.content as unknown as EnrichmentStats,
-        stale: true,
-      });
-    }
-
-    return NextResponse.json({
-      data: {
-        total: 0,
-        has_email: 0,
-        has_linkedin: 0,
-        has_gmail: 0,
-        has_apollo: 0,
-        generated_at: new Date().toISOString(),
-      } satisfies EnrichmentStats,
-      unavailable: true,
-    });
-  }
+  return NextResponse.json({ data, kpis });
 });
