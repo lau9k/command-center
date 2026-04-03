@@ -31,9 +31,8 @@ export async function GET(
   let contactEmail: string | null = null;
 
   if (isPersonizeId) {
-    // For Personize-sourced contacts, use the record ID directly for recall
-    const decodedId = decodeURIComponent(id);
-    contactName = decodedId;
+    // For Personize-sourced contacts, use a meaningful query
+    contactName = "contact details";
   } else {
     // Look up contact email from Supabase
     const supabase = createServiceClient();
