@@ -12,6 +12,7 @@ import { DataSourcesPanel } from "@/components/settings/DataSourcesPanel";
 import { IntegrationHealthGrid } from "@/components/settings/IntegrationCard";
 import { SeedDemoButton } from "./SeedDemoButton";
 import { SettingsDangerZone } from "./SettingsDangerZone";
+import { PipelineHealth } from "./pipeline-health";
 import {
   User,
   Puzzle,
@@ -153,6 +154,18 @@ export function SettingsClient({ email, userId }: SettingsClientProps) {
                 </p>
               </div>
               <IntegrationHealthGrid />
+            </div>
+
+            <div className="rounded-lg border border-border bg-card p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Pipeline Health
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  End-to-end n8n pipeline status, synthetic tests, and ingestion metrics
+                </p>
+              </div>
+              <PipelineHealth />
             </div>
 
             <div className="rounded-lg border border-border bg-card p-6 space-y-6">
