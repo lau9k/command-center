@@ -6,6 +6,13 @@ import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { n8nContactPayload } from "@/lib/ingest/n8n-adapters";
+import {
+  logIngestEvent,
+  markEventProcessed,
+  markEventFailed,
+  buildIdempotencyKey,
+  hashPayload,
+} from "@/lib/ingest/event-logger";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
@@ -25,20 +32,61 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   }
 
   const items = parsed.data;
+  const n8nExecutionId = request.headers.get("x-n8n-execution-id");
+  const pHash = hashPayload(rawBody);
+
+  // Log each item to the ingest ledger; skip duplicates
+  const eventMap = new Map<number, string>();
+  const itemsToProcess: typeof items = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const key = buildIdempotencyKey("n8n", "contact", item.email);
+    const event = await logIngestEvent({
+      source: "n8n",
+      entityType: "contact",
+      idempotencyKey: key,
+      payloadHash: pHash,
+      n8nExecutionId,
+    });
+
+    if (event) {
+      eventMap.set(i, event.id);
+      itemsToProcess.push(item);
+    }
+  }
+
+  // All items were duplicates
+  if (itemsToProcess.length === 0) {
+    return NextResponse.json(
+      { success: true, data: [], count: 0, deduplicated: true },
+      { status: 200 }
+    );
+  }
+
   const supabase = createServiceClient();
 
   // Upsert by email — update existing contact or insert new one
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(items, { onConflict: "email" })
+    .upsert(itemsToProcess, { onConflict: "email" })
     .select();
 
   if (error) {
+    // Mark all tracked events as failed
+    for (const eventId of eventMap.values()) {
+      void markEventFailed(eventId, error.message);
+    }
     void logSync("n8n:contacts", "error", 0, error.message);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
+  }
+
+  // Mark all tracked events as processed
+  for (const eventId of eventMap.values()) {
+    void markEventProcessed(eventId);
   }
 
   const results = data ?? [];

@@ -1,3 +1,19 @@
+export type IngestEventStatus = "received" | "processing" | "processed" | "failed" | "dead_letter";
+
+export interface IngestEvent {
+  id: string;
+  source: string;
+  entity_type: string;
+  idempotency_key: string;
+  received_at: string;
+  payload_hash: string;
+  n8n_execution_id: string | null;
+  status: IngestEventStatus;
+  attempt_count: number;
+  last_error: string | null;
+  processed_at: string | null;
+}
+
 export type EventStatus = "planning" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 export interface Event {
