@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const importId = request.nextUrl.searchParams.get("id");
 
   if (!importId) {
@@ -34,4 +35,4 @@ export async function GET(request: NextRequest) {
     errors: data.error_count,
     status: data.status,
   });
-}
+});

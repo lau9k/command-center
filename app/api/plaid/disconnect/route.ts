@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { plaidDisconnectSchema } from "@/lib/validations";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
   const parsed = plaidDisconnectSchema.safeParse(body);
   if (!parsed.success) {
@@ -24,4 +25,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

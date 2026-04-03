@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createScheduledFlowSchema, updateScheduledFlowSchema, validateIdParam } from "@/lib/validations";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("scheduled_flows")
@@ -15,9 +16,9 @@ export async function GET() {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -37,9 +38,9 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(data, { status: 201 });
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAuth(async function PATCH(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -62,9 +63,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAuth(async function DELETE(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -83,4 +84,4 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

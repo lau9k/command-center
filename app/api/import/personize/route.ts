@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 import { batchMemorize, type BatchContact } from "@/lib/personize/batch-memorize";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 // Allow long-running batch calls (up to 5 minutes)
@@ -11,7 +12,7 @@ const personizeImportSchema = z.object({
   import_id: z.string().uuid("import_id must be a valid UUID"),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   let body: z.infer<typeof personizeImportSchema>;
   try {
     const raw = await request.json();
@@ -108,4 +109,4 @@ export async function POST(request: NextRequest) {
     errors: result.failed,
     details: errorDetails,
   });
-}
+});

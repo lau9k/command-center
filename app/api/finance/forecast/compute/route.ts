@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { forecastComputeSchema } from "@/lib/validations";
+import { withAuth } from "@/lib/auth/api-guard";
 import type {
   ScheduledFlow,
   ForecastRun,
@@ -213,7 +214,7 @@ function computeForecast(
   return timeSeries;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
   const parsed = forecastComputeSchema.safeParse(body);
@@ -337,4 +338,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(results);
-}
+});

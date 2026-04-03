@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export const GET = withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data: items, error: itemsError } = await supabase
@@ -33,4 +34,4 @@ export async function GET() {
     }));
 
   return NextResponse.json({ items: result });
-}
+});
