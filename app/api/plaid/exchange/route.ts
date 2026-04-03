@@ -7,10 +7,11 @@ import {
 import { createServiceClient } from "@/lib/supabase/service";
 import { encrypt } from "@/lib/plaid-crypto";
 import { plaidExchangeSchema } from "@/lib/validations";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   const clientId = process.env.PLAID_CLIENT_ID;
   const secret = process.env.PLAID_SECRET;
   const env = process.env.PLAID_ENV ?? "sandbox";
@@ -97,4 +98,4 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

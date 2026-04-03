@@ -1,3 +1,20 @@
+export type IngestEventStatus = "received" | "processing" | "processed" | "failed" | "dead_letter";
+
+export interface IngestEvent {
+  id: string;
+  source: string;
+  entity_type: string;
+  idempotency_key: string;
+  received_at: string;
+  payload_hash: string;
+  payload: Record<string, unknown> | Record<string, unknown>[];
+  n8n_execution_id: string | null;
+  status: IngestEventStatus;
+  attempt_count: number;
+  last_error: string | null;
+  processed_at: string | null;
+}
+
 export type EventStatus = "planning" | "confirmed" | "in_progress" | "completed" | "cancelled";
 
 export interface Event {
@@ -135,6 +152,8 @@ export interface Contact {
   checked_in_at?: string | null;
   personize_sync_status?: PersonizeSyncStatus;
   personize_synced_at?: string | null;
+  memorized_at: string | null;
+  personize_record_id: string | null;
   created_at: string;
   updated_at: string;
   // Personize-specific fields (present when sourced from Personize SDK)

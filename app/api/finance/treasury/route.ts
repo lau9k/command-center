@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -14,4 +15,4 @@ export async function GET() {
   }
 
   return NextResponse.json(data);
-}
+});

@@ -2,15 +2,11 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
+import { markEventProcessed, markEventFailed } from "@/lib/ingest/event-logger";
 import { scoreTask } from "@/lib/task-scoring";
-import type { Task } from "@/lib/types/database";
+import type { Task, IngestEvent } from "@/lib/types/database";
 
-interface IngestEvent {
-  id: string;
-  entity_type: "contact" | "conversation" | "task" | "transaction";
-  payload: Record<string, unknown>;
-  status: string;
-}
+type EntityType = "contact" | "conversation" | "task" | "transaction";
 
 interface ProcessResult {
   processed: number;
@@ -22,8 +18,10 @@ interface ProcessResult {
 
 async function processContactPayload(
   supabase: ReturnType<typeof createServiceClient>,
-  items: Record<string, unknown>[]
+  payload: IngestEvent["payload"]
 ) {
+  const items = Array.isArray(payload) ? payload : [payload];
+
   const { data, error } = await supabase
     .from("contacts")
     .upsert(items, { onConflict: "email" })
@@ -49,8 +47,10 @@ async function processContactPayload(
 
 async function processConversationPayload(
   supabase: ReturnType<typeof createServiceClient>,
-  items: Record<string, unknown>[]
+  payload: IngestEvent["payload"]
 ) {
+  const items = Array.isArray(payload) ? payload : [payload];
+
   // Batch-lookup contacts by email
   const emails = [
     ...new Set(
@@ -98,8 +98,10 @@ async function processConversationPayload(
 
 async function processTaskPayload(
   supabase: ReturnType<typeof createServiceClient>,
-  items: Record<string, unknown>[]
+  payload: IngestEvent["payload"]
 ) {
+  const items = Array.isArray(payload) ? payload : [payload];
+
   // Collect unique project IDs to batch-fetch names
   const projectIds = [
     ...new Set(items.map((t) => t.project_id as string).filter(Boolean)),
@@ -169,8 +171,10 @@ async function processTaskPayload(
 
 async function processTransactionPayload(
   supabase: ReturnType<typeof createServiceClient>,
-  items: Record<string, unknown>[]
+  payload: IngestEvent["payload"]
 ) {
+  const items = Array.isArray(payload) ? payload : [payload];
+
   const { data, error } = await supabase
     .from("transactions")
     .upsert(items, { onConflict: "external_id" })
@@ -197,10 +201,10 @@ async function processTransactionPayload(
 // ── Main entry points ───────────────────────────────────
 
 const ENTITY_PROCESSORS: Record<
-  IngestEvent["entity_type"],
+  EntityType,
   (
     supabase: ReturnType<typeof createServiceClient>,
-    items: Record<string, unknown>[]
+    payload: IngestEvent["payload"]
   ) => Promise<void>
 > = {
   contact: processContactPayload,
@@ -221,34 +225,19 @@ export async function processIngestEvent(eventId: string): Promise<void> {
   if (claimError) throw new Error(`Failed to claim event: ${claimError.message}`);
   if (!claimed || (Array.isArray(claimed) && claimed.length === 0)) return;
 
-  const event: IngestEvent = Array.isArray(claimed) ? claimed[0] : claimed;
+  const event = (Array.isArray(claimed) ? claimed[0] : claimed) as IngestEvent;
 
   try {
-    const processor = ENTITY_PROCESSORS[event.entity_type];
+    const processor = ENTITY_PROCESSORS[event.entity_type as EntityType];
     if (!processor) {
       throw new Error(`Unknown entity_type: ${event.entity_type}`);
     }
 
-    const items = Array.isArray(event.payload)
-      ? (event.payload as Record<string, unknown>[])
-      : [event.payload];
-
-    await processor(supabase, items);
-
-    await supabase
-      .from("ingest_events")
-      .update({ status: "processed", processed_at: new Date().toISOString() })
-      .eq("id", eventId);
+    await processor(supabase, event.payload);
+    void markEventProcessed(eventId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await supabase
-      .from("ingest_events")
-      .update({
-        status: "failed",
-        error: message,
-        processed_at: new Date().toISOString(),
-      })
-      .eq("id", eventId);
+    void markEventFailed(eventId, message);
   }
 }
 

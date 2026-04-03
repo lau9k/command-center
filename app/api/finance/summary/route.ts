@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export interface FinanceSummaryResponse {
   netWorth: number | null;
@@ -13,7 +14,7 @@ export interface FinanceSummaryResponse {
   sparklineData: { date: string; netWorth: number }[];
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
 
   const now = new Date();
@@ -104,4 +105,4 @@ export const GET = withErrorHandler(async function GET() {
   };
 
   return NextResponse.json({ data: response });
-});
+}));

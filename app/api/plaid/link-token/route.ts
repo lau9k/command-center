@@ -6,10 +6,11 @@ import {
   PlaidEnvironments,
   Products,
 } from "plaid";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export const POST = withAuth(async function POST(_request, _user) {
   const clientId = process.env.PLAID_CLIENT_ID;
   const secret = process.env.PLAID_SECRET;
   const env = process.env.PLAID_ENV ?? "sandbox";
@@ -55,4 +56,4 @@ export async function POST() {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});

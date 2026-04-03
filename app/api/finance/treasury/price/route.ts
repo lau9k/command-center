@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuth } from "@/lib/auth/api-guard";
 
 interface PriceCache {
   prices: Record<string, { usd: number; cad: number }>;
@@ -76,7 +77,7 @@ async function fetchPrices(): Promise<
   }
 }
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const now = Date.now();
 
   if (priceCache && now - priceCache.fetchedAt < CACHE_TTL_MS) {
@@ -87,4 +88,4 @@ export async function GET() {
   priceCache = { prices, fetchedAt: now };
 
   return NextResponse.json(prices);
-}
+});

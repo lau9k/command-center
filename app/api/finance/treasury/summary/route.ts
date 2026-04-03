@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { CryptoBalance, BalanceSnapshot } from "@/lib/types/database";
+import { withAuth } from "@/lib/auth/api-guard";
 
 type AssetClass = "cash" | "crypto" | "investments";
 
@@ -32,7 +33,7 @@ function classifyAsset(symbol: string): AssetClass {
   return "investments";
 }
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   try {
     const supabase = createServiceClient();
 
@@ -119,4 +120,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});

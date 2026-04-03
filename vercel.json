@@ -13,6 +13,10 @@
       "schedule": "0 9 * * *"
     },
     {
+      "path": "/api/personize/sync-contacts",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/ingest/process",
       "schedule": "* * * * *"
     }

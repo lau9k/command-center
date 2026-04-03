@@ -21,6 +21,12 @@ const N8N_SOURCES = [
 export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
   const now = new Date();
+  const twentyFourHoursAgo = new Date(
+    now.getTime() - 24 * 60 * 60 * 1000
+  ).toISOString();
+  const fiveMinutesAgo = new Date(
+    now.getTime() - 5 * 60 * 1000
+  ).toISOString();
 
   // Query actual entity tables for last-ingested timestamps and row counts
   const tableStats = await Promise.all(
@@ -47,11 +53,18 @@ export const GET = withErrorHandler(async function GET() {
     })
   );
 
-  // Fetch last sync_log entry per source
-  const { data: syncLogs } = await supabase
-    .from("sync_log")
-    .select("source, status, started_at, completed_at, records_synced")
-    .order("started_at", { ascending: false });
+  // Fetch sync_log entries for the last 24h plus latest per source
+  const [{ data: syncLogs }, { data: recentSyncLogs }] = await Promise.all([
+    supabase
+      .from("sync_log")
+      .select("source, status, started_at, completed_at, records_synced")
+      .order("started_at", { ascending: false }),
+    supabase
+      .from("sync_log")
+      .select("source, status, started_at, completed_at, records_synced")
+      .gte("started_at", twentyFourHoursAgo)
+      .order("started_at", { ascending: false }),
+  ]);
 
   // Deduplicate to latest per source
   const latestSyncBySource: Record<
@@ -76,6 +89,47 @@ export const GET = withErrorHandler(async function GET() {
     }
   }
 
+  // Compute 24h sync stats per status
+  const syncStats24h = {
+    success: 0,
+    error: 0,
+    partial: 0,
+    running: 0,
+    total: 0,
+  };
+  const syncDurations: number[] = [];
+  let stuckCount = 0;
+
+  if (recentSyncLogs) {
+    for (const log of recentSyncLogs) {
+      syncStats24h.total++;
+      const status = log.status as keyof typeof syncStats24h;
+      if (status in syncStats24h) {
+        syncStats24h[status]++;
+      }
+
+      // Calculate processing duration for completed syncs
+      if (log.completed_at && log.started_at) {
+        const duration =
+          new Date(log.completed_at).getTime() -
+          new Date(log.started_at).getTime();
+        syncDurations.push(duration);
+      }
+
+      // Detect stuck: status is "running" and started > 5 min ago
+      if (log.status === "running" && log.started_at < fiveMinutesAgo) {
+        stuckCount++;
+      }
+    }
+  }
+
+  const avgProcessingLatencyMs =
+    syncDurations.length > 0
+      ? Math.round(
+          syncDurations.reduce((a, b) => a + b, 0) / syncDurations.length
+        )
+      : null;
+
   // Aggregate n8n-specific summary
   const n8n: Record<
     string,
@@ -94,6 +148,22 @@ export const GET = withErrorHandler(async function GET() {
     };
   }
 
+  // Fetch last synthetic test result from sync_log
+  const { data: lastSynthetic } = await supabase
+    .from("sync_log")
+    .select("status, started_at, completed_at")
+    .eq("source", "synthetic-test")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Fetch recent sync_log entries (last 10) for dashboard display
+  const { data: recentEntries } = await supabase
+    .from("sync_log")
+    .select("source, status, started_at, completed_at, records_synced")
+    .order("started_at", { ascending: false })
+    .limit(10);
+
   return NextResponse.json({
     success: true,
     data: {
@@ -105,6 +175,18 @@ export const GET = withErrorHandler(async function GET() {
       ),
       sync_log: latestSyncBySource,
       n8n,
+      pipeline: {
+        sync_stats_24h: syncStats24h,
+        avg_processing_latency_ms: avgProcessingLatencyMs,
+        stuck_events: stuckCount,
+        last_synthetic_test: lastSynthetic
+          ? {
+              result: lastSynthetic.status === "success" ? "pass" : "fail",
+              tested_at: lastSynthetic.completed_at ?? lastSynthetic.started_at,
+            }
+          : null,
+        recent_sync_entries: recentEntries ?? [],
+      },
       checked_at: now.toISOString(),
     },
   });

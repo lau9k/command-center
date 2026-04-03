@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import client from "@/lib/personize/client";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   if (!process.env.PERSONIZE_SECRET_KEY) {
     return NextResponse.json(
       { error: "Personize not configured" },
@@ -44,4 +45,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

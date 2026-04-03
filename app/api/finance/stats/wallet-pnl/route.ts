@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const refresh = searchParams.get("refresh") === "true";
@@ -29,4 +30,4 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { validateWebhookSecret } from "@/lib/webhook-auth";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { n8nConversationPayload } from "@/lib/ingest/n8n-adapters";
+import {
+  logIngestEvent,
+  buildIdempotencyKey,
+  hashPayload,
+} from "@/lib/ingest/event-logger";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
@@ -22,27 +26,37 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
-  const supabase = createServiceClient();
+  const items = parsed.data;
+  const n8nExecutionId = request.headers.get("x-n8n-execution-id");
+  const pHash = hashPayload(rawBody);
 
-  const { data, error } = await supabase
-    .from("ingest_events")
-    .insert({
-      entity_type: "conversation",
-      payload: parsed.data,
-      status: "received",
-    })
-    .select("id")
-    .single();
+  // Log each item to the ingest ledger; skip duplicates
+  const eventIds: string[] = [];
 
-  if (error) {
+  for (const item of items) {
+    const key = buildIdempotencyKey("n8n", "conversation", item.external_id);
+    const result = await logIngestEvent({
+      source: "n8n",
+      entityType: "conversation",
+      idempotencyKey: key,
+      payloadHash: pHash,
+      payload: item,
+      n8nExecutionId,
+    });
+
+    if (result.duplicate) continue;
+    if (result.event) eventIds.push(result.event.id);
+  }
+
+  if (eventIds.length === 0) {
     return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
+      { success: true, event_ids: [], count: 0, deduplicated: true },
+      { status: 200 }
     );
   }
 
   return NextResponse.json(
-    { success: true, event_id: data.id },
+    { success: true, event_ids: eventIds, count: eventIds.length },
     { status: 202 }
   );
 }), RATE_LIMITS.ingest);
