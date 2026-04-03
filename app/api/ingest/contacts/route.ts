@@ -6,6 +6,13 @@ import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
 import { withRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { n8nContactPayload } from "@/lib/ingest/n8n-adapters";
+import {
+  logIngestEvent,
+  markEventProcessed,
+  markEventFailed,
+  buildIdempotencyKey,
+  hashPayload,
+} from "@/lib/ingest/event-logger";
 
 export const POST = withRateLimit(withErrorHandler(async function POST(request: NextRequest) {
   const authError = validateWebhookSecret(request);
@@ -25,20 +32,58 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   }
 
   const items = parsed.data;
+  const n8nExecutionId = request.headers.get("x-n8n-execution-id");
+  const pHash = hashPayload(rawBody);
+
+  // Log each item to the ingest ledger; skip duplicates
+  const eventIds: string[] = [];
+  const itemsToProcess: typeof items = [];
+
+  for (const item of items) {
+    const key = buildIdempotencyKey("n8n", "contact", item.email);
+    const result = await logIngestEvent({
+      source: "n8n",
+      entityType: "contact",
+      idempotencyKey: key,
+      payloadHash: pHash,
+      n8nExecutionId,
+    });
+
+    if (result.duplicate) continue;
+
+    if (result.event) eventIds.push(result.event.id);
+    itemsToProcess.push(item);
+  }
+
+  // All items were duplicates
+  if (itemsToProcess.length === 0) {
+    return NextResponse.json(
+      { success: true, data: [], count: 0, deduplicated: true },
+      { status: 200 }
+    );
+  }
+
   const supabase = createServiceClient();
 
   // Upsert by email — update existing contact or insert new one
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(items, { onConflict: "email" })
+    .upsert(itemsToProcess, { onConflict: "email" })
     .select();
 
   if (error) {
+    for (const eventId of eventIds) {
+      void markEventFailed(eventId, error.message);
+    }
     void logSync("n8n:contacts", "error", 0, error.message);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
+  }
+
+  for (const eventId of eventIds) {
+    void markEventProcessed(eventId);
   }
 
   const results = data ?? [];
