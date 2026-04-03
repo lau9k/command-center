@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createReimbursementRequestSchema, updateReimbursementRequestSchema, validateIdParam } from "@/lib/validations";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const withItems = searchParams.get("withItems") === "true";
@@ -46,9 +47,9 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -88,9 +89,9 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(req, { status: 201 });
-}
+});
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAuth(async function PATCH(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -124,9 +125,9 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(data);
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAuth(async function DELETE(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -145,4 +146,4 @@ export async function DELETE(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
-}
+});

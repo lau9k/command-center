@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { encrypt } from "@/lib/gmail-crypto";
 
 const connectAccountSchema = z.object({
@@ -14,7 +15,7 @@ const disconnectAccountSchema = z.object({
   account_id: z.string().uuid(),
 });
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -27,9 +28,9 @@ export const GET = withErrorHandler(async function GET() {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
 
   const parsed = connectAccountSchema.safeParse(body);
@@ -90,9 +91,9 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandler(withAuth(async function DELETE(request: NextRequest, _user) {
   const body = await request.json();
 
   const parsed = disconnectAccountSchema.safeParse(body);
@@ -115,4 +116,4 @@ export const DELETE = withErrorHandler(async function DELETE(request: NextReques
   }
 
   return NextResponse.json({ success: true });
-});
+}));

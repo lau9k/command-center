@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   transport: ["UBER", "LYFT", "PRESTO", "TTC", "PARKING", "GAS", "SHELL", "PETRO", "ESSO"],
@@ -41,7 +42,7 @@ const importRequestSchema = z.object({
   rows: z.array(importRowSchema).min(1, "At least one row is required"),
 });
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -129,7 +130,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ imported, skipped, errors });
-});
+}));
 
 function parseDate(input: string): string | null {
   // Try ISO format (YYYY-MM-DD)

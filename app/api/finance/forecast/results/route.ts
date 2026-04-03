@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import type { CashForecast, ForecastDayPoint, ForecastResult } from "@/lib/types/database";
 
 function toTimeSeries(rows: CashForecast[]): ForecastDayPoint[] {
@@ -16,7 +17,7 @@ function toTimeSeries(rows: CashForecast[]): ForecastDayPoint[] {
   }));
 }
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
   const forecastRunId = searchParams.get("forecast_run_id");
@@ -104,4 +105,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   };
 
   return NextResponse.json(result);
-});
+}));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ interface HackathonRow {
   [key: string]: string | undefined;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   try {
     const raw = await request.json();
     const parsed = hackathonImportSchema.safeParse(raw);
@@ -120,4 +121,4 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-}
+});

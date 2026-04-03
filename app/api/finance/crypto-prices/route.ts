@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const SYMBOL_TO_COINGECKO: Record<string, string> = {
   BTC: "bitcoin",
@@ -12,7 +13,7 @@ const SYMBOL_TO_COINGECKO: Record<string, string> = {
   BUSD: "binance-usd",
 };
 
-export const POST = withErrorHandler(async (_request: NextRequest) => {
+export const POST = withErrorHandler(withAuth(async function POST(_request: NextRequest, _user) {
   const supabase = createServiceClient();
 
   // 1. Get distinct symbols from crypto_balances
@@ -93,4 +94,4 @@ export const POST = withErrorHandler(async (_request: NextRequest) => {
   const skipped = Array.from(symbolSet).filter((s) => !SYMBOL_TO_COINGECKO[s]);
 
   return NextResponse.json({ updated, prices, skipped });
-});
+}));

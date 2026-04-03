@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,7 @@ function parseDate(raw: string | undefined): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async function POST(request: NextRequest, _user) {
   try {
     const raw = await request.json();
     const parsed = conversationsImportSchema.safeParse(raw);
@@ -123,4 +124,4 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-}
+});

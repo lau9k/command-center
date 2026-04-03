@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const APR = 0.2599;
 const DAYS_PER_YEAR = 365;
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
 
   // Get all non-paid reimbursement requests
@@ -85,4 +86,4 @@ export async function GET() {
     apr: APR,
     details,
   });
-}
+});
