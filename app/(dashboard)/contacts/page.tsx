@@ -33,11 +33,12 @@ export default async function ContactsPage() {
         }
       }
 
-      // Supabase fallback
+      // Supabase fallback (first page only)
       const contactsRes = await supabase
         .from("contacts")
-        .select("*")
-        .order("updated_at", { ascending: false });
+        .select("*", { count: "exact" })
+        .order("updated_at", { ascending: false })
+        .range(0, 49);
 
       if (contactsRes.error) {
         console.error("[Contacts] Supabase query error:", contactsRes.error.message);
@@ -45,7 +46,7 @@ export default async function ContactsPage() {
       }
 
       const contacts = (contactsRes.data as Contact[]) ?? [];
-      return { contacts, total: contacts.length, personizeAvailable: false };
+      return { contacts, total: contactsRes.count ?? contacts.length, personizeAvailable: false };
     },
   });
 

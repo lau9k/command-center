@@ -4,10 +4,7 @@ import { createContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { searchContacts, batchGetMemoryCounts } from "@/lib/personize/actions";
 import { syncToPersonize } from "@/lib/personize/sync";
-import {
-  getContacts as getContactsDb,
-  createContact as createContactDb,
-} from "@/lib/api/contacts";
+import { createContact as createContactDb } from "@/lib/api/contacts";
 
 export const GET = withErrorHandler(async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -70,17 +67,49 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     }
   }
 
-  // Supabase fallback
+  // Supabase fallback (with pagination)
   const supabase = createServiceClient();
 
-  const data = await getContactsDb(supabase, {
-    search: query ?? searchParams.get("search") ?? undefined,
-    tag,
-    status,
-    contactSource,
-  });
+  let dbQuery = supabase
+    .from("contacts")
+    .select("*", { count: "exact" })
+    .order("updated_at", { ascending: false });
 
-  return NextResponse.json({ data, source: "supabase" });
+  if (query) {
+    dbQuery = dbQuery.or(
+      `name.ilike.%${query}%,email.ilike.%${query}%,company.ilike.%${query}%`
+    );
+  }
+  if (tag) {
+    dbQuery = dbQuery.contains("tags", [tag]);
+  }
+  if (status) {
+    dbQuery = dbQuery.eq("status", status);
+  }
+  if (contactSource) {
+    dbQuery = dbQuery.eq("source", contactSource);
+  }
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  dbQuery = dbQuery.range(from, to);
+
+  const { data, count, error } = await dbQuery;
+
+  if (error) throw error;
+
+  const total = count ?? 0;
+
+  return NextResponse.json({
+    data: data ?? [],
+    pagination: {
+      page,
+      pageSize,
+      total,
+      hasMore: page * pageSize < total,
+    },
+    source: "supabase",
+  });
 });
 
 export const POST = withErrorHandler(async function POST(request: NextRequest) {
