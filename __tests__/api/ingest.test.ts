@@ -42,6 +42,7 @@ describe("POST /api/ingest/contacts", () => {
   it("ingests a valid contact", async () => {
     const contact = makeContact();
     setTableData("contacts", [contact]);
+    setTableData("ingest_events", [{ id: "evt-1" }]);
 
     const { POST } = await getIngestContacts();
     const req = new NextRequest("https://localhost/api/ingest/contacts", {
@@ -52,9 +53,9 @@ describe("POST /api/ingest/contacts", () => {
     const res = await POST(req);
     const body = await res.json();
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(202);
     expect(body.success).toBe(true);
-    expect(body.data).toBeDefined();
+    expect(body.event_ids).toBeDefined();
   });
 
   it("returns 401 when webhook secret is missing", async () => {
@@ -120,6 +121,7 @@ describe("POST /api/ingest/tasks", () => {
   it("ingests a valid task", async () => {
     const task = makeTask();
     setTableData("tasks", [task]);
+    setTableData("ingest_events", [{ id: "evt-1" }]);
 
     const { POST } = await getIngestTasks();
     const req = new NextRequest("https://localhost/api/ingest/tasks", {
@@ -130,8 +132,9 @@ describe("POST /api/ingest/tasks", () => {
     const res = await POST(req);
     const body = await res.json();
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(202);
     expect(body.success).toBe(true);
+    expect(body.event_ids).toBeDefined();
   });
 
   it("returns 400 for missing title", async () => {
@@ -171,6 +174,7 @@ describe("POST /api/ingest/transactions", () => {
   it("ingests a valid transaction", async () => {
     const txn = makeTransaction();
     setTableData("transactions", [txn]);
+    setTableData("ingest_events", [{ id: "evt-1" }]);
 
     const { POST } = await getIngestTransactions();
     const req = new NextRequest("https://localhost/api/ingest/transactions", {
@@ -185,8 +189,9 @@ describe("POST /api/ingest/transactions", () => {
     const res = await POST(req);
     const body = await res.json();
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(202);
     expect(body.success).toBe(true);
+    expect(body.event_ids).toBeDefined();
   });
 
   it("returns 400 for missing required fields", async () => {
@@ -231,6 +236,7 @@ describe("POST /api/ingest/conversations", () => {
     const contact = makeContact({ email: "alice@example.com" });
     setTableData("contacts", [contact]);
     setTableData("conversations", [{ id: "conv-1" }]);
+    setTableData("ingest_events", [{ id: "evt-1" }]);
 
     const { POST } = await getIngestConversations();
     const req = new NextRequest("https://localhost/api/ingest/conversations", {
@@ -245,8 +251,9 @@ describe("POST /api/ingest/conversations", () => {
     const res = await POST(req);
     const body = await res.json();
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(202);
     expect(body.success).toBe(true);
+    expect(body.event_ids).toBeDefined();
   });
 
   it("returns 400 for missing contact_email", async () => {

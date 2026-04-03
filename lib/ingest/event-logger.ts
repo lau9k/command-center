@@ -27,6 +27,7 @@ interface LogIngestEventParams {
   entityType: string;
   idempotencyKey: string;
   payloadHash: string;
+  payload: Record<string, unknown> | Record<string, unknown>[];
   n8nExecutionId?: string | null;
 }
 
@@ -56,6 +57,7 @@ export async function logIngestEvent(
       entity_type: params.entityType,
       idempotency_key: params.idempotencyKey,
       payload_hash: params.payloadHash,
+      payload: params.payload,
       n8n_execution_id: params.n8nExecutionId ?? null,
       status: "received" as IngestEventStatus,
     })

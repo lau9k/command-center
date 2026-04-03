@@ -7,6 +7,7 @@ export interface IngestEvent {
   idempotency_key: string;
   received_at: string;
   payload_hash: string;
+  payload: Record<string, unknown> | Record<string, unknown>[];
   n8n_execution_id: string | null;
   status: IngestEventStatus;
   attempt_count: number;
