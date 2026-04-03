@@ -493,6 +493,39 @@ export const aiBudgetRecordSchema = z.object({
   tokens_used: z.number().int().min(1),
 });
 
+// ── Batch Memorize ───────────────────────────────────────
+
+const batchMemorizeRowSchema = z
+  .object({
+    email: z.string().email().max(500).optional(),
+    name: z.string().max(500).optional(),
+    first_name: z.string().max(500).optional(),
+    last_name: z.string().max(500).optional(),
+    company: z.string().max(500).optional(),
+    title: z.string().max(500).optional(),
+    job_title: z.string().max(500).optional(),
+    company_name: z.string().max(500).optional(),
+    linkedin_url: z.string().max(2000).optional(),
+    website: z.string().max(2000).optional(),
+    phone: z.string().max(50).optional(),
+    industry: z.string().max(500).optional(),
+    city: z.string().max(500).optional(),
+    country: z.string().max(500).optional(),
+    notes: z.string().max(10000).optional(),
+    source: z.string().max(200).optional(),
+  })
+  .refine((row) => Boolean(row.email || row.name || row.first_name), {
+    message: "Each row must have at least an email, name, or first_name",
+  });
+
+export const batchMemorizeSchema = z.object({
+  source: z.string().min(1, "source is required").max(200),
+  rows: z
+    .array(batchMemorizeRowSchema)
+    .min(1, "At least one row is required")
+    .max(500, "Maximum 500 rows per request"),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
