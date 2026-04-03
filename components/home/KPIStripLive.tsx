@@ -25,7 +25,7 @@ import { KpiStripSkeleton } from "@/components/home/kpi-card-skeleton";
 import { KpiErrorState } from "@/components/home/kpi-error-state";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
 
-const REFRESH_INTERVAL_MS = 60_000;
+const REFRESH_INTERVAL_MS = 300_000;
 
 /** Accent colors for KPI categories */
 const ACCENT = {
