@@ -30,8 +30,10 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const n8nExecutionId = request.headers.get("x-n8n-execution-id");
   const pHash = hashPayload(rawBody);
 
-  // Log each item to the ingest ledger; skip duplicates
+  // Log each item to the ingest ledger; track outcomes
   const eventIds: string[] = [];
+  let duplicated = 0;
+  const errors: string[] = [];
 
   for (const item of items) {
     const key = buildIdempotencyKey("n8n", "conversation", item.external_id);
@@ -44,10 +46,24 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
       n8nExecutionId,
     });
 
-    if (result.duplicate) continue;
-    if (result.event) eventIds.push(result.event.id);
+    if (result.outcome === "accepted") {
+      eventIds.push(result.event.id);
+    } else if (result.outcome === "deduplicated") {
+      duplicated++;
+    } else {
+      errors.push(result.error);
+    }
   }
 
+  // Any failures → 207 Multi-Status
+  if (errors.length > 0) {
+    return NextResponse.json(
+      { success: false, inserted: eventIds.length, duplicated, failed: errors.length, event_ids: eventIds, errors },
+      { status: 207 }
+    );
+  }
+
+  // All deduplicated, nothing inserted
   if (eventIds.length === 0) {
     return NextResponse.json(
       { success: true, event_ids: [], count: 0, deduplicated: true },
@@ -55,6 +71,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
+  // At least one accepted (possibly mixed with dedup)
   return NextResponse.json(
     { success: true, event_ids: eventIds, count: eventIds.length },
     { status: 202 }
