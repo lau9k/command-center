@@ -96,6 +96,12 @@ export interface SyncStatsResult {
   }>;
 }
 
+export interface SyncContactMemoryStatsResult {
+  synced: number;
+  withMemories: number;
+  total: number;
+}
+
 /** A contact record from the Personize Contact collection. */
 export interface PersonizeContactRecord {
   recordId: string;
