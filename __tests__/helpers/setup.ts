@@ -12,6 +12,8 @@ vi.mock("@sentry/nextjs", () => ({
 // ── Mock Personize ──────────────────────────────────────────────
 vi.mock("@/lib/personize/actions", () => ({
   searchContacts: vi.fn(),
+  batchGetMemoryCounts: vi.fn().mockResolvedValue(new Map()),
+  memorize: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ── Mock activity logger ────────────────────────────────────────
@@ -45,6 +47,8 @@ interface MockQueryBuilder {
   ilike: ReturnType<typeof vi.fn>;
   contains: ReturnType<typeof vi.fn>;
   order: ReturnType<typeof vi.fn>;
+  range: ReturnType<typeof vi.fn>;
+  limit: ReturnType<typeof vi.fn>;
   single: ReturnType<typeof vi.fn>;
   // result state
   _data: MockData;
@@ -71,12 +75,14 @@ function createMockQueryBuilder(
     ilike: vi.fn(),
     contains: vi.fn(),
     order: vi.fn(),
+    range: vi.fn(),
+    limit: vi.fn(),
     single: vi.fn(),
   };
 
   const chainMethods = [
     "select", "insert", "update", "upsert", "delete",
-    "eq", "neq", "in", "is", "or", "ilike", "contains", "order",
+    "eq", "neq", "in", "is", "or", "ilike", "contains", "order", "range", "limit",
   ] as const;
 
   for (const method of chainMethods) {
@@ -92,11 +98,12 @@ function createMockQueryBuilder(
   // Make builder thenable so `await query` resolves
   Object.defineProperty(builder, "then", {
     value(
-      resolve: (val: { data: MockData; error: { message: string } | null }) => void,
+      resolve: (val: { data: MockData; count: number | null; error: { message: string } | null }) => void,
       reject?: (err: unknown) => void
     ) {
       try {
-        resolve({ data: builder._data, error: builder._error });
+        const count = Array.isArray(builder._data) ? builder._data.length : builder._data ? 1 : 0;
+        resolve({ data: builder._data, count, error: builder._error });
       } catch (e) {
         if (reject) reject(e);
       }
