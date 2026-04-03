@@ -77,7 +77,7 @@ async function callUnifiedSmartRecall(
   options: UnifiedSmartRecallOptions
 ): Promise<UnifiedSmartRecallResponse | null> {
   console.warn("[Personize:diag] callUnifiedSmartRecall input:", JSON.stringify(options));
-  console.warn("[Personize:diag] smartRecallUnified method exists:", typeof (client as Record<string, unknown>).smartRecallUnified);
+  console.warn("[Personize:diag] smartRecallUnified method exists:", typeof (client as unknown as Record<string, unknown>).smartRecallUnified);
 
   try {
     const response = await (client as unknown as {
