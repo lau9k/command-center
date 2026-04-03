@@ -11,6 +11,10 @@
     {
       "path": "/api/sync/granola",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/personize/sync-contacts",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
