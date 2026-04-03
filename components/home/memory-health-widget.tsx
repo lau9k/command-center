@@ -67,7 +67,7 @@ export function MemoryHealthWidget() {
 
   useEffect(() => {
     fetchHealth();
-    const interval = setInterval(fetchHealth, 120_000);
+    const interval = setInterval(fetchHealth, 300_000);
     return () => clearInterval(interval);
   }, [fetchHealth]);
 

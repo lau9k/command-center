@@ -110,36 +110,36 @@ export interface HomeStatsResponse {
 
 /** Safely query a table, returning a fallback on error (e.g. table doesn't exist or FK mismatch). */
 async function safeQuery<T>(
+  label: string,
   fn: () => PromiseLike<{ data: T | null; error: unknown }>,
   fallback: T,
 ): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) {
-      // Use warn instead of error — these are expected for missing tables/columns
-      // and fire every polling cycle, creating excessive log noise
-      console.warn("[home-stats] query fallback:", (error as { message?: string }).message ?? error);
+      console.warn(`[home-stats] ${label} failed:`, (error as { message?: string }).message ?? error);
       return fallback;
     }
     return data ?? fallback;
   } catch (err) {
-    console.warn("[home-stats] unexpected fallback:", (err as Error).message ?? err);
+    console.warn(`[home-stats] ${label} threw:`, (err as Error).message ?? err);
     return fallback;
   }
 }
 
 async function safeCount(
+  label: string,
   fn: () => PromiseLike<{ count: number | null; error: unknown }>,
 ): Promise<number> {
   try {
     const { count, error } = await fn();
     if (error) {
-      console.warn("[home-stats] count fallback:", (error as { message?: string }).message ?? error);
+      console.warn(`[home-stats] ${label} failed:`, (error as { message?: string }).message ?? error);
       return 0;
     }
     return count ?? 0;
   } catch (err) {
-    console.warn("[home-stats] unexpected count fallback:", (err as Error).message ?? err);
+    console.warn(`[home-stats] ${label} threw:`, (err as Error).message ?? err);
     return 0;
   }
 }
@@ -180,6 +180,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
   ] = await Promise.all([
     // Tasks with full details for ranking + project summaries
     safeQuery(
+      "tasks",
       () =>
         supabase
           .from("tasks")
@@ -190,6 +191,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Active projects
     safeQuery(
+      "projects",
       () =>
         supabase
           .from("projects")
@@ -201,6 +203,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // All content posts (full data for calendar preview)
     safeQuery(
+      "content_posts",
       () =>
         supabase
           .from("content_posts")
@@ -211,14 +214,14 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
 
     // Contacts count
-    safeCount(() =>
+    safeCount("contacts_count", () =>
       supabase
         .from("contacts")
         .select("id", { count: "exact", head: true }),
     ),
 
     // Pipeline count
-    safeCount(() =>
+    safeCount("pipeline_count", () =>
       supabase
         .from("pipeline_items")
         .select("id", { count: "exact", head: true }),
@@ -226,6 +229,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Pipeline values (exclude "lost" stage)
     safeQuery(
+      "pipeline_values",
       () =>
         supabase
           .from("pipeline_items")
@@ -236,6 +240,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Open invoices
     safeQuery(
+      "invoices",
       () =>
         supabase
           .from("invoices")
@@ -246,12 +251,13 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Memory stats
     safeQuery(
-      () => supabase.from("memory_stats").select("count, record_count"),
-      [] as { count: number; record_count: number | null }[],
+      "memory_stats",
+      () => supabase.from("memory_stats").select("count"),
+      [] as { count: number }[],
     ),
 
     // Sponsors total count
-    safeCount(() =>
+    safeCount("sponsors_total", () =>
       supabase
         .from("sponsors")
         .select("id", { count: "exact", head: true }),
@@ -259,6 +265,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Sponsors confirmed (with amount for revenue)
     safeQuery(
+      "sponsors_confirmed",
       () =>
         supabase
           .from("sponsors")
@@ -268,7 +275,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
 
     // Overdue tasks count
-    safeCount(() =>
+    safeCount("overdue_tasks", () =>
       supabase
         .from("tasks")
         .select("id", { count: "exact", head: true })
@@ -277,7 +284,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
 
     // Tasks completed today
-    safeCount(() =>
+    safeCount("tasks_completed_today", () =>
       supabase
         .from("tasks")
         .select("id", { count: "exact", head: true })
@@ -286,7 +293,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
 
     // New contacts this week
-    safeCount(() =>
+    safeCount("new_contacts_week", () =>
       supabase
         .from("contacts")
         .select("id", { count: "exact", head: true })
@@ -294,7 +301,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
 
     // Conversations count
-    safeCount(() =>
+    safeCount("conversations", () =>
       supabase
         .from("conversations")
         .select("id", { count: "exact", head: true }),
@@ -305,6 +312,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Yesterday's community stats for delta calculation
     safeQuery(
+      "community_stats",
       () =>
         supabase
           .from("community_stats")
@@ -318,6 +326,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Pending meetings
     safeQuery(
+      "pending_meetings",
       () =>
         supabase
           .from("meetings")
@@ -329,6 +338,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Activity log (last 15 entries)
     safeQuery(
+      "activity_log",
       () =>
         supabase
           .from("activity_log")
@@ -340,6 +350,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Overdue tasks list (for upcoming items panel)
     safeQuery(
+      "overdue_tasks_list",
       () =>
         supabase
           .from("tasks")
@@ -353,6 +364,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Upcoming meetings (next 3)
     safeQuery(
+      "upcoming_meetings",
       () =>
         supabase
           .from("meetings")
@@ -365,6 +377,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Scheduled content (next 3)
     safeQuery(
+      "scheduled_content",
       () =>
         supabase
           .from("content_posts")
@@ -378,6 +391,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
     // Outreach funnel stats
     safeQuery(
+      "outreach_stats",
       () =>
         supabase
           .from("tasks")
@@ -415,7 +429,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
   );
 
   const memoryRecords = memoryStats.reduce(
-    (sum, s) => sum + (s.record_count ?? s.count ?? 0),
+    (sum, s) => sum + (s.count ?? 0),
     0,
   );
 

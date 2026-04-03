@@ -17,7 +17,7 @@ import {
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import type { KPIData } from "@/lib/kpi-data";
 
-const REFRESH_INTERVAL_MS = 60_000;
+const REFRESH_INTERVAL_MS = 300_000;
 
 const ACCENT = {
   blue: "#3B82F6",
