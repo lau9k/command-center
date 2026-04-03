@@ -18,6 +18,38 @@ const N8N_SOURCES = [
   "n8n:transactions",
 ] as const;
 
+/** Per-source staleness thresholds in milliseconds. */
+const FRESHNESS_THRESHOLDS: Record<string, { fresh: number; stale: number }> = {
+  "n8n:contacts":      { fresh: 6 * 3600_000,  stale: 24 * 3600_000 },
+  "n8n:tasks":         { fresh: 6 * 3600_000,  stale: 24 * 3600_000 },
+  "n8n:conversations": { fresh: 1 * 3600_000,  stale: 6 * 3600_000 },
+  "n8n:transactions":  { fresh: 12 * 3600_000, stale: 48 * 3600_000 },
+  gmail:               { fresh: 1 * 3600_000,  stale: 6 * 3600_000 },
+  plaid:               { fresh: 12 * 3600_000, stale: 48 * 3600_000 },
+  granola:             { fresh: 6 * 3600_000,  stale: 24 * 3600_000 },
+};
+
+type FreshnessLevel = "fresh" | "stale" | "outdated" | "unknown";
+
+function evaluateFreshness(
+  source: string,
+  lastSyncIso: string | null,
+  nowMs: number
+): { level: FreshnessLevel; age_ms: number | null } {
+  if (!lastSyncIso) return { level: "unknown", age_ms: null };
+  const ageMs = nowMs - new Date(lastSyncIso).getTime();
+  const thresholds = FRESHNESS_THRESHOLDS[source];
+  if (!thresholds) {
+    // Fallback: 1h fresh, 24h stale
+    if (ageMs < 3600_000) return { level: "fresh", age_ms: ageMs };
+    if (ageMs < 86400_000) return { level: "stale", age_ms: ageMs };
+    return { level: "outdated", age_ms: ageMs };
+  }
+  if (ageMs < thresholds.fresh) return { level: "fresh", age_ms: ageMs };
+  if (ageMs < thresholds.stale) return { level: "stale", age_ms: ageMs };
+  return { level: "outdated", age_ms: ageMs };
+}
+
 export const GET = withErrorHandler(async function GET() {
   const supabase = createServiceClient();
   const now = new Date();
@@ -148,6 +180,50 @@ export const GET = withErrorHandler(async function GET() {
     };
   }
 
+  // ── Queue backlog from ingest_events ────────────────────────────────
+  const [
+    { count: pendingCount },
+    { count: retriableCount },
+    { count: deadLetterCount },
+    { data: oldestPending },
+  ] = await Promise.all([
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["received", "processing"]),
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "retryable"),
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "dead_letter"),
+    supabase
+      .from("ingest_events")
+      .select("received_at")
+      .in("status", ["received", "processing"])
+      .order("received_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const oldestPendingAge =
+    oldestPending?.received_at
+      ? now.getTime() - new Date(oldestPending.received_at).getTime()
+      : null;
+
+  // ── Source freshness evaluation ────────────────────────────────────
+  const sourceFreshness: Record<
+    string,
+    { level: FreshnessLevel; age_ms: number | null; last_sync_at: string | null }
+  > = {};
+  for (const [source, entry] of Object.entries(latestSyncBySource)) {
+    const lastSyncAt = entry.completed_at ?? entry.started_at;
+    const { level, age_ms } = evaluateFreshness(source, lastSyncAt, now.getTime());
+    sourceFreshness[source] = { level, age_ms, last_sync_at: lastSyncAt };
+  }
+
   // Fetch last synthetic test result from sync_log
   const { data: lastSynthetic } = await supabase
     .from("sync_log")
@@ -164,8 +240,21 @@ export const GET = withErrorHandler(async function GET() {
     .order("started_at", { ascending: false })
     .limit(10);
 
+  // ── Derive overall status ────────────────────────────────────────────
+  const hasOutdated = Object.values(sourceFreshness).some(
+    (f) => f.level === "outdated"
+  );
+  const hasDeadLetters = (deadLetterCount ?? 0) > 0;
+  const overallStatus: "healthy" | "degraded" | "unhealthy" =
+    hasOutdated || hasDeadLetters || stuckCount > 0
+      ? stuckCount > 5 || (deadLetterCount ?? 0) > 10
+        ? "unhealthy"
+        : "degraded"
+      : "healthy";
+
   return NextResponse.json({
     success: true,
+    status: overallStatus,
     data: {
       tables: Object.fromEntries(
         tableStats.map((s) => [
@@ -173,8 +262,15 @@ export const GET = withErrorHandler(async function GET() {
           { last_ingested_at: s.last_ingested_at, row_count: s.row_count },
         ])
       ),
+      source_freshness: sourceFreshness,
       sync_log: latestSyncBySource,
       n8n,
+      queue: {
+        pending: pendingCount ?? 0,
+        retryable: retriableCount ?? 0,
+        dead_letter: deadLetterCount ?? 0,
+        oldest_pending_age_ms: oldestPendingAge,
+      },
       pipeline: {
         sync_stats_24h: syncStats24h,
         avg_processing_latency_ms: avgProcessingLatencyMs,

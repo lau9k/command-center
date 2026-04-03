@@ -33,6 +33,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Ingest health — public (n8n health-check workflows need unauthenticated access)
+    if (pathname.startsWith("/api/ingest/health")) {
+      return NextResponse.next();
+    }
+
     // Ingest webhooks — require shared secret
     if (pathname.startsWith("/api/ingest/")) {
       const secret = process.env.WEBHOOK_SECRET;
