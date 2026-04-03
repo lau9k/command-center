@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { searchContacts, batchGetMemoryCounts } from "@/lib/personize/actions";
 import { syncToPersonize } from "@/lib/personize/sync";
 import { createContact as createContactDb } from "@/lib/api/contacts";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const { searchParams } = request.nextUrl;
 
   const query = searchParams.get("q") ?? searchParams.get("search") ?? undefined;
@@ -110,9 +111,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     },
     source: "supabase",
   });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -134,4 +135,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
