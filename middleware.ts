@@ -17,6 +17,22 @@ export async function middleware(request: NextRequest) {
 
   // ── API routes: fast header / cookie checks ──────────────────────────
   if (pathname.startsWith("/api/")) {
+    // Ingest cron/admin endpoints — require API_SECRET via Bearer or x-cron-key
+    if (
+      pathname === "/api/ingest/process" ||
+      pathname === "/api/ingest/replay"
+    ) {
+      const secret = process.env.API_SECRET;
+      if (!secret) return NextResponse.next();
+      const authHeader = request.headers.get("authorization");
+      const bearerToken = authHeader?.replace("Bearer ", "");
+      const cronKey = request.headers.get("x-cron-key");
+      if (bearerToken !== secret && cronKey !== secret) {
+        return unauthorized("Invalid API secret");
+      }
+      return NextResponse.next();
+    }
+
     // Ingest webhooks — require shared secret
     if (pathname.startsWith("/api/ingest/")) {
       const secret = process.env.WEBHOOK_SECRET;

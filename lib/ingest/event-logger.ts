@@ -85,7 +85,10 @@ export async function markEventProcessed(eventId: string): Promise<void> {
     .from("ingest_events")
     .update({
       status: "processed" as IngestEventStatus,
+      claimed_at: null,
+      lease_expires_at: null,
       processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq("id", eventId);
 
@@ -95,8 +98,7 @@ export async function markEventProcessed(eventId: string): Promise<void> {
 }
 
 /**
- * Marks an ingest event as failed, recording the error message and
- * incrementing the attempt counter.
+ * Marks an ingest event as failed, recording the error message.
  */
 export async function markEventFailed(
   eventId: string,
@@ -104,24 +106,18 @@ export async function markEventFailed(
 ): Promise<void> {
   const supabase = createServiceClient();
 
-  const { error } = await supabase.rpc("increment_ingest_attempt", {
-    p_event_id: eventId,
-    p_error: errorMessage,
-  });
+  const { error } = await supabase
+    .from("ingest_events")
+    .update({
+      status: "failed" as IngestEventStatus,
+      last_error: errorMessage,
+      last_error_code: errorMessage.slice(0, 255),
+      last_failed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
 
-  // Fallback to a plain update if the RPC doesn't exist yet
   if (error) {
-    const { error: updateError } = await supabase
-      .from("ingest_events")
-      .update({
-        status: "failed" as IngestEventStatus,
-        last_error: errorMessage,
-        attempt_count: 1,
-      })
-      .eq("id", eventId);
-
-    if (updateError) {
-      console.error("[event-logger] Failed to mark event failed:", updateError.message);
-    }
+    console.error("[event-logger] Failed to mark event failed:", error.message);
   }
 }

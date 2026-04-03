@@ -2,9 +2,8 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
-import { markEventProcessed, markEventFailed } from "@/lib/ingest/event-logger";
 import { scoreTask } from "@/lib/task-scoring";
-import type { Task, IngestEvent } from "@/lib/types/database";
+import type { Task, IngestEvent, IngestEventStatus } from "@/lib/types/database";
 
 type EntityType = "contact" | "conversation" | "task" | "transaction";
 
@@ -213,68 +212,94 @@ const ENTITY_PROCESSORS: Record<
   transaction: processTransactionPayload,
 };
 
-export async function processIngestEvent(eventId: string): Promise<void> {
-  const supabase = createServiceClient();
+// ── Backoff schedule (attempt → seconds) ─────────────────
+const BACKOFF_SECONDS = [30, 120, 600, 1800, 3600] as const;
 
-  // Claim the event row with FOR UPDATE SKIP LOCKED
-  const { data: claimed, error: claimError } = await supabase.rpc(
-    "claim_ingest_event",
-    { event_id: eventId }
-  );
+function computeNextRetryAt(attempt: number): string {
+  const delaySec = BACKOFF_SECONDS[Math.min(attempt, BACKOFF_SECONDS.length - 1)];
+  return new Date(Date.now() + delaySec * 1000).toISOString();
+}
 
-  if (claimError) throw new Error(`Failed to claim event: ${claimError.message}`);
-  if (!claimed || (Array.isArray(claimed) && claimed.length === 0)) return;
+const MAX_ATTEMPTS = 5;
 
-  const event = (Array.isArray(claimed) ? claimed[0] : claimed) as IngestEvent;
+async function markClaimedEventProcessed(
+  supabase: ReturnType<typeof createServiceClient>,
+  eventId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("ingest_events")
+    .update({
+      status: "processed" as IngestEventStatus,
+      claimed_at: null,
+      lease_expires_at: null,
+      processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
 
-  try {
-    const processor = ENTITY_PROCESSORS[event.entity_type as EntityType];
-    if (!processor) {
-      throw new Error(`Unknown entity_type: ${event.entity_type}`);
-    }
+  if (error) {
+    console.error("[processor] Failed to mark event processed:", error.message);
+  }
+}
 
-    await processor(supabase, event.payload);
-    void markEventProcessed(eventId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    void markEventFailed(eventId, message);
+async function markClaimedEventFailed(
+  supabase: ReturnType<typeof createServiceClient>,
+  eventId: string,
+  attempt: number,
+  errorMessage: string
+): Promise<void> {
+  const isDead = attempt >= MAX_ATTEMPTS;
+  const { error } = await supabase
+    .from("ingest_events")
+    .update({
+      status: (isDead ? "dead_letter" : "retryable") as IngestEventStatus,
+      last_failed_at: new Date().toISOString(),
+      last_error_code: errorMessage.slice(0, 255),
+      next_retry_at: isDead ? null : computeNextRetryAt(attempt),
+      claimed_at: null,
+      lease_expires_at: null,
+      attempt_count: attempt + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
+
+  if (error) {
+    console.error("[processor] Failed to mark event failed:", error.message);
   }
 }
 
 export async function processUnprocessedEvents(): Promise<ProcessResult> {
   const supabase = createServiceClient();
 
-  // Requeue events stuck in 'processing' for > 5 minutes
-  await supabase
-    .from("ingest_events")
-    .update({ status: "received" })
-    .eq("status", "processing")
-    .lt(
-      "updated_at",
-      new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    );
+  // Claim a batch of events via RPC
+  const { data: events, error } = await supabase.rpc("claim_ingest_events", {
+    p_limit: 25,
+    p_worker_id: "vercel-cron",
+  });
 
-  // Fetch up to 25 'received' events
-  const { data: events, error } = await supabase
-    .from("ingest_events")
-    .select("id")
-    .eq("status", "received")
-    .order("created_at", { ascending: true })
-    .limit(25);
+  if (error) throw new Error(`Failed to claim events: ${error.message}`);
 
-  if (error) throw new Error(`Failed to fetch events: ${error.message}`);
-  if (!events || events.length === 0) {
+  const claimed = (events ?? []) as IngestEvent[];
+  if (claimed.length === 0) {
     return { processed: 0, failed: 0, remaining: 0 };
   }
 
   let processed = 0;
   let failed = 0;
 
-  for (const event of events) {
+  for (const event of claimed) {
     try {
-      await processIngestEvent(event.id);
+      const processor = ENTITY_PROCESSORS[event.entity_type as EntityType];
+      if (!processor) {
+        throw new Error(`Unknown entity_type: ${event.entity_type}`);
+      }
+
+      await processor(supabase, event.payload);
+      await markClaimedEventProcessed(supabase, event.id);
       processed++;
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await markClaimedEventFailed(supabase, event.id, event.attempt_count, message);
       failed++;
     }
   }
@@ -283,7 +308,7 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
   const { count } = await supabase
     .from("ingest_events")
     .select("id", { count: "exact", head: true })
-    .eq("status", "received");
+    .in("status", ["received", "retryable"]);
 
   return { processed, failed, remaining: count ?? 0 };
 }
