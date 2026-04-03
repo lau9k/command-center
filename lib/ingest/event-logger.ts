@@ -31,17 +31,17 @@ interface LogIngestEventParams {
   n8nExecutionId?: string | null;
 }
 
-export interface LogIngestEventResult {
-  /** Whether this is a duplicate delivery (idempotency key already exists). */
-  duplicate: boolean;
-  /** The event record, if successfully inserted. Null on duplicate or insert failure. */
-  event: IngestEvent | null;
-}
+export type LogIngestEventResult =
+  | { outcome: "accepted"; event: IngestEvent }
+  | { outcome: "deduplicated"; event: null }
+  | { outcome: "error"; event: null; error: string };
 
 /**
  * Logs an ingest event to the ledger BEFORE processing begins.
- * Returns `{ duplicate: true }` when the idempotency key already exists.
- * On any other failure the item should still be processed (graceful degradation).
+ * Returns one of three outcomes:
+ * - `accepted`     — row inserted successfully
+ * - `deduplicated` — idempotency key conflict (PG error 23505)
+ * - `error`        — any other INSERT failure
  *
  * Never throws.
  */
@@ -66,13 +66,13 @@ export async function logIngestEvent(
 
   if (error) {
     // Unique constraint violation → duplicate delivery
-    if (error.code === "23505") return { duplicate: true, event: null };
-    // Unexpected error — log but allow processing to continue
+    if (error.code === "23505") return { outcome: "deduplicated", event: null };
+    // Unexpected error — surface it so the route can respond accurately
     console.error("[event-logger] Failed to log ingest event:", error.message);
-    return { duplicate: false, event: null };
+    return { outcome: "error", event: null, error: error.message };
   }
 
-  return { duplicate: false, event: (data as IngestEvent) ?? null };
+  return { outcome: "accepted", event: data as IngestEvent };
 }
 
 /**
