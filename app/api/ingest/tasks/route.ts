@@ -38,13 +38,12 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const pHash = hashPayload(rawBody);
 
   // Log each item to the ingest ledger; skip duplicates
-  const eventMap = new Map<number, string>();
+  const eventIds: string[] = [];
   const itemsToProcess: typeof items = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (const item of items) {
     const key = buildIdempotencyKey("n8n", "task", item.external_id);
-    const event = await logIngestEvent({
+    const result = await logIngestEvent({
       source: "n8n",
       entityType: "task",
       idempotencyKey: key,
@@ -52,10 +51,10 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
       n8nExecutionId,
     });
 
-    if (event) {
-      eventMap.set(i, event.id);
-      itemsToProcess.push(item);
-    }
+    if (result.duplicate) continue;
+
+    if (result.event) eventIds.push(result.event.id);
+    itemsToProcess.push(item);
   }
 
   if (itemsToProcess.length === 0) {
@@ -114,7 +113,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     .select();
 
   if (error) {
-    for (const eventId of eventMap.values()) {
+    for (const eventId of eventIds) {
       void markEventFailed(eventId, error.message);
     }
     void logSync("n8n:tasks", "error", 0, error.message);
@@ -124,7 +123,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
     );
   }
 
-  for (const eventId of eventMap.values()) {
+  for (const eventId of eventIds) {
     void markEventProcessed(eventId);
   }
 
