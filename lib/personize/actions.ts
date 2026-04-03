@@ -335,8 +335,63 @@ function mapRecordToContact(
 }
 
 /**
+ * Map a crmKey entry (from /api/v1/search) to a PersonizeContact.
+ * crmKeys provide recordId, email, and type — but not names or properties.
+ * Names are extracted from email prefix as a fallback.
+ */
+function mapCrmKeyToContact(
+  recordId: string,
+  crmKey: { type?: string; email?: string },
+  index: number
+): PersonizeContact {
+  const email = crmKey.email ?? null;
+  // Derive a display name from the email prefix (e.g. "john.doe@acme.com" → "John Doe")
+  let name = "Unknown";
+  if (email && !email.includes("unknown@") && !email.includes("placeholder.personize")) {
+    const prefix = email.split("@")[0];
+    name = prefix
+      .replace(/[._-]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  }
+
+  return {
+    id: recordId,
+    record_id: recordId,
+    name,
+    email,
+    phone: null,
+    company: email ? email.split("@")[1] ?? null : null,
+    role: null,
+    job_title: null,
+    has_conversation: false,
+    message_count: 0,
+    priority_score: 0,
+    last_interaction_date: null,
+    memory_count: null,
+    source: "linkedin",
+    status: "active",
+    tags: [],
+    score: 0,
+    notes: null,
+    project_id: "00000000-0000-0000-0000-000000000000",
+    last_contact_date: null,
+    merged_into_id: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+/**
  * Search contacts from the Personize Contact collection.
- * Uses unified smartRecall with type:"contact" identifier for semantic search.
+ *
+ * Listing (no query): Uses /api/v1/search with collectionIds to get the full
+ * paginated contact list (2,000+ records). This is the only reliable way to
+ * browse contacts — smartRecallUnified's identifiers.type filter doesn't match
+ * records stored via collection-based memorization.
+ *
+ * Search (with query): Uses smartRecallUnified for semantic search without
+ * a type filter (the type filter returns 0 results for collection-stored records).
  */
 export async function searchContacts(
   query?: string,
@@ -350,9 +405,10 @@ export async function searchContacts(
 
   try {
     if (query) {
+      // Semantic search — use smartRecallUnified WITHOUT type filter
+      // (identifiers.type:"Contact" returns 0 results for collection-stored records)
       const data = await callUnifiedSmartRecall({
         message: query,
-        identifiers: { type: "Contact" },
         responseDetail: "summary",
       });
       const records = data?.records ?? [];
@@ -377,28 +433,40 @@ export async function searchContacts(
       return queryResult;
     }
 
-    // No query — list all contacts via unified smartRecall
-    const data = await callUnifiedSmartRecall({
-      message: "list all contacts with their properties",
-      identifiers: { type: "Contact" },
-      responseDetail: "labels",
-      tokenBudget: 8000,
+    // No query — list contacts via /api/v1/search with collectionIds.
+    // This returns recordIds + crmKeys (email, type) with proper pagination.
+    // smartRecallUnified can't list contacts because identifiers.type:"Contact"
+    // doesn't match records stored via collection-based memorization.
+    const searchResponse = await client.memory.search({
+      collectionIds: [CONTACTS_COLLECTION_ID],
+      pageSize,
+      page,
     });
-    const records = data?.records ?? [];
 
-    const seen = new Set<string>();
+    // SDK unwraps the { success, data: {...} } envelope for memory.search
+    const searchData = (searchResponse?.data ?? searchResponse) as {
+      recordIds?: string[];
+      totalMatched?: number;
+      page?: number;
+      pageSize?: number;
+      totalPages?: number;
+      crmKeys?: Record<string, { type?: string; email?: string }>;
+    };
+
+    const recordIds = Array.isArray(searchData?.recordIds) ? searchData.recordIds : [];
+    const crmKeys = searchData?.crmKeys ?? {};
+    const totalMatched = searchData?.totalMatched ?? recordIds.length;
+
     const contacts: PersonizeContact[] = [];
-
-    for (const rec of records) {
-      const rid = rec.recordId;
-      if (!rid || seen.has(rid)) continue;
-      seen.add(rid);
-      contacts.push(mapRecordToContact(rec, contacts.length));
+    for (const rid of recordIds) {
+      if (!rid) continue;
+      const crm = crmKeys[rid] ?? {};
+      // Skip non-contact records (e.g. type:"user" for the org owner)
+      if (crm.type && crm.type !== "contact") continue;
+      contacts.push(mapCrmKeyToContact(rid, crm, contacts.length));
     }
 
-    if (sort === "priority_score" || !sort) {
-      contacts.sort((a, b) => b.priority_score - a.priority_score);
-    } else if (sort === "name") {
+    if (sort === "name") {
       contacts.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sort === "last_interaction_date") {
       contacts.sort((a, b) => {
@@ -410,10 +478,10 @@ export async function searchContacts(
 
     const result: ContactSearchResult = {
       contacts,
-      total: contacts.length,
-      page: 1,
+      total: totalMatched,
+      page: searchData?.page ?? page,
       pageSize: contacts.length,
-      hasMore: false,
+      hasMore: (searchData?.page ?? page) < (searchData?.totalPages ?? 1),
     };
 
     setCache(cacheKey, result);
@@ -505,7 +573,9 @@ export async function batchGetMemoryCounts(
 }
 
 /**
- * Semantic search across contacts using unified smartRecall with type:"contact" + response_detail:"summary".
+ * Semantic search across contacts using unified smartRecall + response_detail:"summary".
+ * Note: identifiers.type:"Contact" is NOT used because it returns 0 results for
+ * records stored via collection-based memorization in Personize.
  */
 export async function recallContacts(
   query: string
@@ -517,7 +587,6 @@ export async function recallContacts(
   try {
     const data = await callUnifiedSmartRecall({
       message: query,
-      identifiers: { type: "Contact" },
       responseDetail: "summary",
     });
     const records = data?.records ?? [];
