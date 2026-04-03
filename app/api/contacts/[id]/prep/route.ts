@@ -28,6 +28,36 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
+
+  // For Personize-sourced contacts, return empty prep data (no Supabase relations)
+  if (isPersonizeId) {
+    const decodedId = decodeURIComponent(id);
+    const emptyResponse: PrepResponse = {
+      contact: {
+        id: decodedId,
+        name: "Contact",
+        email: null,
+        company: null,
+        phone: null,
+        role: null,
+        source: "personize",
+        qualified_status: null,
+        tags: [],
+        score: 0,
+        notes: null,
+        last_contact_date: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      conversations: [],
+      meetings: [],
+      tasks: [],
+      pipeline_items: [],
+      activity_log: [],
+    };
+    return NextResponse.json(emptyResponse);
+  }
 
   const parsed = paramsSchema.safeParse({ id });
   if (!parsed.success) {

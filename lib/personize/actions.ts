@@ -273,6 +273,86 @@ const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
   "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
+const PERSONIZE_API_BASE = "https://agent.personize.ai";
+const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
+
+// ---------------------------------------------------------------------------
+// Property enrichment — fetch full_name, job_title, company_name for contacts
+// ---------------------------------------------------------------------------
+
+interface PropertyLookupEntry {
+  full_name?: string;
+  job_title?: string;
+  company_name?: string;
+}
+
+/**
+ * Fetch all contacts that have a given property set, via the deterministic
+ * /api/v1/memory/filter-by-property endpoint (no LLM, no token cost).
+ * Returns a Map of recordId → property value.
+ */
+async function fetchPropertyValues(
+  propertyName: string,
+  limit = 200
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  try {
+    const response = await fetch(`${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${PERSONIZE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        collectionId: CONTACTS_COLLECTION_ID,
+        conditions: [{ propertyName, operator: "exists" }],
+        limit,
+      }),
+    });
+    if (!response.ok) return result;
+    const data = await response.json();
+    const records = data?.data?.records ?? [];
+    for (const rec of records) {
+      if (rec.recordId && rec.matchedProperties?.[propertyName]) {
+        result.set(rec.recordId, rec.matchedProperties[propertyName]);
+      }
+    }
+  } catch (error) {
+    console.error(`[Personize] fetchPropertyValues(${propertyName}) failed:`, error);
+  }
+  return result;
+}
+
+/**
+ * Build a lookup table of recordId → {full_name, job_title, company_name}.
+ * Makes 3 parallel API calls to filter-by-property (deterministic, no LLM cost).
+ * Cached for 5 minutes.
+ */
+async function getPropertyLookup(): Promise<Map<string, PropertyLookupEntry>> {
+  const cacheKey = "property-lookup";
+  const cached = getCached<Map<string, PropertyLookupEntry>>(cacheKey);
+  if (cached) return cached;
+
+  const [names, titles, companies] = await Promise.all([
+    fetchPropertyValues("full_name", 200),
+    fetchPropertyValues("job_title", 200),
+    fetchPropertyValues("company_name", 200),
+  ]);
+
+  const lookup = new Map<string, PropertyLookupEntry>();
+  // Merge all three maps into a single lookup
+  const allIds = new Set([...names.keys(), ...titles.keys(), ...companies.keys()]);
+  for (const id of allIds) {
+    lookup.set(id, {
+      full_name: names.get(id),
+      job_title: titles.get(id),
+      company_name: companies.get(id),
+    });
+  }
+
+  setCache(cacheKey, lookup);
+  return lookup;
+}
 
 /** Simple in-memory cache with TTL. */
 const cache = new Map<string, { data: unknown; expiresAt: number }>();
@@ -457,13 +537,29 @@ export async function searchContacts(
     const crmKeys = searchData?.crmKeys ?? {};
     const totalMatched = searchData?.totalMatched ?? recordIds.length;
 
+    // Fetch property lookup (full_name, job_title, company_name) — cached, no LLM cost
+    const propertyLookup = await getPropertyLookup();
+
     const contacts: PersonizeContact[] = [];
     for (const rid of recordIds) {
       if (!rid) continue;
       const crm = crmKeys[rid] ?? {};
       // Skip non-contact records (e.g. type:"user" for the org owner)
       if (crm.type && crm.type !== "contact") continue;
-      contacts.push(mapCrmKeyToContact(rid, crm, contacts.length));
+      const contact = mapCrmKeyToContact(rid, crm, contacts.length);
+
+      // Enrich with actual properties if available
+      const props = propertyLookup.get(rid);
+      if (props) {
+        if (props.full_name) contact.name = props.full_name;
+        if (props.job_title) {
+          contact.job_title = props.job_title;
+          contact.role = props.job_title;
+        }
+        if (props.company_name) contact.company = props.company_name;
+      }
+
+      contacts.push(contact);
     }
 
     if (sort === "name") {

@@ -14,22 +14,33 @@ export async function GET(
   }
 
   const { id } = await params;
-  const supabase = createServiceClient();
+  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
-  const { data: contact, error } = await supabase
-    .from("contacts")
-    .select("email, name")
-    .eq("id", id)
-    .single();
+  let contactName = "contact";
+  let contactEmail: string | null = null;
 
-  if (error || !contact) {
-    return NextResponse.json(
-      { error: "Contact not found" },
-      { status: 404 }
-    );
+  if (isPersonizeId) {
+    const decodedId = decodeURIComponent(id);
+    contactName = decodedId;
+  } else {
+    const supabase = createServiceClient();
+    const { data: contact, error } = await supabase
+      .from("contacts")
+      .select("email, name")
+      .eq("id", id)
+      .single();
+
+    if (error || !contact) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
+    }
+    contactName = contact.name;
+    contactEmail = contact.email;
   }
 
-  if (!contact.email) {
+  if (!isPersonizeId && !contactEmail) {
     return NextResponse.json(
       { error: "Contact has no email — cannot query Personize" },
       { status: 422 }
@@ -37,8 +48,8 @@ export async function GET(
   }
 
   try {
-    const result = await smartRecall(contact.name, {
-      email: contact.email,
+    const result = await smartRecall(contactName, {
+      ...(contactEmail ? { email: contactEmail } : {}),
     });
 
     return NextResponse.json({

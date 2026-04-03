@@ -24,8 +24,27 @@ export async function GET(
   }
 
   const { id } = await params;
-  const supabase = createServiceClient();
+  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
+  let contactEmail: string | null = null;
+
+  if (isPersonizeId) {
+    // For Personize-sourced contacts, we don't have a guaranteed email.
+    // Return empty gmail context rather than 404.
+    return NextResponse.json({
+      data: {
+        gmail_threads: 0,
+        gmail_messages: 0,
+        gmail_earliest: null,
+        gmail_latest: null,
+        lautaro_sent: false,
+        subjects: [],
+        gmail_context_stored: false,
+      } as GmailContextResponse,
+    });
+  }
+
+  const supabase = createServiceClient();
   const { data: contact, error } = await supabase
     .from("contacts")
     .select("email, name")
@@ -39,7 +58,9 @@ export async function GET(
     );
   }
 
-  if (!contact.email) {
+  contactEmail = contact.email;
+
+  if (!contactEmail) {
     return NextResponse.json(
       { error: "Contact has no email — cannot query Personize" },
       { status: 422 }
@@ -49,7 +70,7 @@ export async function GET(
   try {
     const response = await client.memory.smartRecall({
       query: "gmail communication history email threads",
-      email: contact.email,
+      email: contactEmail,
       include_property_values: true,
       fast_mode: true,
       min_score: 0.2,

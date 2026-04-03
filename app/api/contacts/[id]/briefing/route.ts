@@ -103,19 +103,49 @@ export async function GET(
 ) {
   const { id } = await params;
   const supabase = createServiceClient();
+  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
-  // Fetch contact from Supabase
-  const { data: contact, error } = await supabase
-    .from("contacts")
-    .select("*")
-    .eq("id", id)
-    .single();
+  // Fetch contact — from Supabase for UUID IDs, or construct from Personize for REC# IDs
+  let contact: {
+    name: string;
+    email: string | null;
+    company: string | null;
+    role: string | null;
+    score: number;
+    last_contact_date: string | null;
+    record_id: string | null;
+  };
 
-  if (error || !contact) {
-    return NextResponse.json(
-      { error: "Contact not found" },
-      { status: 404 }
-    );
+  if (isPersonizeId) {
+    // For Personize-sourced contacts, we don't have a Supabase record.
+    // Build a minimal contact object from the ID and let Personize enrich it.
+    const decodedId = decodeURIComponent(id);
+    contact = {
+      name: "Contact",
+      email: null,
+      company: null,
+      role: null,
+      score: 0,
+      last_contact_date: null,
+      record_id: decodedId,
+    };
+  } else {
+    const { data: dbContact, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !dbContact) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
+    }
+    contact = {
+      ...dbContact,
+      record_id: (dbContact as Record<string, unknown>).record_id as string | null,
+    };
   }
 
   // Calculate days since last contact
@@ -136,16 +166,20 @@ export async function GET(
 
   if (process.env.PERSONIZE_SECRET_KEY) {
     try {
-      const recordId = (contact as Record<string, unknown>).record_id as string | null;
+      const recordId = contact.record_id;
       const [digestResult, recallResult] = await Promise.all([
         recordId
           ? smartDigest(contact.name, { record_id: recordId, token_budget: 3000 })
           : contact.email
             ? smartDigest(contact.name, { email: contact.email, token_budget: 3000 })
             : Promise.resolve(null),
-        smartRecall(contact.name, {
-          ...(contact.email ? { email: contact.email } : {}),
-        }),
+        recordId
+          ? smartRecall(`details for ${recordId}`, {
+              ...(contact.email ? { email: contact.email } : {}),
+            })
+          : smartRecall(contact.name, {
+              ...(contact.email ? { email: contact.email } : {}),
+            }),
       ]);
 
       const digest = digestResult as {
