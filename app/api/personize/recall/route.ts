@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const query = searchParams.get("q");
   const email = searchParams.get("email") ?? undefined;
-  const sessionId = searchParams.get("session_id") ?? undefined;
-  const responseDetail = searchParams.get("response_detail") ?? undefined;
+  const responseDetail = (searchParams.get("response_detail") ?? "summary") as
+    | "ids" | "labels" | "summary" | "context" | "full";
 
   if (!query) {
     return NextResponse.json(
@@ -23,17 +23,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await client.memory.smartRecall({
-      query,
-      message: query,
-      ...(email ? { email } : {}),
-      ...(sessionId ? { session_id: sessionId } : {}),
-      ...(responseDetail ? { response_detail: responseDetail } : {}),
-      fast_mode: true,
-      min_score: 0.3,
-    } as Parameters<typeof client.memory.smartRecall>[0]);
+    const smartRecallUnified = (client as unknown as {
+      smartRecallUnified: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    }).smartRecallUnified;
 
-    return NextResponse.json({ data: response.data });
+    const response = await smartRecallUnified({
+      message: query,
+      ...(email ? { identifiers: { emails: [email] } } : {}),
+      responseDetail,
+    });
+
+    return NextResponse.json({ data: response });
   } catch (error) {
     console.error("[API] /api/personize/recall failed:", error);
     return NextResponse.json(

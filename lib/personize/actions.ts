@@ -24,44 +24,62 @@ interface SmartRecallRecord {
   properties?: Record<string, string>;
   score?: number;
   text?: string;
+  label?: string;
+  summary?: Record<string, unknown>;
+  context?: string;
+  relevanceTier?: "direct" | "partial" | "might";
 }
 
 interface UnifiedSmartRecallResponse {
   success: boolean;
   answer?: string;
-  records?: SmartRecallRecord[];
-  memories?: SmartRecallResult["memories"];
+  records: SmartRecallRecord[];
+  plan?: {
+    classifiedAs: string[];
+    steps: string[];
+    mode: "fast" | "deep";
+    confidence: number;
+  };
+  meta?: {
+    totalMatched: number;
+    returned: number;
+    enrichmentDepth: string;
+    tokensUsed: number;
+  };
   /** @deprecated Mapped from answer for backward compatibility with smartDigest callers. */
   compiledContext?: string;
   properties?: Record<string, string>;
 }
 
-interface SmartRecallIdentifier {
-  type?: string;
-  recordIds?: string[];
-  email?: string;
-  collectionIds?: string[];
-}
-
-/** Unified SmartRecall options (extends SDK's SmartRecallOptions with new fields). */
+/**
+ * Options for the unified smartRecall endpoint (/api/v1/smart-recall-unified).
+ * Uses the SDK's client.smartRecallUnified() method directly.
+ */
 interface UnifiedSmartRecallOptions {
   message: string;
-  identifiers?: SmartRecallIdentifier[];
-  session_id?: string;
-  response_detail?: "full" | "summary";
+  identifiers?: {
+    emails?: string[];
+    websites?: string[];
+    recordIds?: string[];
+    type?: string;
+  };
+  responseDetail?: "ids" | "labels" | "summary" | "context" | "full";
+  tokenBudget?: number;
+  mode?: "fast" | "deep" | "auto";
 }
 
 /**
- * Call the unified smartRecall API. The SDK types haven't been updated yet,
- * so we cast through Record to pass the new fields.
+ * Call the unified smartRecall API via client.smartRecallUnified().
+ * This hits /api/v1/smart-recall-unified which supports identifiers and
+ * responseDetail natively, unlike the old /api/v1/smart-recall endpoint.
  */
 async function callUnifiedSmartRecall(
   options: UnifiedSmartRecallOptions
 ): Promise<UnifiedSmartRecallResponse | null> {
-  const response = await client.memory.smartRecall(
-    options as unknown as Parameters<typeof client.memory.smartRecall>[0]
-  );
-  const data = response.data as unknown as UnifiedSmartRecallResponse | null;
+  const response = await (client as unknown as {
+    smartRecallUnified: (data: UnifiedSmartRecallOptions) => Promise<UnifiedSmartRecallResponse>;
+  }).smartRecallUnified(options);
+  const data = response ?? null;
   if (data) {
     // Ensure records is always an array — the API may return a non-array value
     if (!Array.isArray(data.records)) {
@@ -92,27 +110,22 @@ export async function smartRecall(
   options?: {
     email?: string;
     collectionIds?: string[];
-    identifiers?: SmartRecallIdentifier[];
     session_id?: string;
-    response_detail?: "full" | "summary";
+    responseDetail?: "ids" | "labels" | "summary" | "context" | "full";
   }
 ): Promise<SmartRecallResult | null> {
   try {
-    const { email, collectionIds, identifiers, session_id, response_detail } = options ?? {};
+    const { email, responseDetail } = options ?? {};
 
-    const builtIdentifiers: SmartRecallIdentifier[] = identifiers ?? [];
-    if (email && !identifiers) {
-      builtIdentifiers.push({ email });
-    }
-    if (collectionIds && !identifiers) {
-      builtIdentifiers.push({ collectionIds });
+    const identifiers: UnifiedSmartRecallOptions["identifiers"] = {};
+    if (email) {
+      identifiers.emails = [email];
     }
 
     const data = await callUnifiedSmartRecall({
       message: query,
-      ...(builtIdentifiers.length > 0 ? { identifiers: builtIdentifiers } : {}),
-      ...(session_id ? { session_id } : {}),
-      ...(response_detail ? { response_detail } : {}),
+      ...(Object.keys(identifiers).length > 0 ? { identifiers } : {}),
+      ...(responseDetail ? { responseDetail } : {}),
     });
     return data as SmartRecallResult | null;
   } catch (error) {
@@ -130,18 +143,18 @@ export async function getContactDigest(
   options?: { email?: string; record_id?: string }
 ): Promise<UnifiedSmartRecallResponse | null> {
   try {
-    const identifiers: SmartRecallIdentifier[] = [];
+    const identifiers: UnifiedSmartRecallOptions["identifiers"] = {};
     if (options?.email) {
-      identifiers.push({ email: options.email });
+      identifiers.emails = [options.email];
     }
     if (options?.record_id) {
-      identifiers.push({ recordIds: [options.record_id] });
+      identifiers.recordIds = [options.record_id];
     }
 
     return callUnifiedSmartRecall({
       message: query,
-      ...(identifiers.length > 0 ? { identifiers } : {}),
-      response_detail: "full",
+      ...(Object.keys(identifiers).length > 0 ? { identifiers } : {}),
+      responseDetail: "full",
     });
   } catch (error) {
     console.error("[Personize] getContactDigest failed:", error);
@@ -321,7 +334,8 @@ export async function searchContacts(
     if (query) {
       const data = await callUnifiedSmartRecall({
         message: query,
-        identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
+        identifiers: { type: "Contact" },
+        responseDetail: "summary",
       });
       const records = data?.records ?? [];
       const seen = new Set<string>();
@@ -345,11 +359,12 @@ export async function searchContacts(
       return queryResult;
     }
 
-    // No query — list all contacts via smartRecall
+    // No query — list all contacts via unified smartRecall
     const data = await callUnifiedSmartRecall({
-      message: "list all contacts",
-      identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
-      response_detail: "summary",
+      message: "list all contacts with their properties",
+      identifiers: { type: "Contact" },
+      responseDetail: "labels",
+      tokenBudget: 8000,
     });
     const records = data?.records ?? [];
 
@@ -403,9 +418,9 @@ export async function getContactById(
 
   try {
     const data = await callUnifiedSmartRecall({
-      message: recordId,
-      identifiers: [{ recordIds: [recordId] }],
-      response_detail: "full",
+      message: `full details for contact ${recordId}`,
+      identifiers: { recordIds: [recordId] },
+      responseDetail: "full",
     });
     if (!data) return null;
 
@@ -484,8 +499,8 @@ export async function recallContacts(
   try {
     const data = await callUnifiedSmartRecall({
       message: query,
-      identifiers: [{ type: "contact", collectionIds: [CONTACTS_COLLECTION_ID] }],
-      response_detail: "summary",
+      identifiers: { type: "Contact" },
+      responseDetail: "summary",
     });
     const records = data?.records ?? [];
 

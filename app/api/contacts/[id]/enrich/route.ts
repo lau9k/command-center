@@ -52,7 +52,7 @@ export async function GET(
     const recallQuery = query ?? contactName;
     const result = await smartRecall(recallQuery, {
       ...(contactEmail ? { email: contactEmail } : {}),
-      response_detail: "full",
+      responseDetail: "full",
     });
 
     const rawRecords = result?.records;
