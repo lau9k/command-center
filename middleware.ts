@@ -17,17 +17,22 @@ export async function middleware(request: NextRequest) {
 
   // ── API routes: fast header / cookie checks ──────────────────────────
   if (pathname.startsWith("/api/")) {
-    // Ingest cron/admin endpoints — require API_SECRET via Bearer or x-cron-key
+    // Ingest cron/admin endpoints — accept API_SECRET or CRON_SECRET via Bearer or x-cron-key
     if (
       pathname === "/api/ingest/process" ||
-      pathname === "/api/ingest/replay"
+      pathname === "/api/ingest/replay" ||
+      pathname === "/api/ingest/smoke"
     ) {
-      const secret = process.env.API_SECRET;
-      if (!secret) return NextResponse.next();
+      const apiSecret = process.env.API_SECRET;
+      const cronSecret = process.env.CRON_SECRET;
+      if (!apiSecret && !cronSecret) return NextResponse.next();
       const authHeader = request.headers.get("authorization");
       const bearerToken = authHeader?.replace("Bearer ", "");
       const cronKey = request.headers.get("x-cron-key");
-      if (bearerToken !== secret && cronKey !== secret) {
+      const isValid =
+        (apiSecret && (bearerToken === apiSecret || cronKey === apiSecret)) ||
+        (cronSecret && bearerToken === cronSecret);
+      if (!isValid) {
         return unauthorized("Invalid API secret");
       }
       return NextResponse.next();

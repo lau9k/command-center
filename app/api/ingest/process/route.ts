@@ -3,11 +3,28 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 import { createServiceClient } from "@/lib/supabase/service";
 import { processUnprocessedEvents } from "@/lib/ingest/processor";
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const expected = `Bearer ${process.env.API_SECRET}`;
+/**
+ * Verify the caller is authorized via:
+ * - Bearer API_SECRET (manual trigger / Vercel cron with CRON_SECRET = API_SECRET)
+ * - Bearer CRON_SECRET (Vercel cron automatic header)
+ * - x-cron-key header (legacy support)
+ */
+function isAuthorized(request: NextRequest): boolean {
+  const apiSecret = process.env.API_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!apiSecret && !cronSecret) return false;
 
-  if (!authHeader || authHeader !== expected) {
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.replace("Bearer ", "");
+  const cronKey = request.headers.get("x-cron-key");
+
+  if (apiSecret && (bearerToken === apiSecret || cronKey === apiSecret)) return true;
+  if (cronSecret && bearerToken === cronSecret) return true;
+  return false;
+}
+
+async function handleProcess(request: NextRequest) {
+  if (!isAuthorized(request)) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401 }
@@ -30,4 +47,9 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const result = await processUnprocessedEvents();
 
   return NextResponse.json({ success: true, ...result }, { status: 200 });
-});
+}
+
+// Vercel cron sends GET requests
+export const GET = withErrorHandler(handleProcess);
+// Manual triggers use POST
+export const POST = withErrorHandler(handleProcess);
