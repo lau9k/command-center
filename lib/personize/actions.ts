@@ -76,29 +76,33 @@ interface UnifiedSmartRecallOptions {
 async function callUnifiedSmartRecall(
   options: UnifiedSmartRecallOptions
 ): Promise<UnifiedSmartRecallResponse | null> {
-  console.warn("[Personize:diag] callUnifiedSmartRecall input:", JSON.stringify(options));
-  console.warn("[Personize:diag] smartRecallUnified method exists:", typeof (client as unknown as Record<string, unknown>).smartRecallUnified);
-
   try {
-    const response = await (client as unknown as {
-      smartRecallUnified: (data: UnifiedSmartRecallOptions) => Promise<UnifiedSmartRecallResponse>;
+    // The SDK's smartRecallUnified returns the raw HTTP body as-is.
+    // Unlike other SDK methods (memory.smartRecall, memory.recall, etc.)
+    // which unwrap the { success, data: {...} } envelope, smartRecallUnified
+    // does NOT unwrap — so we must do it ourselves.
+    const rawResponse = await (client as unknown as {
+      smartRecallUnified: (data: UnifiedSmartRecallOptions) => Promise<Record<string, unknown>>;
     }).smartRecallUnified(options);
 
-    console.warn("[Personize:diag] raw response type:", typeof response);
-    console.warn("[Personize:diag] raw response keys:", response ? Object.keys(response) : "null");
-    console.warn("[Personize:diag] raw response preview:", JSON.stringify(response).slice(0, 500));
+    if (!rawResponse) return null;
 
-    const data = response ?? null;
-    if (data) {
-      console.warn("[Personize:diag] records type:", typeof data.records, "isArray:", Array.isArray(data.records), "length:", Array.isArray(data.records) ? data.records.length : "N/A");
-      if (!Array.isArray(data.records)) {
-        data.records = [];
-      }
+    // Unwrap API envelope: if response has .data with .records, use .data
+    // Otherwise use the response directly (in case SDK is fixed in a future version)
+    const unwrapped = (
+      rawResponse.data &&
+      typeof rawResponse.data === "object" &&
+      "records" in (rawResponse.data as Record<string, unknown>)
+    )
+      ? (rawResponse.data as UnifiedSmartRecallResponse)
+      : (rawResponse as unknown as UnifiedSmartRecallResponse);
+
+    if (!Array.isArray(unwrapped.records)) {
+      unwrapped.records = [];
     }
-    return data;
+    return unwrapped;
   } catch (error) {
-    console.error("[Personize:diag] smartRecallUnified THREW:", error instanceof Error ? error.message : String(error));
-    console.error("[Personize:diag] error stack:", error instanceof Error ? error.stack : "no stack");
+    console.error("[Personize] callUnifiedSmartRecall failed:", error);
     throw error;
   }
 }
