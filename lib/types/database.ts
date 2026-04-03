@@ -135,6 +135,8 @@ export interface Contact {
   checked_in_at?: string | null;
   personize_sync_status?: PersonizeSyncStatus;
   personize_synced_at?: string | null;
+  memorized_at: string | null;
+  personize_record_id: string | null;
   created_at: string;
   updated_at: string;
   // Personize-specific fields (present when sourced from Personize SDK)
