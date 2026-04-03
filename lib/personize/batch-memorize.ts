@@ -40,9 +40,13 @@ export interface BatchMemorizeResult {
 const BATCH_SIZE = 50;
 const RATE_LIMIT_MS = 500;
 
-const CONTACTS_COLLECTION_ID =
-  process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-  "5686312a-7ab7-4cef-897c-576bfeb92aec";
+function getContactsCollectionId(): string {
+  const id = process.env.PERSONIZE_CONTACTS_COLLECTION_ID;
+  if (!id) {
+    throw new Error("PERSONIZE_CONTACTS_COLLECTION_ID environment variable is required");
+  }
+  return id;
+}
 
 const COLLECTION_NAME = "Contacts";
 
@@ -79,7 +83,7 @@ function contactToRow(contact: BatchContact): Record<string, unknown> {
 function buildMapping() {
   const prop = (sourceField: string, extractMemories = false) => ({
     sourceField,
-    collectionId: CONTACTS_COLLECTION_ID,
+    collectionId: getContactsCollectionId(),
     collectionName: COLLECTION_NAME,
     extractMemories,
   });
