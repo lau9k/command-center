@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
 import { scoreTask } from "@/lib/task-scoring";
-import type { Task, IngestEvent, IngestEventStatus } from "@/lib/types/database";
+import type { Task, IngestEvent } from "@/lib/types/database";
 
 type EntityType = "contact" | "conversation" | "task" | "transaction";
 
@@ -212,33 +212,21 @@ const ENTITY_PROCESSORS: Record<
   transaction: processTransactionPayload,
 };
 
-// ── Backoff schedule (attempt → seconds) ─────────────────
-const BACKOFF_SECONDS = [30, 120, 600, 1800, 3600] as const;
-
-function computeNextRetryAt(attempt: number): string {
-  const delaySec = BACKOFF_SECONDS[Math.min(attempt, BACKOFF_SECONDS.length - 1)];
-  return new Date(Date.now() + delaySec * 1000).toISOString();
-}
-
-const MAX_ATTEMPTS = 5;
+const WORKER_ID = "vercel-cron";
 
 async function markClaimedEventProcessed(
   supabase: ReturnType<typeof createServiceClient>,
   eventId: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from("ingest_events")
-    .update({
-      status: "processed" as IngestEventStatus,
-      claimed_at: null,
-      lease_expires_at: null,
-      processed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", eventId);
+  const { data: updated, error } = await supabase.rpc("complete_ingest_event", {
+    p_event_id: eventId,
+    p_worker_id: WORKER_ID,
+  });
 
   if (error) {
     console.error("[processor] Failed to mark event processed:", error.message);
+  } else if (!updated) {
+    console.warn(`[processor] Ownership lost for event ${eventId} — skipping completion`);
   }
 }
 
@@ -248,23 +236,17 @@ async function markClaimedEventFailed(
   attempt: number,
   errorMessage: string
 ): Promise<void> {
-  const isDead = attempt >= MAX_ATTEMPTS;
-  const { error } = await supabase
-    .from("ingest_events")
-    .update({
-      status: (isDead ? "dead_letter" : "retryable") as IngestEventStatus,
-      last_failed_at: new Date().toISOString(),
-      last_error_code: errorMessage.slice(0, 255),
-      next_retry_at: isDead ? null : computeNextRetryAt(attempt),
-      claimed_at: null,
-      lease_expires_at: null,
-      attempt_count: attempt + 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", eventId);
+  const { data: updated, error } = await supabase.rpc("fail_ingest_event", {
+    p_event_id: eventId,
+    p_worker_id: WORKER_ID,
+    p_attempt_count: attempt + 1,
+    p_error_message: errorMessage,
+  });
 
   if (error) {
     console.error("[processor] Failed to mark event failed:", error.message);
+  } else if (!updated) {
+    console.warn(`[processor] Ownership lost for event ${eventId} — skipping failure mark`);
   }
 }
 
@@ -274,7 +256,7 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
   // Claim a batch of events via RPC
   const { data: events, error } = await supabase.rpc("claim_ingest_events", {
     p_limit: 25,
-    p_worker_id: "vercel-cron",
+    p_worker_id: WORKER_ID,
   });
 
   if (error) throw new Error(`Failed to claim events: ${error.message}`);
