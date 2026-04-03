@@ -25,28 +25,40 @@ export async function GET(
   }
 
   const { id } = await params;
+  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
-  // Look up contact email from Supabase
-  const supabase = createServiceClient();
-  const { data: contact, error } = await supabase
-    .from("contacts")
-    .select("email, name")
-    .eq("id", id)
-    .single();
+  let contactName = "contact";
+  let contactEmail: string | null = null;
 
-  if (error || !contact) {
-    return NextResponse.json(
-      { error: "Contact not found" },
-      { status: 404 }
-    );
+  if (isPersonizeId) {
+    // For Personize-sourced contacts, use the record ID directly for recall
+    const decodedId = decodeURIComponent(id);
+    contactName = decodedId;
+  } else {
+    // Look up contact email from Supabase
+    const supabase = createServiceClient();
+    const { data: contact, error } = await supabase
+      .from("contacts")
+      .select("email, name")
+      .eq("id", id)
+      .single();
+
+    if (error || !contact) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
+    }
+    contactName = contact.name;
+    contactEmail = contact.email;
   }
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("q") || contact.name;
+  const query = searchParams.get("q") || contactName;
 
   try {
     const result = await smartRecall(query, {
-      ...(contact.email ? { email: contact.email } : {}),
+      ...(contactEmail ? { email: contactEmail } : {}),
     });
 
     const rawRecords = result?.records;
