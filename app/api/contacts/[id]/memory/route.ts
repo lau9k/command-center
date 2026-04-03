@@ -20,8 +20,7 @@ export async function GET(
   let contactEmail: string | null = null;
 
   if (isPersonizeId) {
-    const decodedId = decodeURIComponent(id);
-    contactName = decodedId;
+    contactName = "contact details";
   } else {
     const supabase = createServiceClient();
     const { data: contact, error } = await supabase
