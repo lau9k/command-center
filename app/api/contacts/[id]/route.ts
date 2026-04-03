@@ -52,6 +52,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  if (id.startsWith("REC#") || id.length > 36) {
+    return NextResponse.json(
+      { error: "Personize contacts are read-only. Use Personize SDK to update memory." },
+      { status: 400 }
+    );
+  }
+
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -70,6 +78,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  if (id.startsWith("REC#") || id.length > 36) {
+    return NextResponse.json(
+      { error: "Personize contacts are read-only. Use Personize SDK to update memory." },
+      { status: 400 }
+    );
+  }
+
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -98,6 +114,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  if (id.startsWith("REC#") || id.length > 36) {
+    return NextResponse.json(
+      { error: "Personize contacts are read-only. Use Personize SDK to delete memory." },
+      { status: 400 }
+    );
+  }
+
   const supabase = createServiceClient();
 
   await deleteContact(supabase, id);
