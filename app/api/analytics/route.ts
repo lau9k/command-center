@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 type PeriodDays = 7 | 30 | 90;
 
@@ -50,7 +51,7 @@ function parseDealValue(metadata: Record<string, unknown> | null): number {
   return 0;
 }
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const periodParam = searchParams.get("period") || "30d";
@@ -360,4 +361,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     // KPI summary
     kpi,
   });
-});
+}));

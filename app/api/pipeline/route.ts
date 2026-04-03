@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { syncDealToPersonize } from "@/lib/personize/sync";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
   const pipelineId = searchParams.get("pipeline_id");
@@ -49,9 +50,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     stages: stagesResult.data ?? [],
     items: itemsResult.data ?? [],
   });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -74,7 +75,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(data, { status: 201 });
-});
+}));
 
 export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
   const supabase = createServiceClient();
