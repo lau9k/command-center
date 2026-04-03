@@ -372,6 +372,15 @@ function setCache(key: string, data: unknown): void {
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
+/** Extract the local part of an email, replace separators with spaces, and title-case each word. */
+function cleanEmailName(email: string): string {
+  const local = email.split("@")[0];
+  return local
+    .replace(/[._-]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 /** Map a SmartRecall record to our PersonizeContact shape. */
 function mapRecordToContact(
   record: {
@@ -390,7 +399,7 @@ function mapRecordToContact(
   return {
     id: recordId,
     record_id: recordId,
-    name: record.displayName ?? props.full_name ?? props.name ?? "Unknown",
+    name: record.displayName ?? props.full_name ?? props.name ?? ((record.email ?? props.email) ? cleanEmailName((record.email ?? props.email)!) : "Unknown Contact"),
     email: record.email ?? props.email ?? null,
     phone: props.phone ?? null,
     company: props.company_name ?? props.company ?? null,
