@@ -19,7 +19,7 @@ BEGIN
     WHERE status IN ('received', 'retryable')
       AND (next_retry_at IS NULL OR next_retry_at <= now())
       AND (p_sources IS NULL OR source = ANY(p_sources))
-    ORDER BY created_at ASC
+    ORDER BY received_at ASC
     FOR UPDATE SKIP LOCKED
     LIMIT p_limit
   )
@@ -29,7 +29,7 @@ BEGIN
     claimed_at       = now(),
     claimed_by       = p_worker_id,
     lease_expires_at = now() + interval '2 minutes',
-    attempt          = attempt + 1,
+    attempt_count          = attempt_count + 1,
     updated_at       = now()
   FROM claimable c
   WHERE e.id = c.id
@@ -49,12 +49,12 @@ BEGIN
   WITH expired AS (
     UPDATE ingest_events
     SET
-      status           = CASE WHEN attempt >= 5 THEN 'dead_letter' ELSE 'retryable' END,
+      status           = CASE WHEN attempt_count >= 5 THEN 'dead_letter' ELSE 'retryable' END,
       claimed_at       = NULL,
       claimed_by       = NULL,
       lease_expires_at = NULL,
-      next_retry_at    = CASE WHEN attempt >= 5 THEN NULL
-                              ELSE now() + (interval '1 minute' * power(4, attempt - 1))
+      next_retry_at    = CASE WHEN attempt_count >= 5 THEN NULL
+                              ELSE now() + (interval '1 minute' * power(4, attempt_count - 1))
                          END,
       last_failed_at   = now(),
       last_error_code  = COALESCE(last_error_code, 'lease_expired'),
