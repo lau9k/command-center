@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 import type { SmartRecallRecord } from "@/lib/personize/types";
 
 function scoreTier(score: number): "direct" | "partial" | "might" {
@@ -25,32 +26,36 @@ export async function GET(
   }
 
   const { id } = await params;
-  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
-  let contactName = "contact";
-  let contactEmail: string | null = null;
-
-  if (isPersonizeId) {
-    // For Personize-sourced contacts, use a meaningful query
-    contactName = "contact details";
-  } else {
-    // Look up contact email from Supabase
-    const supabase = createServiceClient();
-    const { data: contact, error } = await supabase
-      .from("contacts")
-      .select("email, name")
-      .eq("id", id)
-      .single();
-
-    if (error || !contact) {
-      return NextResponse.json(
-        { error: "Contact not found" },
-        { status: 404 }
-      );
-    }
-    contactName = contact.name;
-    contactEmail = contact.email;
+  if (isPersonizeId(id)) {
+    return NextResponse.json({
+      data: {
+        summary: null,
+        painPoints: [],
+        interests: [],
+        recentInteractions: [],
+        totalRecords: 0,
+        query: null,
+      },
+    });
   }
+
+  // Look up contact email from Supabase
+  const supabase = createServiceClient();
+  const { data: contact, error } = await supabase
+    .from("contacts")
+    .select("email, name")
+    .eq("id", id)
+    .single();
+
+  if (error || !contact) {
+    return NextResponse.json(
+      { error: "Contact not found" },
+      { status: 404 }
+    );
+  }
+  const contactName = contact.name;
+  const contactEmail: string | null = contact.email;
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q") || contactName;

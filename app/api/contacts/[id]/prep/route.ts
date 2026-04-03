@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 import { z } from "zod";
 import type {
   DossierResponse,
@@ -28,10 +29,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
   // For Personize-sourced contacts, return empty prep data (no Supabase relations)
-  if (isPersonizeId) {
+  if (isPersonizeId(id)) {
     const decodedId = decodeURIComponent(id);
     const emptyResponse: PrepResponse = {
       contact: {

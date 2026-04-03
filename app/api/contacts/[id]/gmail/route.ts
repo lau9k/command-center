@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import client from "@/lib/personize/client";
 import { createServiceClient } from "@/lib/supabase/service";
+import { isPersonizeId } from "@/lib/personize/id-guard";
 
 export interface GmailContextResponse {
   gmail_threads: number;
@@ -24,11 +25,10 @@ export async function GET(
   }
 
   const { id } = await params;
-  const isPersonizeId = id.startsWith("REC#") || id.startsWith("REC%23");
 
   let contactEmail: string | null = null;
 
-  if (isPersonizeId) {
+  if (isPersonizeId(id)) {
     // For Personize-sourced contacts, we don't have a guaranteed email.
     // Return empty gmail context rather than 404.
     return NextResponse.json({
