@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Mail,
   Building2,
@@ -19,8 +20,25 @@ import {
   Star,
   Pencil,
   Trash2,
+  Briefcase,
+  Linkedin,
+  Brain,
+  ExternalLink,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { PersonizeMemories } from "@/components/dashboard/PersonizeMemories";
+
+interface EnrichmentResponse {
+  data: {
+    recall: {
+      query: string | null;
+      records: Array<Record<string, unknown>>;
+      answer: string | null;
+    };
+    properties: Record<string, string>;
+  };
+}
 
 interface ContactDetailDrawerProps {
   contact: Contact | null;
@@ -44,7 +62,29 @@ export function ContactDetailDrawer({
   onEdit,
   onDelete,
 }: ContactDetailDrawerProps) {
+  const router = useRouter();
+
+  const { data: enrichment, isLoading: enrichmentLoading } =
+    useQuery<EnrichmentResponse>({
+      queryKey: ["contact-enrich", contact?.id],
+      queryFn: async () => {
+        const res = await fetch(
+          `/api/contacts/${encodeURIComponent(contact!.id)}/enrich`
+        );
+        if (!res.ok) throw new Error("Enrichment failed");
+        return res.json();
+      },
+      enabled: !!contact && open,
+      staleTime: 60000,
+    });
+
   if (!contact) return null;
+
+  const properties = enrichment?.data?.properties;
+  const records = enrichment?.data?.recall?.records;
+  const memoryCount = records?.length ?? 0;
+  const jobTitle = properties?.job_title;
+  const linkedinUrl = properties?.linkedin_url;
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -100,6 +140,44 @@ export function ContactDetailDrawer({
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span>{contact.company ?? "No company"}</span>
               </div>
+              {enrichmentLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-[60%]" />
+                  <Skeleton className="h-4 w-[60%]" />
+                  <Skeleton className="h-4 w-[60%]" />
+                </div>
+              ) : (
+                <>
+                  {jobTitle && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                      <span>{jobTitle}</span>
+                    </div>
+                  )}
+                  {linkedinUrl && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Linkedin className="h-4 w-4 text-muted-foreground" />
+                      <a
+                        href={linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        LinkedIn Profile
+                        <ExternalLink className="ml-1 inline h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
+                  {memoryCount > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Brain className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {memoryCount} {memoryCount === 1 ? "memory" : "memories"}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span>
@@ -147,6 +225,16 @@ export function ContactDetailDrawer({
             contactEmail={contact.email}
             open={open}
           />
+
+          {/* View Full Profile */}
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => router.push(`/contacts/${contact.id}`)}
+          >
+            <ExternalLink className="h-4 w-4" />
+            View Full Profile
+          </Button>
 
           {/* Activity Timeline */}
           <Card>
