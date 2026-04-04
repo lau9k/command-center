@@ -21,7 +21,6 @@ const CONTACT_COLUMNS = [
   "phone",
   "company",
   "role",
-  "notes",
   "source",
   "qualified_status",
   "slack_user_id",
