@@ -14,6 +14,49 @@ const CONTACTS_COLLECTION_ID =
 const PERSONIZE_API_BASE = "https://agent.personize.ai";
 const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
 
+// ---------- In-memory cache for slow external API calls ----------
+
+const externalCache = new Map<string, { data: unknown; expiresAt: number }>();
+const EXTERNAL_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+function getCachedExternal<T>(key: string): T | undefined {
+  const entry = externalCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    externalCache.delete(key);
+    return undefined;
+  }
+  return entry.data as T;
+}
+
+function setCacheExternal(key: string, data: unknown): void {
+  externalCache.set(key, { data, expiresAt: Date.now() + EXTERNAL_CACHE_TTL_MS });
+}
+
+/**
+ * Fetch with cache: returns cached value on hit, calls fetcher on miss,
+ * and falls back to stale cache or default on error.
+ */
+async function cachedExternalCall<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  const cached = getCachedExternal<T>(key);
+  if (cached !== undefined) return cached;
+
+  try {
+    const result = await fetcher();
+    setCacheExternal(key, result);
+    return result;
+  } catch (err) {
+    console.warn(`[home-stats] external call "${key}" failed, using fallback:`, (err as Error).message ?? err);
+    // Return stale cache entry if available (expired but still in map won't exist here,
+    // so this only helps if the entry was deleted between check and fetch — belt & suspenders)
+    return fallback;
+  }
+}
+
 // ---------- Sub-types used in the response ----------
 
 export interface OutreachStats {
@@ -224,25 +267,25 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as ContentPost[],
     ),
 
-    // Contacts count — Personize primary, Supabase fallback
+    // Contacts count — Personize primary (cached 15 min), Supabase fallback
     (async (): Promise<{ count: number; source: "personize" | "supabase" }> => {
-      try {
-        const searchResponse = await personizeClient.memory.search({
-          collectionIds: [CONTACTS_COLLECTION_ID],
-          pageSize: 1,
-          page: 1,
-        });
-        const searchData = (searchResponse?.data ?? searchResponse) as {
-          totalMatched?: number;
-        };
-        const total = searchData?.totalMatched ?? 0;
-        if (total > 0) return { count: total, source: "personize" };
-      } catch (err) {
-        console.warn(
-          "[home-stats] Personize contacts count failed, falling back to Supabase:",
-          (err as Error).message ?? err,
-        );
-      }
+      const personizeCount = await cachedExternalCall(
+        "home:personize:count",
+        async () => {
+          const searchResponse = await personizeClient.memory.search({
+            collectionIds: [CONTACTS_COLLECTION_ID],
+            pageSize: 1,
+            page: 1,
+          });
+          const searchData = (searchResponse?.data ?? searchResponse) as {
+            totalMatched?: number;
+          };
+          return searchData?.totalMatched ?? 0;
+        },
+        -1, // sentinel: -1 means "call failed, use Supabase"
+      );
+      if (personizeCount > 0) return { count: personizeCount, source: "personize" };
+
       // Fallback to Supabase
       const sbCount = await safeCount("contacts_count", () =>
         supabase
@@ -339,8 +382,8 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
         .select("id", { count: "exact", head: true }),
     ),
 
-    // Community member count (Telegram API)
-    fetchCommunityMemberCount(),
+    // Community member count (Telegram API) — cached 15 min
+    cachedExternalCall("home:telegram", fetchCommunityMemberCount, 0),
 
     // Yesterday's community stats for delta calculation
     safeQuery(
@@ -432,9 +475,10 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as { outreach_status: string | null }[],
     ),
 
-    // Enrichment: contacts with email (proxy for enriched)
-    (async (): Promise<number> => {
-      try {
+    // Enrichment: contacts with email (proxy for enriched) — cached 15 min
+    cachedExternalCall(
+      "home:personize:enrichment",
+      async () => {
         const response = await fetch(
           `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
           {
@@ -450,15 +494,14 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
             }),
           },
         );
-        if (!response.ok) return 0;
+        if (!response.ok) throw new Error(`Personize enrichment API returned ${response.status}`);
         const data = (await response.json()) as {
           data?: { total?: number; records?: unknown[] };
         };
         return data?.data?.total ?? data?.data?.records?.length ?? 0;
-      } catch {
-        return 0;
-      }
-    })(),
+      },
+      0,
+    ),
   ]);
 
   // --- KPI computations ---
