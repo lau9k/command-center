@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
@@ -13,9 +13,12 @@ import {
   Filter,
   RefreshCw,
   Loader2,
+  Search,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SharedEmptyState } from "@/components/shared/EmptyState";
 import { ActionItemRow } from "@/components/meetings/ActionItemRow";
 import type { Meeting, MeetingAction, MeetingActionItem, MeetingAttendee } from "@/lib/types/database";
@@ -53,7 +56,15 @@ function formatDateShort(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
+function MeetingRow({
+  meeting,
+  selected,
+  onToggleSelect,
+}: {
+  meeting: MeetingWithActions;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[meeting.status];
   const StatusIcon = config.icon;
@@ -64,8 +75,18 @@ function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
 
   return (
     <div className="rounded-lg border border-border bg-card transition-all duration-150">
+      <div className="flex items-center gap-3 p-4">
+        <div
+          className="shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect(meeting.id)}
+          />
+        </div>
       <button
-        className="flex w-full items-center gap-3 p-4 text-left"
+        className="flex flex-1 items-center gap-3 text-left"
         onClick={() => setExpanded(!expanded)}
       >
         {expanded ? (
@@ -109,6 +130,7 @@ function MeetingRow({ meeting }: { meeting: MeetingWithActions }) {
           </div>
         </div>
       </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-border px-4 pb-4 pt-3 space-y-4">
@@ -235,6 +257,9 @@ export function MeetingsClient() {
   });
 
   const [statusFilter, setStatusFilter] = useState<"all" | "pending_review" | "reviewed" | "dismissed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; actions_created: number } | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -282,20 +307,76 @@ export function MeetingsClient() {
     }
   }, [refreshMeetings]);
 
-  // Apply filters
-  const filtered = meetings.filter((m) => {
-    // Status filter
-    if (statusFilter !== "all" && m.status !== statusFilter) return false;
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-    // Date range filter
-    if (m.meeting_date) {
-      const meetingDate = m.meeting_date.split("T")[0];
-      if (dateFrom && meetingDate < dateFrom) return false;
-      if (dateTo && meetingDate > dateTo) return false;
+  const handleBulkMarkReviewed = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setBulkUpdating(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch("/api/meetings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, status: "reviewed" }),
+          })
+        )
+      );
+      const successCount = results.filter((r) => r.status === "fulfilled" && (r.value as Response).ok).length;
+      toast.success(`Marked ${successCount} meeting${successCount !== 1 ? "s" : ""} as reviewed`);
+      setSelectedIds(new Set());
+      await refreshMeetings();
+    } catch {
+      toast.error("Failed to update meetings");
+    } finally {
+      setBulkUpdating(false);
     }
+  }, [selectedIds, refreshMeetings]);
 
-    return true;
-  });
+  // Apply filters
+  const filtered = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return meetings.filter((m) => {
+      // Status filter
+      if (statusFilter !== "all" && m.status !== statusFilter) return false;
+
+      // Date range filter
+      if (m.meeting_date) {
+        const meetingDate = m.meeting_date.split("T")[0];
+        if (dateFrom && meetingDate < dateFrom) return false;
+        if (dateTo && meetingDate > dateTo) return false;
+      }
+
+      // Search filter
+      if (query) {
+        const titleMatch = m.title.toLowerCase().includes(query);
+        const attendees = (m.attendees ?? []) as MeetingAttendee[];
+        const attendeeMatch = attendees.some((a) => a.name.toLowerCase().includes(query));
+        if (!titleMatch && !attendeeMatch) return false;
+      }
+
+      return true;
+    });
+  }, [meetings, statusFilter, dateFrom, dateTo, searchQuery]);
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
+
+  const toggleSelectAll = useCallback(() => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((m) => m.id)));
+    }
+  }, [allFilteredSelected, filtered]);
 
   return (
     <div className="space-y-4">
@@ -323,6 +404,26 @@ export function MeetingsClient() {
         )}
         {syncError && (
           <span className="text-xs text-destructive">{syncError}</span>
+        )}
+      </div>
+
+      {/* Search input */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search by title or attendee..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
         )}
       </div>
 
@@ -363,6 +464,28 @@ export function MeetingsClient() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-2">
+          <span className="text-sm text-foreground">
+            {selectedIds.size} meeting{selectedIds.size !== 1 ? "s" : ""} selected
+          </span>
+          <Button
+            size="sm"
+            className="h-7 gap-1.5 text-xs"
+            onClick={handleBulkMarkReviewed}
+            disabled={bulkUpdating}
+          >
+            {bulkUpdating ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <CheckCircle2 className="size-3" />
+            )}
+            Mark as Reviewed
+          </Button>
+        </div>
+      )}
+
       {/* Meeting list */}
       {syncing ? (
         <MeetingSkeleton />
@@ -382,8 +505,20 @@ export function MeetingsClient() {
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="flex items-center gap-2 px-4 py-1">
+            <Checkbox
+              checked={allFilteredSelected}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-xs text-muted-foreground">Select all</span>
+          </div>
           {filtered.map((meeting) => (
-            <MeetingRow key={meeting.id} meeting={meeting} />
+            <MeetingRow
+              key={meeting.id}
+              meeting={meeting}
+              selected={selectedIds.has(meeting.id)}
+              onToggleSelect={toggleSelect}
+            />
           ))}
         </div>
       )}
