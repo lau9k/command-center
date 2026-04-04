@@ -40,6 +40,7 @@ const CHANNEL_TABS = [
   { value: "email", label: "Email" },
   { value: "slack", label: "Slack" },
   { value: "telegram", label: "Telegram" },
+  { value: "linkedin", label: "LinkedIn" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -141,7 +142,7 @@ export function ConversationList() {
 
     if (channelFilter && channelFilter !== "all") {
       if (channelFilter === "other") {
-        const primaryChannels = new Set(["email", "slack", "telegram"]);
+        const primaryChannels = new Set(["email", "slack", "telegram", "linkedin"]);
         result = result.filter((c) => !primaryChannels.has(c.channel ?? "other"));
       } else {
         result = result.filter((c) => c.channel === channelFilter);
