@@ -15,6 +15,27 @@ interface ProcessResult {
 
 // ── Individual event processor ──────────────────────────
 
+const CONTACT_COLUMNS = [
+  "name",
+  "email",
+  "phone",
+  "company",
+  "role",
+  "notes",
+  "source",
+  "qualified_status",
+  "slack_user_id",
+  "telegram_id",
+  "linkedin_url",
+  "last_contact_date",
+  "next_action",
+  "metadata",
+  "tags",
+  "score",
+  "project_id",
+  "user_id",
+] as const;
+
 async function processContactPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
@@ -29,15 +50,21 @@ async function processContactPayload(
   const DEFAULT_USER_ID =
     process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
 
-  const enriched = items.map((item) => ({
-    ...item,
-    project_id: (item.project_id as string) || DEFAULT_PROJECT_ID,
-    user_id: (item.user_id as string) || DEFAULT_USER_ID,
-  }));
+  const rows = items.map((item) => {
+    const picked: Record<string, unknown> = {};
+    for (const col of CONTACT_COLUMNS) {
+      if ((item as Record<string, unknown>)[col] !== undefined) {
+        picked[col] = (item as Record<string, unknown>)[col];
+      }
+    }
+    picked.project_id = (item.project_id as string) || DEFAULT_PROJECT_ID;
+    picked.user_id = (item.user_id as string) || DEFAULT_USER_ID;
+    return picked;
+  });
 
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(enriched, { onConflict: "email" })
+    .upsert(rows, { onConflict: "email" })
     .select();
 
   if (error) {
