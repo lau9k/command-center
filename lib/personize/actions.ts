@@ -522,6 +522,20 @@ export async function searchContacts(
         queryContacts.push(mapRecordToContact(rec, queryContacts.length));
       }
 
+      // Enrich with actual properties (same pattern as listing branch)
+      const propertyLookup = await getPropertyLookup();
+      for (const contact of queryContacts) {
+        const props = propertyLookup.get(contact.record_id ?? contact.id);
+        if (props) {
+          if (props.full_name) contact.name = props.full_name;
+          if (props.job_title) {
+            contact.job_title = props.job_title;
+            contact.role = props.job_title;
+          }
+          if (props.company_name) contact.company = props.company_name;
+        }
+      }
+
       const queryResult: ContactSearchResult = {
         contacts: queryContacts,
         total: queryContacts.length,
@@ -743,6 +757,20 @@ export async function recallContacts(
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
+      }
+    }
+
+    // Enrich with actual properties from property lookup
+    const propertyLookup = await getPropertyLookup();
+    for (const contact of contacts) {
+      const props = propertyLookup.get(contact.record_id ?? contact.id);
+      if (props) {
+        if (props.full_name) contact.name = props.full_name;
+        if (props.job_title) {
+          contact.job_title = props.job_title;
+          contact.role = props.job_title;
+        }
+        if (props.company_name) contact.company = props.company_name;
       }
     }
 
