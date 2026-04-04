@@ -15,15 +15,46 @@ interface ProcessResult {
 
 // ── Individual event processor ──────────────────────────
 
+const CONTACT_COLUMNS = [
+  "name",
+  "email",
+  "phone",
+  "company",
+  "role",
+  "notes",
+  "source",
+  "qualified_status",
+  "slack_user_id",
+  "telegram_id",
+  "linkedin_url",
+  "last_contact_date",
+  "next_action",
+  "metadata",
+  "tags",
+  "score",
+  "project_id",
+  "user_id",
+] as const;
+
 async function processContactPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  const rows = items.map((item) => {
+    const picked: Record<string, unknown> = {};
+    for (const col of CONTACT_COLUMNS) {
+      if ((item as Record<string, unknown>)[col] !== undefined) {
+        picked[col] = (item as Record<string, unknown>)[col];
+      }
+    }
+    return picked;
+  });
+
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(items, { onConflict: "email" })
+    .upsert(rows, { onConflict: "email" })
     .select();
 
   if (error) {
