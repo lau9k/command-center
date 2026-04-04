@@ -90,13 +90,6 @@ export function ContactsClient() {
     staleTime: 30_000,
   });
 
-  // Set pagination from initial query response
-  useEffect(() => {
-    if (contactsData?.pagination && !pagination && !isSemanticSearch) {
-      setPagination(contactsData.pagination);
-    }
-  }, [contactsData?.pagination, pagination, isSemanticSearch]);
-
   const { data: kpis } = useQuery<ContactsKpis>({
     queryKey: ["contacts", "kpis"],
     queryFn: async () => {
@@ -166,6 +159,13 @@ export function ContactsClient() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scoreSortDirection, setScoreSortDirection] = useState<"asc" | "desc" | null>(null);
   const [isEnriching, setIsEnriching] = useState(false);
+
+  // Set pagination from initial query response
+  useEffect(() => {
+    if (contactsData?.pagination && !pagination && !isSemanticSearch) {
+      setPagination(contactsData.pagination);
+    }
+  }, [contactsData?.pagination, pagination, isSemanticSearch]);
 
 
   // Form drawer state
