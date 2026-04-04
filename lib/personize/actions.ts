@@ -334,9 +334,9 @@ async function getPropertyLookup(): Promise<Map<string, PropertyLookupEntry>> {
   if (cached) return cached;
 
   const [names, titles, companies] = await Promise.all([
-    fetchPropertyValues("full_name", 200),
-    fetchPropertyValues("job_title", 200),
-    fetchPropertyValues("company_name", 200),
+    fetchPropertyValues("full_name", 1000),
+    fetchPropertyValues("job_title", 500),
+    fetchPropertyValues("company_name", 500),
   ]);
 
   const lookup = new Map<string, PropertyLookupEntry>();
@@ -435,13 +435,24 @@ function mapCrmKeyToContact(
 ): PersonizeContact {
   const email = crmKey.email ?? null;
   // Derive a display name from the email prefix (e.g. "john.doe@acme.com" → "John Doe")
-  let name = "Unknown";
+  // Always attempt email-derived name — "Unknown" only as absolute last resort
+  let name = "";
   if (email && !email.includes("unknown@") && !email.includes("placeholder.personize")) {
-    const prefix = email.split("@")[0];
-    name = prefix
-      .replace(/[._-]/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim();
+    name = cleanEmailName(email);
+  }
+  if (!name) name = "Unnamed Contact";
+
+  // Derive company from email domain (strip common providers)
+  let company: string | null = null;
+  if (email) {
+    const domain = email.split("@")[1]?.toLowerCase();
+    const genericDomains = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "protonmail.com", "live.com", "aol.com"]);
+    if (domain && !genericDomains.has(domain)) {
+      company = domain.split(".")[0]
+        .replace(/[_-]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+    }
   }
 
   return {
@@ -450,7 +461,7 @@ function mapCrmKeyToContact(
     name,
     email,
     phone: null,
-    company: email ? email.split("@")[1] ?? null : null,
+    company,
     role: null,
     job_title: null,
     has_conversation: false,

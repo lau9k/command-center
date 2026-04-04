@@ -73,20 +73,29 @@ type ContactWithScore = Contact & {
 export function ContactsClient() {
   const queryClient = useQueryClient();
 
-  const { data: contactsData } = useQuery<ContactsListData>({
+  const { data: contactsData } = useQuery<ContactsListData & { pagination?: Pagination }>({
     queryKey: ["contacts", "list"],
     queryFn: async () => {
       const res = await fetch("/api/contacts?page=1&pageSize=50");
       if (!res.ok) throw new Error("Failed to fetch contacts");
       const json = await res.json();
+      const pag = json.pagination as { page: number; pageSize: number; total: number; hasMore: boolean } | undefined;
       return {
         contacts: (json.data as Contact[]) ?? [],
-        total: json.pagination?.total ?? json.data?.length ?? 0,
+        total: pag?.total ?? json.data?.length ?? 0,
         personizeAvailable: false,
+        pagination: pag ? { page: pag.page, pageSize: pag.pageSize, total: pag.total, hasMore: pag.hasMore } : undefined,
       };
     },
     staleTime: 30_000,
   });
+
+  // Set pagination from initial query response
+  useEffect(() => {
+    if (contactsData?.pagination && !pagination && !isSemanticSearch) {
+      setPagination(contactsData.pagination);
+    }
+  }, [contactsData?.pagination, pagination, isSemanticSearch]);
 
   const { data: kpis } = useQuery<ContactsKpis>({
     queryKey: ["contacts", "kpis"],
@@ -157,7 +166,7 @@ export function ContactsClient() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scoreSortDirection, setScoreSortDirection] = useState<"asc" | "desc" | null>(null);
   const [isEnriching, setIsEnriching] = useState(false);
-  const enrichmentAttemptedRef = useRef(false);
+
 
   // Form drawer state
   const [formOpen, setFormOpen] = useState(false);
@@ -180,80 +189,68 @@ export function ContactsClient() {
     });
   }, [contacts, scoresMap]);
 
-  // Batch-enrich contacts missing job_title or company on page load
-  useEffect(() => {
-    if (
-      enrichmentAttemptedRef.current ||
-      isSemanticSearch ||
-      contacts.length === 0
-    ) {
-      return;
-    }
-
+  // Manual batch-enrich — triggered by user clicking "Enrich" button
+  const handleBatchEnrich = useCallback(async () => {
     const needsEnrichment = contacts.filter(
       (c) => c.record_id && (!c.job_title || !c.company)
     );
-    if (needsEnrichment.length === 0) return;
+    if (needsEnrichment.length === 0) {
+      toast.info("All visible contacts already enriched");
+      return;
+    }
 
-    enrichmentAttemptedRef.current = true;
     const recordIds = needsEnrichment
       .map((c) => c.record_id!)
       .slice(0, 50);
 
-    let cancelled = false;
     setIsEnriching(true);
 
-    fetch("/api/contacts/batch-enrich", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordIds }),
-    })
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then(
-        (json: {
-          properties: Record<
-            string,
-            {
-              full_name?: string;
-              job_title?: string;
-              company_name?: string;
-              linkedin_url?: string;
-              email?: string;
-            }
-          >;
-        }) => {
-          if (cancelled) return;
-          const props = json.properties;
-          if (!props || Object.keys(props).length === 0) return;
-
-          setLocalContacts((prev) =>
-            (prev ?? initialContacts).map((c) => {
-              const enriched = c.record_id ? props[c.record_id] : undefined;
-              if (!enriched) return c;
-              return {
-                ...c,
-                ...(enriched.job_title && !c.job_title
-                  ? { job_title: enriched.job_title }
-                  : {}),
-                ...(enriched.company_name && !c.company
-                  ? { company: enriched.company_name }
-                  : {}),
-              };
-            })
-          );
-        }
-      )
-      .catch(() => {
-        // Silent failure — contacts display as-is
-      })
-      .finally(() => {
-        if (!cancelled) setIsEnriching(false);
+    try {
+      const res = await fetch("/api/contacts/batch-enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordIds }),
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [contacts, isSemanticSearch, initialContacts]);
+      if (!res.ok) throw new Error("Enrich failed");
+      const json = await res.json() as {
+        properties: Record<
+          string,
+          {
+            full_name?: string;
+            job_title?: string;
+            company_name?: string;
+            linkedin_url?: string;
+            email?: string;
+          }
+        >;
+      };
+      const props = json.properties;
+      if (props && Object.keys(props).length > 0) {
+        setLocalContacts((prev) =>
+          (prev ?? initialContacts).map((c) => {
+            const enriched = c.record_id ? props[c.record_id] : undefined;
+            if (!enriched) return c;
+            return {
+              ...c,
+              ...(enriched.job_title && !c.job_title
+                ? { job_title: enriched.job_title }
+                : {}),
+              ...(enriched.company_name && !c.company
+                ? { company: enriched.company_name }
+                : {}),
+            };
+          })
+        );
+        toast.success(`Enriched ${Object.keys(props).length} contacts`);
+      } else {
+        toast.info("No enrichment data available from Personize");
+      }
+    } catch {
+      toast.error("Enrichment failed — try again");
+    } finally {
+      setIsEnriching(false);
+    }
+  }, [contacts, initialContacts]);
 
   const filteredContacts = useMemo(() => {
     // If we're using server-side search, return all contacts as-is
@@ -493,11 +490,6 @@ export function ContactsClient() {
   return (
     <>
       {/* KPI Strip */}
-      <div className="flex items-center gap-2">
-        {isEnriching && (
-          <span className="text-xs text-muted-foreground">Enriching...</span>
-        )}
-      </div>
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
           label="Total Contacts"
@@ -558,6 +550,16 @@ export function ContactsClient() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          onClick={handleBatchEnrich}
+          disabled={isEnriching}
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+        >
+          <Sparkles className={`size-4${isEnriching ? " animate-pulse" : ""}`} />
+          {isEnriching ? "Enriching…" : "Enrich"}
+        </Button>
         <Button onClick={openNewForm} size="sm" className="gap-1.5">
           <Plus className="size-4" />
           New Contact

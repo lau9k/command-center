@@ -112,13 +112,39 @@ async function processConversationPayload(
     if (c.email) emailToId.set(c.email, c.id);
   }
 
+  // Whitelist allowed conversation columns to prevent unknown fields from
+  // reaching PostgREST (same pattern as contact processor).
+  const CONVERSATION_COLUMNS = new Set([
+    "external_id",
+    "contact_id",
+    "summary",
+    "channel",
+    "last_message_at",
+    "metadata",
+    "user_id",
+    "status",
+    "subject",
+    "snippet",
+    "thread_id",
+    "message_count",
+    "label_ids",
+    "gmail_history_id",
+  ]);
+
   // Build upsert rows with contact_id resolved + required defaults injected
-  const rows = items.map(({ contact_email, ...rest }) => ({
-    ...rest,
-    contact_id: emailToId.get(contact_email as string) ?? null,
-    user_id: (rest.user_id as string) || DEFAULT_USER_ID,
-    channel: (rest.channel as string) || "unknown",
-  }));
+  const rows = items.map((item) => {
+    const contactEmail = item.contact_email as string | undefined;
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+      if (key !== "contact_email" && CONVERSATION_COLUMNS.has(key)) {
+        cleaned[key] = value;
+      }
+    }
+    cleaned.contact_id = (contactEmail ? emailToId.get(contactEmail) : null) ?? null;
+    cleaned.user_id = (cleaned.user_id as string) || DEFAULT_USER_ID;
+    cleaned.channel = (cleaned.channel as string) || "unknown";
+    return cleaned;
+  });
 
   const { data, error } = await supabase
     .from("conversations")
@@ -173,6 +199,25 @@ async function processTaskPayload(
     }
   }
 
+  // Whitelist allowed task columns to prevent unknown fields from
+  // reaching PostgREST (same pattern as contact processor).
+  const TASK_COLUMNS = new Set([
+    "external_id",
+    "title",
+    "description",
+    "status",
+    "priority",
+    "due_date",
+    "assignee",
+    "tags",
+    "project_id",
+    "user_id",
+    "priority_score",
+    "recurrence_rule",
+    "recurrence_parent_id",
+    "is_recurring_template",
+  ]);
+
   // Score each task and prepare upsert rows
   const rows = items.map((item) => {
     const taskForScoring: Task = {
@@ -198,12 +243,17 @@ async function processTaskPayload(
       : null;
     const { score } = scoreTask(taskForScoring, project);
 
-    return {
-      ...item,
-      priority_score: score,
-      project_id: (item.project_id as string) || DEFAULT_PROJECT_ID,
-      user_id: (item.user_id as string) || DEFAULT_USER_ID,
-    };
+    // Strip unknown fields — only keep columns that exist in the tasks table
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+      if (TASK_COLUMNS.has(key)) {
+        cleaned[key] = value;
+      }
+    }
+    cleaned.priority_score = score;
+    cleaned.project_id = (item.project_id as string) || DEFAULT_PROJECT_ID;
+    cleaned.user_id = (item.user_id as string) || DEFAULT_USER_ID;
+    return cleaned;
   });
 
   const { data, error } = await supabase
@@ -240,10 +290,36 @@ async function processTransactionPayload(
   const DEFAULT_USER_ID =
     process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
 
-  const enriched = items.map((item) => ({
-    ...item,
-    user_id: (item.user_id as string) || DEFAULT_USER_ID,
-  }));
+  // Whitelist allowed transaction columns to prevent unknown fields from
+  // reaching PostgREST (same pattern as contact processor).
+  const TRANSACTION_COLUMNS = new Set([
+    "external_id",
+    "name",
+    "amount",
+    "type",
+    "category",
+    "interval",
+    "due_day",
+    "user_id",
+    "account_id",
+    "date",
+    "merchant_name",
+    "payment_channel",
+    "pending",
+    "iso_currency_code",
+    "plaid_transaction_id",
+  ]);
+
+  const enriched = items.map((item) => {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+      if (TRANSACTION_COLUMNS.has(key)) {
+        cleaned[key] = value;
+      }
+    }
+    cleaned.user_id = (cleaned.user_id as string) || DEFAULT_USER_ID;
+    return cleaned;
+  });
 
   const { data, error } = await supabase
     .from("transactions")
