@@ -26,7 +26,12 @@ export default async function ContactsPage() {
         try {
           const result = await searchContacts(undefined, 1, 50, "priority_score");
           personizeAvailable = true;
-          return { contacts: result.contacts, total: result.total, personizeAvailable: true };
+          return {
+            contacts: result.contacts,
+            total: result.total,
+            personizeAvailable: true,
+            pagination: { page: 1, pageSize: 50, total: result.total, hasMore: result.total > 50 },
+          };
         } catch (error) {
           console.error("[Contacts] Personize search failed:", error);
           // Fall through to Supabase
@@ -42,11 +47,12 @@ export default async function ContactsPage() {
 
       if (contactsRes.error) {
         console.error("[Contacts] Supabase query error:", contactsRes.error.message);
-        return { contacts: [], total: 0, personizeAvailable: false };
+        return { contacts: [], total: 0, personizeAvailable: false, pagination: { page: 1, pageSize: 50, total: 0, hasMore: false } };
       }
 
       const contacts = (contactsRes.data as Contact[]) ?? [];
-      return { contacts, total: contactsRes.count ?? contacts.length, personizeAvailable: false };
+      const total = contactsRes.count ?? contacts.length;
+      return { contacts, total, personizeAvailable: false, pagination: { page: 1, pageSize: 50, total, hasMore: total > 50 } };
     },
   });
 
