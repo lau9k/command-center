@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Clock,
   Zap,
+  UserX,
 } from "lucide-react";
 
 interface DigestData {
@@ -66,23 +67,18 @@ const tierLabels: Record<string, string> = {
 
 function EnrichmentSkeleton() {
   return (
-    <div className="space-y-3">
-      <div className="animate-pulse space-y-2 rounded-md border border-border p-4">
-        <div className="h-4 w-2/3 rounded bg-muted" />
-        <div className="h-4 w-full rounded bg-muted" />
-        <div className="h-4 w-5/6 rounded bg-muted" />
+    <div className="animate-pulse space-y-3">
+      {/* Summary block */}
+      <div className="space-y-2 rounded-md border border-border p-4">
+        <div className="h-4 w-4/5 rounded bg-muted" />
+        <div className="h-4 w-[70%] rounded bg-muted" />
+        <div className="h-4 w-1/2 rounded bg-muted" />
       </div>
-      {[1, 2].map((i) => (
-        <div
-          key={i}
-          className="animate-pulse space-y-2 rounded-md border border-border p-3"
-        >
-          <div className="h-4 w-full rounded bg-muted" />
-          <div className="h-4 w-3/4 rounded bg-muted" />
-          <div className="flex gap-2">
-            <div className="h-5 w-14 rounded-full bg-muted" />
-            <div className="h-5 w-16 rounded bg-muted" />
-          </div>
+      {/* Property rows */}
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-2 px-3 py-1.5">
+          <div className="size-4 shrink-0 rounded bg-muted" />
+          <div className="h-4 w-3/5 rounded bg-muted" />
         </div>
       ))}
     </div>
@@ -123,8 +119,10 @@ export function ContactEnrichmentPanel({
   const [loading, setLoading] = useState(false);
   const [recallLoading, setRecallLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const [recallQuery, setRecallQuery] = useState("");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchEnrichment = useCallback(
     async (query?: string) => {
@@ -134,6 +132,16 @@ export function ContactEnrichmentPanel({
       } else {
         setLoading(true);
         setError(null);
+        setTimedOut(false);
+
+        // 15-second client timeout
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+        }
+        loadingTimeoutRef.current = setTimeout(() => {
+          setTimedOut(true);
+          setLoading(false);
+        }, 15_000);
       }
 
       try {
@@ -170,6 +178,10 @@ export function ContactEnrichmentPanel({
           setError("Failed to load enrichment data");
         }
       } finally {
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current);
+          loadingTimeoutRef.current = null;
+        }
         setLoading(false);
         setRecallLoading(false);
       }
@@ -205,14 +217,58 @@ export function ContactEnrichmentPanel({
     [fetchEnrichment, data]
   );
 
+  if (timedOut && !data) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Zap className="size-4 text-purple-500" />
+              Contact Enrichment
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => fetchEnrichment()}
+              title="Retry"
+            >
+              <RefreshCw className="size-3" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <UserX className="size-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              No enrichment data available for this contact
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Personize may be slow to respond. Try again later.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (error === "not_configured") {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Zap className="size-4 text-purple-500" />
-            Contact Enrichment
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Zap className="size-4 text-purple-500" />
+              Contact Enrichment
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => fetchEnrichment()}
+              title="Retry"
+            >
+              <RefreshCw className="size-3" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -384,10 +440,17 @@ export function ContactEnrichmentPanel({
               {!data?.digest?.summary &&
                 visibleProperties.length === 0 &&
                 recallMemories.length === 0 && (
-                  <p className="py-2 text-center text-sm text-muted-foreground">
-                    No enrichment data available yet.
-                    {!contactEmail && " Add an email to enable Personize recall."}
-                  </p>
+                  <div className="flex flex-col items-center gap-2 py-4 text-center">
+                    <UserX className="size-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      No enrichment data available for this contact
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {!contactEmail
+                        ? "Add an email to enable Personize recall."
+                        : "Memories and properties will appear here as interactions are recorded"}
+                    </p>
+                  </div>
                 )}
             </TabsContent>
 
