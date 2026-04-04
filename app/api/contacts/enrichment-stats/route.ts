@@ -29,6 +29,8 @@ export interface EnrichmentKpis {
   totalContacts: number;
   withMemories: number;
   withProperties: number;
+  taggedThisWeek: number;
+  untagged: number;
   lastUpdated: string;
 }
 
@@ -108,12 +110,33 @@ export const GET = withErrorHandler(async function GET() {
     .select("id", { count: "exact", head: true })
     .gt("count", 0);
 
-  // 3. Fetch property counts in parallel for enrichment breakdown
-  const [hasEmail, hasLinkedin, hasGmail, hasApollo] = await Promise.all([
+  // 3. Fetch property counts + tag analytics in parallel
+  const sevenDaysAgo = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const [
+    hasEmail,
+    hasLinkedin,
+    hasGmail,
+    hasApollo,
+    { count: taggedThisWeekCount },
+    { count: untaggedCount },
+  ] = await Promise.all([
     fetchPropertyCount("email"),
     fetchPropertyCount("linkedin_url"),
     fetchPropertyCount("gmail_context_stored"),
     fetchPropertyCount("apollo_enriched"),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .not("tags", "is", null)
+      .neq("tags", "{}")
+      .gt("updated_at", sevenDaysAgo),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .or("tags.is.null,tags.eq.{}"),
   ]);
 
   const now = new Date().toISOString();
@@ -133,6 +156,8 @@ export const GET = withErrorHandler(async function GET() {
     totalContacts,
     withMemories: withMemories ?? 0,
     withProperties: hasEmail, // contacts with email = primary enrichment signal
+    taggedThisWeek: taggedThisWeekCount ?? 0,
+    untagged: untaggedCount ?? 0,
     lastUpdated: now,
   };
 
