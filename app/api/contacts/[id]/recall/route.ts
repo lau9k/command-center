@@ -61,9 +61,30 @@ export async function GET(
   const query = searchParams.get("q") || contactName;
 
   try {
-    const result = await smartRecall(query, {
-      ...(contactEmail ? { email: contactEmail } : {}),
-    });
+    const TIMEOUT_MS = 10_000;
+    const TIMED_OUT = Symbol("timeout");
+    const result = await Promise.race([
+      smartRecall(query, {
+        ...(contactEmail ? { email: contactEmail } : {}),
+      }),
+      new Promise<typeof TIMED_OUT>((resolve) =>
+        setTimeout(() => resolve(TIMED_OUT), TIMEOUT_MS)
+      ),
+    ]);
+
+    if (result === TIMED_OUT) {
+      return NextResponse.json({
+        data: {
+          summary: null,
+          painPoints: [],
+          interests: [],
+          recentInteractions: [],
+          totalRecords: 0,
+          query,
+          source: "timeout",
+        },
+      });
+    }
 
     const rawRecords = result?.records;
     const records = Array.isArray(rawRecords) ? rawRecords : [];

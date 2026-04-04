@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Brain,
   MessageSquare,
@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { sanitizeText } from "@/lib/sanitize";
@@ -31,6 +32,7 @@ interface RecallResponse {
     recentInteractions: RecallMemory[];
     totalMemories: number;
     query: string;
+    source?: "timeout";
   };
 }
 
@@ -139,92 +141,124 @@ export function ContactMemoryTimeline({ contactId }: ContactMemoryTimelineProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalMemories, setTotalMemories] = useState(0);
+  const clientTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const CLIENT_TIMEOUT_MS = 12_000;
 
-    async function fetchMemories() {
-      setLoading(true);
-      setError(null);
+  const fetchMemories = useCallback(async (signal: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    setEntries([]);
+    setTotalMemories(0);
 
-      try {
-        const res = await fetch(`/api/contacts/${contactId}/recall`);
+    // Client-side max loading timeout
+    const clientTimeout = setTimeout(() => {
+      if (!signal.aborted) {
+        setError("timeout");
+        setLoading(false);
+      }
+    }, CLIENT_TIMEOUT_MS);
+    clientTimeoutRef.current = clientTimeout;
 
-        if (res.status === 503) {
-          setError("not_configured");
-          setLoading(false);
-          return;
-        }
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/recall`, { signal });
+      clearTimeout(clientTimeout);
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch memories");
-        }
+      if (signal.aborted) return;
 
-        const json: RecallResponse = await res.json();
-        const { recentInteractions, painPoints, interests, totalMemories: total } = json.data;
+      if (res.status === 503) {
+        setError("not_configured");
+        setLoading(false);
+        return;
+      }
 
-        if (cancelled) return;
+      if (!res.ok) {
+        throw new Error("Failed to fetch memories");
+      }
 
-        const timeline: TimelineEntry[] = [];
+      const json: RecallResponse = await res.json();
+      const { recentInteractions, painPoints, interests, totalMemories: total, source } = json.data;
 
-        for (const interaction of recentInteractions) {
-          timeline.push({
-            id: `int-${interaction.timestamp ?? timeline.length}-${interaction.score}`,
-            text: interaction.text,
-            timestamp: interaction.timestamp,
-            type: classifyMemoryType(interaction.type, interaction.text),
-            score: interaction.score,
-          });
-        }
+      if (signal.aborted) return;
 
-        for (let i = 0; i < painPoints.length; i++) {
-          timeline.push({
-            id: `pain-${i}`,
-            text: painPoints[i],
-            timestamp: null,
-            type: "note",
-            score: 0,
-          });
-        }
+      // API returned a timeout — treat as empty with friendly message
+      if (source === "timeout") {
+        setError("timeout");
+        setLoading(false);
+        return;
+      }
 
-        for (let i = 0; i < interests.length; i++) {
-          timeline.push({
-            id: `interest-${i}`,
-            text: interests[i],
-            timestamp: null,
-            type: "note",
-            score: 0,
-          });
-        }
+      const timeline: TimelineEntry[] = [];
 
-        // Sort: entries with timestamps first (most recent), then entries without timestamps
-        timeline.sort((a, b) => {
-          if (a.timestamp && b.timestamp) {
-            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-          }
-          if (a.timestamp) return -1;
-          if (b.timestamp) return 1;
-          return 0;
+      for (const interaction of recentInteractions) {
+        timeline.push({
+          id: `int-${interaction.timestamp ?? timeline.length}-${interaction.score}`,
+          text: interaction.text,
+          timestamp: interaction.timestamp,
+          type: classifyMemoryType(interaction.type, interaction.text),
+          score: interaction.score,
         });
+      }
 
-        setEntries(timeline);
-        setTotalMemories(total);
-      } catch {
-        if (!cancelled) {
-          setError("Failed to load memory timeline");
+      for (let i = 0; i < painPoints.length; i++) {
+        timeline.push({
+          id: `pain-${i}`,
+          text: painPoints[i],
+          timestamp: null,
+          type: "note",
+          score: 0,
+        });
+      }
+
+      for (let i = 0; i < interests.length; i++) {
+        timeline.push({
+          id: `interest-${i}`,
+          text: interests[i],
+          timestamp: null,
+          type: "note",
+          score: 0,
+        });
+      }
+
+      // Sort: entries with timestamps first (most recent), then entries without timestamps
+      timeline.sort((a, b) => {
+        if (a.timestamp && b.timestamp) {
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
         }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (a.timestamp) return -1;
+        if (b.timestamp) return 1;
+        return 0;
+      });
+
+      setEntries(timeline);
+      setTotalMemories(total);
+    } catch (err) {
+      clearTimeout(clientTimeout);
+      if (!signal.aborted) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError("Failed to load memory timeline");
+      }
+    } finally {
+      clearTimeout(clientTimeout);
+      if (!signal.aborted) {
+        setLoading(false);
       }
     }
-
-    fetchMemories();
-    return () => {
-      cancelled = true;
-    };
   }, [contactId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMemories(controller.signal);
+    return () => {
+      controller.abort();
+      if (clientTimeoutRef.current) clearTimeout(clientTimeoutRef.current);
+    };
+  }, [fetchMemories]);
+
+  const handleRetry = useCallback(() => {
+    const controller = new AbortController();
+    fetchMemories(controller.signal);
+  }, [fetchMemories]);
 
   return (
     <Card>
@@ -251,16 +285,49 @@ export function ContactMemoryTimeline({ contactId }: ContactMemoryTimelineProps)
           </div>
         ) : error === "not_configured" ? (
           <div className="flex items-center justify-center py-8">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <AlertCircle className="size-4" />
-              Personize not configured
+            <div className="text-center">
+              <AlertCircle className="mx-auto mb-2 size-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Personize not configured</p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <RefreshCw className="size-3" />
+                Retry
+              </button>
+            </div>
+          </div>
+        ) : error === "timeout" ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <Clock className="mx-auto mb-2 size-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                Unable to load memories — Personize may be slow. Try again later.
+              </p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <RefreshCw className="size-3" />
+                Retry
+              </button>
             </div>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center py-8">
-            <div className="flex items-center gap-2 text-sm text-destructive">
-              <AlertCircle className="size-4" />
-              {error}
+            <div className="text-center">
+              <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+              <p className="text-sm text-destructive">{error}</p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <RefreshCw className="size-3" />
+                Retry
+              </button>
             </div>
           </div>
         ) : entries.length === 0 ? (
@@ -268,8 +335,16 @@ export function ContactMemoryTimeline({ contactId }: ContactMemoryTimelineProps)
             <div className="text-center">
               <Clock className="mx-auto mb-2 size-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">
-                No memories found for this contact yet.
+                No memories found for this contact.
               </p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              >
+                <RefreshCw className="size-3" />
+                Retry
+              </button>
             </div>
           </div>
         ) : (
