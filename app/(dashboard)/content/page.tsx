@@ -69,6 +69,30 @@ export default async function ContentPage() {
       },
     }),
     queryClient.prefetchQuery({
+      queryKey: ["content", "unscheduled"],
+      queryFn: async () => {
+        let result = await supabase
+          .from("content_posts")
+          .select("*, projects:project_id(id, name, color)")
+          .is("scheduled_at", null)
+          .is("scheduled_for", null)
+          .order("created_at", { ascending: false });
+        if (result.error?.message?.includes("relationship")) {
+          result = await supabase
+            .from("content_posts")
+            .select("*")
+            .is("scheduled_at", null)
+            .is("scheduled_for", null)
+            .order("created_at", { ascending: false });
+        }
+        if (result.error) {
+          console.warn("[Content] unscheduled query fallback:", result.error.message);
+          return [];
+        }
+        return (result.data as PostWithProject[]) ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
       queryKey: ["projects", "list"],
       queryFn: async () => {
         const { data, error } = await supabase
