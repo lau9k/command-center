@@ -1,5 +1,7 @@
 -- RPC functions for safe concurrent ingest event processing
 -- Depends on: 061_create_ingest_events.sql, 063_ingest_events_add_columns.sql
+-- NOTE: All status literals use explicit ::ingest_event_status casts
+--       to prevent implicit text→enum failures in plpgsql.
 
 -- claim_ingest_events: Atomically claim a batch of events for processing
 -- Uses FOR UPDATE SKIP LOCKED to prevent double-claiming across concurrent workers
@@ -16,7 +18,7 @@ BEGIN
   WITH claimable AS (
     SELECT id
     FROM ingest_events
-    WHERE status IN ('received', 'retryable')
+    WHERE status IN ('received'::ingest_event_status, 'retryable'::ingest_event_status)
       AND (next_retry_at IS NULL OR next_retry_at <= now())
       AND (p_sources IS NULL OR source = ANY(p_sources))
     ORDER BY received_at ASC
@@ -25,11 +27,11 @@ BEGIN
   )
   UPDATE ingest_events e
   SET
-    status           = 'processing',
+    status           = 'processing'::ingest_event_status,
     claimed_at       = now(),
     claimed_by       = p_worker_id,
     lease_expires_at = now() + interval '2 minutes',
-    attempt_count          = attempt_count + 1,
+    attempt_count    = attempt_count + 1,
     updated_at       = now()
   FROM claimable c
   WHERE e.id = c.id
@@ -38,6 +40,7 @@ END;
 $$;
 
 -- reap_expired_claims: Reclaim events whose processing lease has expired
+-- Uses pg_try_advisory_xact_lock for singleton cron safety.
 -- Moves to 'retryable' with exponential backoff, or 'dead_letter' after 5 attempts
 CREATE OR REPLACE FUNCTION reap_expired_claims()
 RETURNS int
@@ -46,10 +49,14 @@ AS $$
 DECLARE
   reaped_count int;
 BEGIN
+  IF NOT pg_try_advisory_xact_lock(7483201) THEN
+    RETURN 0;
+  END IF;
+
   WITH expired AS (
     UPDATE ingest_events
     SET
-      status           = CASE WHEN attempt_count >= 5 THEN 'dead_letter' ELSE 'retryable' END,
+      status           = CASE WHEN attempt_count >= 5 THEN 'dead_letter'::ingest_event_status ELSE 'retryable'::ingest_event_status END,
       claimed_at       = NULL,
       claimed_by       = NULL,
       lease_expires_at = NULL,
@@ -59,7 +66,7 @@ BEGIN
       last_failed_at   = now(),
       last_error_code  = COALESCE(last_error_code, 'lease_expired'),
       updated_at       = now()
-    WHERE status = 'processing'
+    WHERE status = 'processing'::ingest_event_status
       AND lease_expires_at < now()
     RETURNING id
   )

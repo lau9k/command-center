@@ -1,5 +1,6 @@
 -- Advisory lock for singleton cron steps + ownership-safe event updates
 -- Depends on: 064_ingest_rpcs.sql
+-- NOTE: All status literals use explicit ::ingest_event_status casts.
 
 -- ─── Fix column bugs in claim_ingest_events ─────────────────────────
 -- created_at → received_at, attempt → attempt_count
@@ -16,7 +17,7 @@ BEGIN
   WITH claimable AS (
     SELECT id
     FROM ingest_events
-    WHERE status IN ('received', 'retryable')
+    WHERE status IN ('received'::ingest_event_status, 'retryable'::ingest_event_status)
       AND (next_retry_at IS NULL OR next_retry_at <= now())
       AND (p_sources IS NULL OR source = ANY(p_sources))
     ORDER BY received_at ASC
@@ -25,7 +26,7 @@ BEGIN
   )
   UPDATE ingest_events e
   SET
-    status           = 'processing',
+    status           = 'processing'::ingest_event_status,
     claimed_at       = now(),
     claimed_by       = p_worker_id,
     lease_expires_at = now() + interval '2 minutes',
@@ -38,10 +39,6 @@ END;
 $$;
 
 -- ─── Advisory-locked reaper ─────────────────────────────────────────
--- Uses pg_try_advisory_xact_lock to ensure only one cron invocation
--- runs the reaper at a time. Returns 0 if lock is not acquired.
--- Lock key 7483201 is an arbitrary constant for "reap_expired_claims".
--- Also fixes: attempt → attempt_count
 CREATE OR REPLACE FUNCTION reap_expired_claims()
 RETURNS int
 LANGUAGE plpgsql
@@ -49,7 +46,6 @@ AS $$
 DECLARE
   reaped_count int;
 BEGIN
-  -- Try to acquire a transaction-scoped advisory lock (non-blocking)
   IF NOT pg_try_advisory_xact_lock(7483201) THEN
     RETURN 0;
   END IF;
@@ -57,7 +53,7 @@ BEGIN
   WITH expired AS (
     UPDATE ingest_events
     SET
-      status           = CASE WHEN attempt_count >= 5 THEN 'dead_letter' ELSE 'retryable' END,
+      status           = CASE WHEN attempt_count >= 5 THEN 'dead_letter'::ingest_event_status ELSE 'retryable'::ingest_event_status END,
       claimed_at       = NULL,
       claimed_by       = NULL,
       lease_expires_at = NULL,
@@ -67,7 +63,7 @@ BEGIN
       last_failed_at   = now(),
       last_error_code  = COALESCE(last_error_code, 'lease_expired'),
       updated_at       = now()
-    WHERE status = 'processing'
+    WHERE status = 'processing'::ingest_event_status
       AND lease_expires_at < now()
     RETURNING id
   )
@@ -78,10 +74,6 @@ END;
 $$;
 
 -- ─── Ownership-safe event completion ────────────────────────────────
--- Only updates an event if the caller still owns it (status=processing,
--- claimed_by matches). Returns true if the update succeeded, false if
--- the event was already reaped/reclaimed by another worker.
-
 CREATE OR REPLACE FUNCTION complete_ingest_event(
   p_event_id   uuid,
   p_worker_id  text
@@ -94,13 +86,13 @@ DECLARE
 BEGIN
   UPDATE ingest_events
   SET
-    status           = 'processed',
+    status           = 'processed'::ingest_event_status,
     claimed_at       = NULL,
     lease_expires_at = NULL,
     processed_at     = now(),
     updated_at       = now()
   WHERE id = p_event_id
-    AND status = 'processing'
+    AND status = 'processing'::ingest_event_status
     AND claimed_by = p_worker_id;
 
   GET DIAGNOSTICS updated_count = ROW_COUNT;
@@ -125,7 +117,7 @@ BEGIN
 
   UPDATE ingest_events
   SET
-    status           = CASE WHEN is_dead THEN 'dead_letter' ELSE 'retryable' END,
+    status           = CASE WHEN is_dead THEN 'dead_letter'::ingest_event_status ELSE 'retryable'::ingest_event_status END,
     last_failed_at   = now(),
     last_error_code  = left(p_error_message, 255),
     next_retry_at    = CASE WHEN is_dead THEN NULL
@@ -143,7 +135,7 @@ BEGIN
     attempt_count    = p_attempt_count,
     updated_at       = now()
   WHERE id = p_event_id
-    AND status = 'processing'
+    AND status = 'processing'::ingest_event_status
     AND claimed_by = p_worker_id;
 
   GET DIAGNOSTICS updated_count = ROW_COUNT;
