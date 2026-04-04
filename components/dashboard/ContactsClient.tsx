@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -156,6 +156,8 @@ export function ContactsClient() {
   const [currentPage, setCurrentPage] = useState(1);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scoreSortDirection, setScoreSortDirection] = useState<"asc" | "desc" | null>(null);
+  const [isEnriching, setIsEnriching] = useState(false);
+  const enrichmentAttemptedRef = useRef(false);
 
   // Form drawer state
   const [formOpen, setFormOpen] = useState(false);
@@ -177,6 +179,81 @@ export function ContactsClient() {
       return c;
     });
   }, [contacts, scoresMap]);
+
+  // Batch-enrich contacts missing job_title or company on page load
+  useEffect(() => {
+    if (
+      enrichmentAttemptedRef.current ||
+      isSemanticSearch ||
+      contacts.length === 0
+    ) {
+      return;
+    }
+
+    const needsEnrichment = contacts.filter(
+      (c) => c.record_id && (!c.job_title || !c.company)
+    );
+    if (needsEnrichment.length === 0) return;
+
+    enrichmentAttemptedRef.current = true;
+    const recordIds = needsEnrichment
+      .map((c) => c.record_id!)
+      .slice(0, 50);
+
+    let cancelled = false;
+    setIsEnriching(true);
+
+    fetch("/api/contacts/batch-enrich", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordIds }),
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then(
+        (json: {
+          properties: Record<
+            string,
+            {
+              full_name?: string;
+              job_title?: string;
+              company_name?: string;
+              linkedin_url?: string;
+              email?: string;
+            }
+          >;
+        }) => {
+          if (cancelled) return;
+          const props = json.properties;
+          if (!props || Object.keys(props).length === 0) return;
+
+          setLocalContacts((prev) =>
+            (prev ?? initialContacts).map((c) => {
+              const enriched = c.record_id ? props[c.record_id] : undefined;
+              if (!enriched) return c;
+              return {
+                ...c,
+                ...(enriched.job_title && !c.job_title
+                  ? { job_title: enriched.job_title }
+                  : {}),
+                ...(enriched.company_name && !c.company
+                  ? { company: enriched.company_name }
+                  : {}),
+              };
+            })
+          );
+        }
+      )
+      .catch(() => {
+        // Silent failure — contacts display as-is
+      })
+      .finally(() => {
+        if (!cancelled) setIsEnriching(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contacts, isSemanticSearch, initialContacts]);
 
   const filteredContacts = useMemo(() => {
     // If we're using server-side search, return all contacts as-is
@@ -416,6 +493,11 @@ export function ContactsClient() {
   return (
     <>
       {/* KPI Strip */}
+      <div className="flex items-center gap-2">
+        {isEnriching && (
+          <span className="text-xs text-muted-foreground">Enriching...</span>
+        )}
+      </div>
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KpiCard
           label="Total Contacts"
