@@ -52,8 +52,14 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
         contacts = contacts.filter((c) => c.tags.includes(tag));
       }
 
+      const enrichedContacts = contacts.map((c) => ({
+        ...c,
+        enrichment_eligible: !c.job_title || !c.company,
+      }));
+      const eligibleCount = enrichedContacts.filter((c) => c.enrichment_eligible).length;
+
       return NextResponse.json({
-        data: contacts,
+        data: enrichedContacts,
         pagination: {
           page: result.page,
           pageSize: result.pageSize,
@@ -61,6 +67,10 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
           hasMore: result.hasMore,
         },
         source: "personize",
+        enrichment: {
+          eligible_count: eligibleCount,
+          total: enrichedContacts.length,
+        },
       });
     } catch (error) {
       console.error("[API] Personize search failed, falling back to Supabase:", error);
@@ -101,8 +111,14 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
 
   const total = count ?? 0;
 
+  const supabaseContacts = (data ?? []).map((c) => ({
+    ...c,
+    enrichment_eligible: !c.job_title || !c.company,
+  }));
+  const supabaseEligibleCount = supabaseContacts.filter((c) => c.enrichment_eligible).length;
+
   return NextResponse.json({
-    data: data ?? [],
+    data: supabaseContacts,
     pagination: {
       page,
       pageSize,
@@ -110,6 +126,10 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
       hasMore: page * pageSize < total,
     },
     source: "supabase",
+    enrichment: {
+      eligible_count: supabaseEligibleCount,
+      total: supabaseContacts.length,
+    },
   });
 }));
 
