@@ -71,6 +71,38 @@ export interface ScheduledContentItem {
   platform: string | null;
 }
 
+// ---------- Dashboard summary RPC response shape ----------
+
+interface DashboardSummary {
+  active_tasks: number;
+  overdue_tasks: number;
+  tasks_completed_today: number;
+  total_tasks: number;
+  active_project_count: number;
+  total_content_posts: number;
+  content_draft: number;
+  content_scheduled: number;
+  content_published: number;
+  content_this_week: number;
+  contacts_count: number;
+  new_contacts_week: number;
+  conversations_count: number;
+  pipeline_count: number;
+  pipeline_total_value: number;
+  open_invoice_total: number;
+  memory_records: number;
+  sponsors_total: number;
+  sponsors_confirmed: number;
+  sponsors_confirmed_rev: number;
+  yesterday_member_count: number | null;
+  outreach_queued: number;
+  outreach_sent: number;
+  outreach_replied: number;
+  outreach_no_response: number;
+  outreach_skipped: number;
+  outreach_total: number;
+}
+
 // ---------- Main response interface ----------
 
 export interface HomeStatsResponse {
@@ -119,7 +151,7 @@ export interface HomeStatsResponse {
   totalTasksCount: number;
 }
 
-/** Safely query a table, returning a fallback on error (e.g. table doesn't exist or FK mismatch). */
+/** Safely query a table, returning a fallback on error. */
 async function safeQuery<T>(
   label: string,
   fn: () => PromiseLike<{ data: T | null; error: unknown }>,
@@ -138,59 +170,67 @@ async function safeQuery<T>(
   }
 }
 
-async function safeCount(
-  label: string,
-  fn: () => PromiseLike<{ count: number | null; error: unknown }>,
-): Promise<number> {
-  try {
-    const { count, error } = await fn();
-    if (error) {
-      console.warn(`[home-stats] ${label} failed:`, (error as { message?: string }).message ?? error);
-      return 0;
-    }
-    return count ?? 0;
-  } catch (err) {
-    console.warn(`[home-stats] ${label} threw:`, (err as Error).message ?? err);
-    return 0;
-  }
-}
+/** Default empty summary for when the RPC fails. */
+const EMPTY_SUMMARY: DashboardSummary = {
+  active_tasks: 0, overdue_tasks: 0, tasks_completed_today: 0, total_tasks: 0,
+  active_project_count: 0, total_content_posts: 0, content_draft: 0,
+  content_scheduled: 0, content_published: 0, content_this_week: 0,
+  contacts_count: 0, new_contacts_week: 0, conversations_count: 0,
+  pipeline_count: 0, pipeline_total_value: 0, open_invoice_total: 0,
+  memory_records: 0, sponsors_total: 0, sponsors_confirmed: 0,
+  sponsors_confirmed_rev: 0, yesterday_member_count: null,
+  outreach_queued: 0, outreach_sent: 0, outreach_replied: 0,
+  outreach_no_response: 0, outreach_skipped: 0, outreach_total: 0,
+};
 
-/** Fetch all aggregated home dashboard stats in a single batch. */
+/**
+ * Fetch all aggregated home dashboard stats.
+ *
+ * Architecture (April 2026 refactor):
+ * - KPI counts/sums → single get_dashboard_summary() RPC (replaces 12 individual queries)
+ * - Full-row data for widgets → individual queries (tasks, projects, content, meetings, activity)
+ * - External API calls → cached via lib/cache/redis (Personize, Telegram)
+ *
+ * Total: 1 RPC + 8 data queries + 3 cached external calls = 12 parallel calls
+ * (down from 23 before the RPC consolidation)
+ */
 export async function getHomeStats(): Promise<HomeStatsResponse> {
   const supabase = createServiceClient();
 
   const now = new Date();
-  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+  // ── Parallel fan-out: 1 RPC + 8 data queries + 3 cached external calls ──
   const [
+    summaryResult,
     tasks,
     projects,
     allContent,
     contactsResult,
-    pipelineCount,
-    pipelineValues,
-    invoices,
-    memoryStats,
-    sponsorsAll,
-    sponsorsConfirmedRes,
-    overdueTasksCount,
-    tasksCompletedToday,
-    newContactsThisWeek,
-    conversationsCount,
     communityMemberCount,
-    yesterdayStats,
     pendingMeetings,
     activityLog,
     overdueTasksList,
     upcomingMeetings,
     scheduledContent,
-    outreachRows,
     enrichedContactsCount,
   ] = await Promise.all([
-    // Tasks with full details for ranking + project summaries
+    // 1) Single RPC replaces 12 individual count/sum queries
+    (async (): Promise<DashboardSummary> => {
+      try {
+        const { data, error } = await supabase.rpc("get_dashboard_summary");
+        if (error) {
+          console.warn("[home-stats] get_dashboard_summary RPC failed:", error.message);
+          return EMPTY_SUMMARY;
+        }
+        return (data as DashboardSummary) ?? EMPTY_SUMMARY;
+      } catch (err) {
+        console.warn("[home-stats] get_dashboard_summary threw:", (err as Error).message);
+        return EMPTY_SUMMARY;
+      }
+    })(),
+
+    // 2) Tasks with full details — needed for ranking engine + project summaries
     safeQuery(
       "tasks",
       () =>
@@ -201,7 +241,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as { id: string; project_id: string | null; title: string; status: string; priority: string; due_date: string | null; updated_at: string; projects: { id: string; name: string; slug: string; color: string | null; status: string }[] }[],
     ),
 
-    // Active projects
+    // 3) Active projects — needed for project summary cards
     safeQuery(
       "projects",
       () =>
@@ -213,7 +253,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as { id: string; name: string; slug: string; status: string }[],
     ),
 
-    // All content posts (full data for calendar preview)
+    // 4) All content posts — needed for calendar preview widget
     safeQuery(
       "content_posts",
       () =>
@@ -225,7 +265,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as ContentPost[],
     ),
 
-    // Contacts count — Personize primary, Supabase fallback (cached 15 min)
+    // 5) Contacts count — Personize primary, Supabase fallback (cached 15 min)
     cached<{ count: number; source: "personize" | "supabase" }>(
       "home:contacts:count",
       async () => {
@@ -246,126 +286,20 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
             (err as Error).message ?? err,
           );
         }
-        // Fallback to Supabase
-        const sbCount = await safeCount("contacts_count", () =>
-          supabase
-            .from("contacts")
-            .select("id", { count: "exact", head: true }),
-        );
-        return { count: sbCount, source: "supabase" as const };
+        // Fallback to RPC count, then Supabase direct
+        return { count: 0, source: "supabase" as const };
       },
       { ttlMs: 15 * 60 * 1000 },
     ),
 
-    // Pipeline count
-    safeCount("pipeline_count", () =>
-      supabase
-        .from("pipeline_items")
-        .select("id", { count: "exact", head: true }),
-    ),
-
-    // Pipeline values (exclude "lost" stage)
-    safeQuery(
-      "pipeline_values",
-      () =>
-        supabase
-          .from("pipeline_items")
-          .select("metadata, pipeline_stages!inner(slug)")
-          .neq("pipeline_stages.slug", "lost"),
-      [] as { metadata: Record<string, unknown> | null; pipeline_stages: { slug: string }[] }[],
-    ),
-
-    // Open invoices
-    safeQuery(
-      "invoices",
-      () =>
-        supabase
-          .from("invoices")
-          .select("amount, status")
-          .in("status", ["sent", "overdue"]),
-      [] as { amount: number | null; status: string }[],
-    ),
-
-    // Memory stats
-    safeQuery(
-      "memory_stats",
-      () => supabase.from("memory_stats").select("count"),
-      [] as { count: number }[],
-    ),
-
-    // Sponsors total count
-    safeCount("sponsors_total", () =>
-      supabase
-        .from("sponsors")
-        .select("id", { count: "exact", head: true }),
-    ),
-
-    // Sponsors confirmed (with amount for revenue)
-    safeQuery(
-      "sponsors_confirmed",
-      () =>
-        supabase
-          .from("sponsors")
-          .select("amount")
-          .eq("status", "confirmed"),
-      [] as { amount: number | null }[],
-    ),
-
-    // Overdue tasks count
-    safeCount("overdue_tasks", () =>
-      supabase
-        .from("tasks")
-        .select("id", { count: "exact", head: true })
-        .neq("status", "done")
-        .lt("due_date", todayStart),
-    ),
-
-    // Tasks completed today
-    safeCount("tasks_completed_today", () =>
-      supabase
-        .from("tasks")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "done")
-        .gte("updated_at", todayStart),
-    ),
-
-    // New contacts this week
-    safeCount("new_contacts_week", () =>
-      supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", weekAgo),
-    ),
-
-    // Conversations count
-    safeCount("conversations", () =>
-      supabase
-        .from("conversations")
-        .select("id", { count: "exact", head: true }),
-    ),
-
-    // Community member count (Telegram API, cached 15 min)
+    // 6) Community member count — Telegram API (cached 15 min)
     cached<number>(
       "home:telegram:members",
       () => fetchCommunityMemberCount(),
       { ttlMs: 15 * 60 * 1000 },
     ),
 
-    // Yesterday's community stats for delta calculation
-    safeQuery(
-      "community_stats",
-      () =>
-        supabase
-          .from("community_stats")
-          .select("member_count")
-          .lt("fetched_at", yesterday)
-          .order("fetched_at", { ascending: false })
-          .limit(1)
-          .single(),
-      null as { member_count: number } | null,
-    ),
-
-    // Pending meetings
+    // 7) Pending meetings — full rows for review panel
     safeQuery(
       "pending_meetings",
       () =>
@@ -377,7 +311,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as Meeting[],
     ),
 
-    // Activity log (last 15 entries)
+    // 8) Activity log — last 15 entries
     safeQuery(
       "activity_log",
       () =>
@@ -389,7 +323,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as ActivityLogEntry[],
     ),
 
-    // Overdue tasks list (for upcoming items panel)
+    // 9) Overdue tasks list — full rows for upcoming panel
     safeQuery(
       "overdue_tasks_list",
       () =>
@@ -403,7 +337,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as OverdueTask[],
     ),
 
-    // Upcoming meetings (next 3)
+    // 10) Upcoming meetings — next 3
     safeQuery(
       "upcoming_meetings",
       () =>
@@ -416,7 +350,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as UpcomingMeeting[],
     ),
 
-    // Scheduled content (next 3)
+    // 11) Scheduled content — next 3
     safeQuery(
       "scheduled_content",
       () =>
@@ -430,18 +364,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as ScheduledContentItem[],
     ),
 
-    // Outreach funnel stats
-    safeQuery(
-      "outreach_stats",
-      () =>
-        supabase
-          .from("tasks")
-          .select("outreach_status")
-          .eq("task_type", "outreach"),
-      [] as { outreach_status: string | null }[],
-    ),
-
-    // Enrichment: contacts with email (proxy for enriched, cached 15 min)
+    // 12) Enrichment count — Personize API (cached 15 min)
     cached<number>(
       "home:personize:enrichment",
       async () => {
@@ -474,69 +397,36 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     ),
   ]);
 
-  // --- KPI computations ---
-  const activeTasks = tasks.filter((t) => t.status !== "done").length;
-  const activeProjectIds = new Set(
-    tasks.filter((t) => t.status !== "done").map((t) => t.project_id).filter(Boolean),
-  );
+  // ── Read KPIs from RPC summary ──
+  const s = summaryResult;
 
-  const contentThisWeek = allContent.filter((p) => {
-    if (!p.scheduled_for) return false;
-    const d = new Date(p.scheduled_for);
-    return d >= now && d <= weekFromNow;
-  }).length;
-
-  const totalContentPosts = allContent.length;
-  const contentDraftCount = allContent.filter((p) => p.status === "draft").length;
-  const contentScheduledCount = allContent.filter((p) => p.status === "scheduled").length;
-  const contentPublishedCount = allContent.filter((p) => p.status === "published").length;
-
-  const pipelineTotalValue = pipelineValues.reduce(
-    (sum, item) => sum + Number((item.metadata as Record<string, unknown>)?.value ?? 0),
-    0,
-  );
-
-  const openInvoiceTotal = invoices.reduce(
-    (sum, inv) => sum + Number(inv.amount ?? 0),
-    0,
-  );
-
-  const memoryRecords = memoryStats.reduce(
-    (sum, s) => sum + (s.count ?? 0),
-    0,
-  );
-
-  const sponsorsConfirmedRevenue = sponsorsConfirmedRes.reduce(
-    (sum, s) => sum + Number(s.amount ?? 0),
-    0,
-  );
+  // Use Personize count if available, else fall back to RPC count
+  const finalContactsCount = contactsResult.count > 0
+    ? contactsResult.count
+    : s.contacts_count;
+  const contactsSource = contactsResult.count > 0
+    ? contactsResult.source
+    : "supabase" as const;
 
   // Community growth delta
-  const yesterdayMemberCount = yesterdayStats?.member_count ?? null;
   const communityDelta =
-    yesterdayMemberCount !== null && yesterdayMemberCount > 0 && communityMemberCount > 0
+    s.yesterday_member_count !== null && s.yesterday_member_count > 0 && communityMemberCount > 0
       ? Math.round(
-          ((communityMemberCount - yesterdayMemberCount) / yesterdayMemberCount) * 100,
+          ((communityMemberCount - s.yesterday_member_count) / s.yesterday_member_count) * 100,
         )
       : null;
 
-  // Outreach funnel stats
+  // Outreach stats from RPC
   const outreachStats: OutreachStats = {
-    queued: 0,
-    sent: 0,
-    replied: 0,
-    no_response: 0,
-    skipped: 0,
-    total: outreachRows.length,
+    queued: s.outreach_queued,
+    sent: s.outreach_sent,
+    replied: s.outreach_replied,
+    no_response: s.outreach_no_response,
+    skipped: s.outreach_skipped,
+    total: s.outreach_total,
   };
-  for (const row of outreachRows) {
-    const s = row.outreach_status as keyof OutreachStats;
-    if (s in outreachStats && s !== "total") {
-      outreachStats[s]++;
-    }
-  }
 
-  // --- Ranked tasks (priority engine) ---
+  // ── Ranked tasks (priority engine) — still needs full task rows ──
   const openTasks = (tasks as unknown as TaskWithProject[]).filter((t) => t.status !== "done");
   const rankedTasks: RankedTask[] = openTasks
     .map((task) => {
@@ -546,7 +436,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  // --- Project summary cards ---
+  // ── Project summary cards — still needs full task + project rows ──
   const projectSummaries: ProjectSummary[] = projects.map((p) => {
     const projectTasks = tasks.filter((t) => t.project_id === p.id);
     const projectOpenTasks = projectTasks.filter((t) => t.status !== "done");
@@ -574,32 +464,32 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
 
   // Enrichment coverage percentage
   const enrichment_pct =
-    contactsResult.count > 0
-      ? Math.round((enrichedContactsCount / contactsResult.count) * 100)
+    finalContactsCount > 0
+      ? Math.round((enrichedContactsCount / finalContactsCount) * 100)
       : 0;
 
   const response: HomeStatsResponse = {
-    activeTasks,
-    activeProjectCount: activeProjectIds.size,
-    totalContentPosts,
-    contentDraftCount,
-    contentScheduledCount,
-    contentPublishedCount,
-    contentThisWeek,
-    contactsCount: contactsResult.count,
+    activeTasks: s.active_tasks,
+    activeProjectCount: s.active_project_count,
+    totalContentPosts: s.total_content_posts,
+    contentDraftCount: s.content_draft,
+    contentScheduledCount: s.content_scheduled,
+    contentPublishedCount: s.content_published,
+    contentThisWeek: s.content_this_week,
+    contactsCount: finalContactsCount,
     enrichment_pct,
-    contacts_source: contactsResult.source,
-    conversationsCount,
-    pipelineItemCount: pipelineCount,
-    pipelineTotalValue,
-    openInvoiceTotal,
-    memoryRecords,
-    sponsorsTotal: sponsorsAll,
-    sponsorsConfirmed: sponsorsConfirmedRes.length,
-    sponsorsConfirmedRevenue,
-    overdueTasks: overdueTasksCount,
-    tasksCompletedToday,
-    newContactsThisWeek,
+    contacts_source: contactsSource,
+    conversationsCount: s.conversations_count,
+    pipelineItemCount: s.pipeline_count,
+    pipelineTotalValue: s.pipeline_total_value,
+    openInvoiceTotal: s.open_invoice_total,
+    memoryRecords: s.memory_records,
+    sponsorsTotal: s.sponsors_total,
+    sponsorsConfirmed: s.sponsors_confirmed,
+    sponsorsConfirmedRevenue: s.sponsors_confirmed_rev,
+    overdueTasks: s.overdue_tasks,
+    tasksCompletedToday: s.tasks_completed_today,
+    newContactsThisWeek: s.new_contacts_week,
     lastUpdated: new Date().toISOString(),
 
     communityMemberCount,
@@ -616,7 +506,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     upcomingMeetings,
     scheduledContent,
 
-    totalTasksCount: tasks.length,
+    totalTasksCount: s.total_tasks,
   };
 
   return response;

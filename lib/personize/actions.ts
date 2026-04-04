@@ -326,13 +326,50 @@ async function fetchPropertyValues(
 /**
  * Build a lookup table of recordId → {full_name, job_title, company_name}.
  * Makes 3 parallel API calls to filter-by-property (deterministic, no LLM cost).
- * Cached for 5 minutes.
+ *
+ * Two-tier cache:
+ * - L1: in-memory Map (zero latency, native Map type)
+ * - L2: Redis as serializable Record<string, PropertyLookupEntry> (survives cold starts)
  */
 async function getPropertyLookup(): Promise<Map<string, PropertyLookupEntry>> {
+  // L1 check first (native Map, no serialization needed)
   const cacheKey = "property-lookup";
-  const cached = getCached<Map<string, PropertyLookupEntry>>(cacheKey);
-  if (cached) return cached;
+  const l1Hit = getCached<Map<string, PropertyLookupEntry>>(cacheKey);
+  if (l1Hit) return l1Hit;
 
+  // L2 check: fetch from Redis as a plain object, reconstruct Map
+  if (isRedisAvailable()) {
+    try {
+      const plain = await redisCached<Record<string, PropertyLookupEntry>>(
+        "personize:property-lookup",
+        async () => {
+          const map = await fetchPropertyLookupFresh();
+          // Convert Map → plain object for Redis serialization
+          const obj: Record<string, PropertyLookupEntry> = {};
+          for (const [id, entry] of map) {
+            obj[id] = entry;
+          }
+          return obj;
+        },
+        { ttlMs: CACHE_TTL_MS },
+      );
+      // Reconstruct Map from plain object
+      const map = new Map<string, PropertyLookupEntry>(Object.entries(plain));
+      setCache(cacheKey, map); // promote to L1
+      return map;
+    } catch {
+      // Redis failed, fall through to direct fetch
+    }
+  }
+
+  // No Redis or Redis failed — fetch directly and cache L1 only
+  const lookup = await fetchPropertyLookupFresh();
+  setCache(cacheKey, lookup);
+  return lookup;
+}
+
+/** Raw fetch for property lookup (no caching). */
+async function fetchPropertyLookupFresh(): Promise<Map<string, PropertyLookupEntry>> {
   const [names, titles, companies] = await Promise.all([
     fetchPropertyValues("full_name", 1000),
     fetchPropertyValues("job_title", 500),
@@ -340,7 +377,6 @@ async function getPropertyLookup(): Promise<Map<string, PropertyLookupEntry>> {
   ]);
 
   const lookup = new Map<string, PropertyLookupEntry>();
-  // Merge all three maps into a single lookup
   const allIds = new Set([...names.keys(), ...titles.keys(), ...companies.keys()]);
   for (const id of allIds) {
     lookup.set(id, {
@@ -349,27 +385,36 @@ async function getPropertyLookup(): Promise<Map<string, PropertyLookupEntry>> {
       company_name: companies.get(id),
     });
   }
-
-  setCache(cacheKey, lookup);
   return lookup;
 }
 
-/** Simple in-memory cache with TTL. */
-const cache = new Map<string, { data: unknown; expiresAt: number }>();
+/**
+ * Two-tier cache for Personize data.
+ * L1: per-instance Map (zero latency, survives warm invocations).
+ * L2: Upstash Redis (survives cold starts and deploys).
+ * Serialization note: Map values are stored as plain objects in Redis
+ * and reconstructed on cache hit.
+ */
+import { cached as redisCached, isRedisAvailable } from "@/lib/cache/redis";
+
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// L1 in-memory fallback (same as before, used when Redis is unavailable
+// or for non-serializable data like Maps)
+const l1Cache = new Map<string, { data: unknown; expiresAt: number }>();
+
 function getCached<T>(key: string): T | null {
-  const entry = cache.get(key);
+  const entry = l1Cache.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
+    l1Cache.delete(key);
     return null;
   }
   return entry.data as T;
 }
 
 function setCache(key: string, data: unknown): void {
-  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  l1Cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
 /** Extract the local part of an email, replace separators with spaces, and title-case each word. */
