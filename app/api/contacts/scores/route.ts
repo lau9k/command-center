@@ -84,31 +84,27 @@ export const GET = withErrorHandler(async function GET(request: Request) {
 
   let records: PersonizeRecord[];
 
+  // Fetch contacts — use a smaller page when scoped to specific IDs
+  const pageSize = recordIds ? Math.max(recordIds.length, 50) : 100;
+  const response = await client.memory.search({
+    type: "Contact",
+    collectionIds: [CONTACTS_COLLECTION_ID],
+    returnRecords: true,
+    pageSize,
+    page: 1,
+  });
+
+  const data = response.data as { records?: PersonizeRecord[] } | null;
+  const allRecords = Array.isArray(data?.records) ? data.records : [];
+
   if (recordIds) {
-    // Fetch only the requested records
-    const response = await client.memory.search({
-      type: "Contact",
-      collectionIds: [CONTACTS_COLLECTION_ID],
-      returnRecords: true,
-      recordIds,
-      pageSize: recordIds.length,
-      page: 1,
+    const idSet = new Set(recordIds);
+    records = allRecords.filter((r) => {
+      const id = r.recordId ?? r.record_id;
+      return id !== undefined && idSet.has(id);
     });
-
-    const data = response.data as { records?: PersonizeRecord[] } | null;
-    records = Array.isArray(data?.records) ? data.records : [];
   } else {
-    // Default: fetch a reduced page (was 500, now 100)
-    const response = await client.memory.search({
-      type: "Contact",
-      collectionIds: [CONTACTS_COLLECTION_ID],
-      returnRecords: true,
-      pageSize: 100,
-      page: 1,
-    });
-
-    const data = response.data as { records?: PersonizeRecord[] } | null;
-    records = Array.isArray(data?.records) ? data.records : [];
+    records = allRecords;
   }
 
   const contacts: ScoredContact[] = records.map((record) => {
