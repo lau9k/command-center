@@ -64,6 +64,12 @@ async function processConversationPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Inject required defaults for webhook-ingested conversations.
+  // The conversations table requires user_id (NOT NULL) and channel (NOT NULL in production),
+  // but n8n payloads may omit these. Fall back to sensible defaults.
+  const DEFAULT_USER_ID =
+    process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
+
   // Batch-lookup contacts by email
   const emails = [
     ...new Set(
@@ -80,10 +86,12 @@ async function processConversationPayload(
     if (c.email) emailToId.set(c.email, c.id);
   }
 
-  // Build upsert rows with contact_id resolved
+  // Build upsert rows with contact_id resolved + required defaults injected
   const rows = items.map(({ contact_email, ...rest }) => ({
     ...rest,
     contact_id: emailToId.get(contact_email as string) ?? null,
+    user_id: (rest.user_id as string) || DEFAULT_USER_ID,
+    channel: (rest.channel as string) || "unknown",
   }));
 
   const { data, error } = await supabase
@@ -114,6 +122,14 @@ async function processTaskPayload(
   payload: IngestEvent["payload"]
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
+
+  // Inject required defaults for webhook-ingested tasks.
+  // The tasks table requires project_id (NOT NULL) and user_id (NOT NULL),
+  // but n8n payloads may omit these. Fall back to the default project/user.
+  const DEFAULT_PROJECT_ID =
+    process.env.DEFAULT_PROJECT_ID ?? "9c5926fc-6f96-42c5-b1ee-2e69cd3ca2ae";
+  const DEFAULT_USER_ID =
+    process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
 
   // Collect unique project IDs to batch-fetch names
   const projectIds = [
@@ -156,7 +172,12 @@ async function processTaskPayload(
       : null;
     const { score } = scoreTask(taskForScoring, project);
 
-    return { ...item, priority_score: score };
+    return {
+      ...item,
+      priority_score: score,
+      project_id: (item.project_id as string) || DEFAULT_PROJECT_ID,
+      user_id: (item.user_id as string) || DEFAULT_USER_ID,
+    };
   });
 
   const { data, error } = await supabase
@@ -188,9 +209,19 @@ async function processTransactionPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Inject required defaults for webhook-ingested transactions.
+  // The transactions table requires user_id (NOT NULL).
+  const DEFAULT_USER_ID =
+    process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
+
+  const enriched = items.map((item) => ({
+    ...item,
+    user_id: (item.user_id as string) || DEFAULT_USER_ID,
+  }));
+
   const { data, error } = await supabase
     .from("transactions")
-    .upsert(items, { onConflict: "external_id" })
+    .upsert(enriched, { onConflict: "external_id" })
     .select();
 
   if (error) {
