@@ -72,11 +72,12 @@ type ContactWithScore = Contact & {
 
 export function ContactsClient() {
   const queryClient = useQueryClient();
+  const [pageSize, setPageSize] = useState(50);
 
   const { data: contactsData } = useQuery<ContactsListData & { pagination?: Pagination }>({
-    queryKey: ["contacts", "list"],
+    queryKey: ["contacts", "list", pageSize],
     queryFn: async () => {
-      const res = await fetch("/api/contacts?page=1&pageSize=50");
+      const res = await fetch(`/api/contacts?page=1&pageSize=${pageSize}`);
       if (!res.ok) throw new Error("Failed to fetch contacts");
       const json = await res.json();
       const pag = json.pagination as { page: number; pageSize: number; total: number; hasMore: boolean } | undefined;
@@ -298,11 +299,12 @@ export function ContactsClient() {
     });
   }, []);
 
-  const fetchContacts = useCallback(async (page = 1, tag?: string) => {
+  const fetchContacts = useCallback(async (page = 1, tag?: string, size?: number) => {
     try {
+      const effectiveSize = size ?? pageSize;
       const params = new URLSearchParams();
       params.set("page", String(page));
-      params.set("pageSize", "50");
+      params.set("pageSize", String(effectiveSize));
       if (tag && tag !== "all") params.set("tag", tag);
 
       const res = await fetch(`/api/contacts?${params}`);
@@ -317,7 +319,7 @@ export function ContactsClient() {
     } catch {
       // silent refresh failure
     }
-  }, []);
+  }, [pageSize]);
 
   const handleSemanticSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
@@ -359,6 +361,8 @@ export function ContactsClient() {
         }, 500);
       } else if (!value.trim()) {
         setIsSemanticSearch(false);
+        setPagination(null);
+        setCurrentPage(1);
         fetchContacts(1, tagFilter);
       }
     },
@@ -449,6 +453,16 @@ export function ContactsClient() {
       }
     },
     [fetchContacts, isSemanticSearch]
+  );
+
+  const handlePageSizeChange = useCallback(
+    (value: string) => {
+      const newSize = Number(value);
+      setPageSize(newSize);
+      setCurrentPage(1);
+      fetchContacts(1, tagFilter, newSize);
+    },
+    [fetchContacts, tagFilter]
   );
 
   function openNewForm() {
@@ -587,11 +601,23 @@ export function ContactsClient() {
       {/* Pagination Controls */}
       {pagination && !isSemanticSearch && (
         <div className="flex items-center justify-between border-t border-border pt-4">
-          <p className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * (pagination.pageSize)) + 1}&ndash;
-            {Math.min(currentPage * pagination.pageSize, pagination.total)} of{" "}
-            {pagination.total} contacts
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              {((currentPage - 1) * pagination.pageSize) + 1}&ndash;
+              {Math.min(currentPage * pagination.pageSize, pagination.total)} of{" "}
+              {pagination.total.toLocaleString()}
+            </p>
+            <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+              <SelectTrigger className="h-8 w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25 / page</SelectItem>
+                <SelectItem value="50">50 / page</SelectItem>
+                <SelectItem value="100">100 / page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
