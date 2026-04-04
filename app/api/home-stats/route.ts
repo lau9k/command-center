@@ -151,21 +151,24 @@ export interface HomeStatsResponse {
   totalTasksCount: number;
 }
 
-/** Safely query a table, returning a fallback on error. */
+/** Safely query a table, returning a fallback on error. Pushes label to warnings on failure. */
 async function safeQuery<T>(
   label: string,
   fn: () => PromiseLike<{ data: T | null; error: unknown }>,
   fallback: T,
+  warnings: string[],
 ): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) {
       console.warn(`[home-stats] ${label} failed:`, (error as { message?: string }).message ?? error);
+      warnings.push(label);
       return fallback;
     }
     return data ?? fallback;
   } catch (err) {
     console.warn(`[home-stats] ${label} threw:`, (err as Error).message ?? err);
+    warnings.push(label);
     return fallback;
   }
 }
@@ -194,8 +197,9 @@ const EMPTY_SUMMARY: DashboardSummary = {
  * Total: 1 RPC + 8 data queries + 3 cached external calls = 12 parallel calls
  * (down from 23 before the RPC consolidation)
  */
-export async function getHomeStats(): Promise<HomeStatsResponse> {
+export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warnings: string[] }> {
   const supabase = createServiceClient();
+  const warnings: string[] = [];
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -221,11 +225,13 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
         const { data, error } = await supabase.rpc("get_dashboard_summary");
         if (error) {
           console.warn("[home-stats] get_dashboard_summary RPC failed:", error.message);
+          warnings.push("Dashboard summary");
           return EMPTY_SUMMARY;
         }
         return (data as DashboardSummary) ?? EMPTY_SUMMARY;
       } catch (err) {
         console.warn("[home-stats] get_dashboard_summary threw:", (err as Error).message);
+        warnings.push("Dashboard summary");
         return EMPTY_SUMMARY;
       }
     })(),
@@ -239,6 +245,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .select("id, project_id, title, status, priority, due_date, updated_at, projects(id, name, slug, color, status)")
           .order("updated_at", { ascending: false }),
       [] as { id: string; project_id: string | null; title: string; status: string; priority: string; due_date: string | null; updated_at: string; projects: { id: string; name: string; slug: string; color: string | null; status: string }[] }[],
+      warnings,
     ),
 
     // 3) Active projects — needed for project summary cards
@@ -251,6 +258,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .eq("status", "active")
           .order("name", { ascending: true }),
       [] as { id: string; name: string; slug: string; status: string }[],
+      warnings,
     ),
 
     // 4) All content posts — needed for calendar preview widget
@@ -263,6 +271,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .order("scheduled_at", { ascending: true, nullsFirst: false })
           .returns<ContentPost[]>(),
       [] as ContentPost[],
+      warnings,
     ),
 
     // 5) Contacts count — Personize primary, Supabase fallback (cached 15 min)
@@ -309,6 +318,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .eq("status", "pending_review")
           .order("meeting_date", { ascending: false }),
       [] as Meeting[],
+      warnings,
     ),
 
     // 8) Activity log — last 15 entries
@@ -321,6 +331,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .order("created_at", { ascending: false })
           .limit(15),
       [] as ActivityLogEntry[],
+      warnings,
     ),
 
     // 9) Overdue tasks list — full rows for upcoming panel
@@ -335,6 +346,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .order("due_date", { ascending: true })
           .limit(5),
       [] as OverdueTask[],
+      warnings,
     ),
 
     // 10) Upcoming meetings — next 3
@@ -348,6 +360,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .order("meeting_date", { ascending: true })
           .limit(3),
       [] as UpcomingMeeting[],
+      warnings,
     ),
 
     // 11) Scheduled content — next 3
@@ -362,6 +375,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .order("scheduled_for", { ascending: true })
           .limit(3),
       [] as ScheduledContentItem[],
+      warnings,
     ),
 
     // 12) Enrichment count — Personize API (cached 15 min)
@@ -509,10 +523,10 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     totalTasksCount: s.total_tasks,
   };
 
-  return response;
+  return { data: response, warnings };
 }
 
 export const GET = withErrorHandler(async function GET() {
-  const response = await getHomeStats();
-  return NextResponse.json({ data: response });
+  const { data, warnings } = await getHomeStats();
+  return NextResponse.json({ data, warnings });
 });
