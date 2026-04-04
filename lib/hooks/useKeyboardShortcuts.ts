@@ -76,6 +76,13 @@ export function useKeyboardShortcuts() {
         router.push("/tasks?new=1");
         return;
       }
+
+      // ? → open keyboard shortcuts dialog
+      if (e.key === "?") {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("open-keyboard-shortcuts"));
+        return;
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
