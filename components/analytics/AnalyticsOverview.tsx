@@ -9,6 +9,7 @@ import {
   RefreshCw,
   AlertTriangle,
   Activity,
+  Clock,
 } from "lucide-react";
 import type { ValueType } from "recharts/types/component/DefaultTooltipContent";
 import type { AnalyticsOverviewResponse } from "@/app/api/analytics/overview/route";
@@ -256,16 +257,16 @@ const SyncHealthChart = dynamic(
         data,
       }: {
         data: {
-          table: string;
-          synced: number;
-          pending: number;
-          failed: number;
-          skipped: number;
+          entity: string;
+          processed: number;
+          retryable: number;
+          dead_letter: number;
+          last_sync_at: string | null;
         }[];
       }) {
         const formatted = data.map((d) => ({
           ...d,
-          table: d.table.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+          entity: d.entity.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
         }));
 
         return (
@@ -280,7 +281,7 @@ const SyncHealthChart = dynamic(
                 vertical={false}
               />
               <XAxis
-                dataKey="table"
+                dataKey="entity"
                 tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
@@ -307,22 +308,22 @@ const SyncHealthChart = dynamic(
                 }}
               />
               <Bar
-                dataKey="synced"
-                name="Synced"
+                dataKey="processed"
+                name="Processed"
                 stackId="sync"
                 fill={CHART_COLORS.green}
                 radius={[0, 0, 0, 0]}
               />
               <Bar
-                dataKey="pending"
-                name="Pending"
+                dataKey="retryable"
+                name="Retryable"
                 stackId="sync"
                 fill={CHART_COLORS.amber}
                 radius={[0, 0, 0, 0]}
               />
               <Bar
-                dataKey="failed"
-                name="Failed"
+                dataKey="dead_letter"
+                name="Dead Letter"
                 stackId="sync"
                 fill={CHART_COLORS.red}
                 radius={[4, 4, 0, 0]}
@@ -479,12 +480,50 @@ export default function AnalyticsOverview() {
       <SectionCard
         title="Sync Health"
         icon={<Activity className="size-4" />}
-        subtitle="Personize sync status across modules"
+        subtitle="Ingest pipeline status"
       >
-        {data.sync.length === 0 ? (
-          <NoData label="sync" />
+        {data.sync.entities.length === 0 ||
+        data.sync.entities.every(
+          (e) => e.processed === 0 && e.retryable === 0 && e.dead_letter === 0
+        ) ? (
+          <div className="flex h-[260px] items-center justify-center text-sm text-muted-foreground">
+            No ingest data yet
+          </div>
         ) : (
-          <SyncHealthChart data={data.sync} />
+          <div className="space-y-3">
+            {/* Queue summary */}
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <span>
+                Queue: <strong className="text-foreground">{data.sync.queue.pending}</strong> pending
+              </span>
+              <span>
+                <strong className="text-amber-500">{data.sync.queue.retryable}</strong> retryable
+              </span>
+              <span>
+                <strong className="text-red-500">{data.sync.queue.dead_letter}</strong> dead letter
+              </span>
+            </div>
+            <SyncHealthChart data={data.sync.entities} />
+            {/* Last synced timestamps */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {data.sync.entities.map((e) => (
+                <div key={e.entity} className="flex items-center gap-1">
+                  <Clock className="size-3" />
+                  <span className="capitalize">{e.entity}:</span>
+                  <span className="text-foreground">
+                    {e.last_sync_at
+                      ? new Date(e.last_sync_at).toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })
+                      : "Never"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </SectionCard>
     </div>

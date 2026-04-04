@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 
-const SYNC_TABLES = [
-  "contacts",
-  "tasks",
-  "pipeline_items",
-  "content_posts",
-  "meetings",
+const INGEST_ENTITY_TYPES = [
+  "contact",
+  "conversation",
+  "task",
+  "transaction",
 ] as const;
 
 function weekKey(dateStr: string): string {
@@ -47,12 +46,19 @@ export interface AnalyticsOverviewResponse {
     weeklyCompletion: { week: string; count: number }[];
   };
   sync: {
-    table: string;
-    synced: number;
-    pending: number;
-    failed: number;
-    skipped: number;
-  }[];
+    entities: {
+      entity: string;
+      processed: number;
+      retryable: number;
+      dead_letter: number;
+      last_sync_at: string | null;
+    }[];
+    queue: {
+      pending: number;
+      retryable: number;
+      dead_letter: number;
+    };
+  };
 }
 
 export const GET = withErrorHandler(async function GET() {
@@ -81,7 +87,11 @@ export const GET = withErrorHandler(async function GET() {
     tasksOverdueResult,
     tasksStatusResult,
     tasksCompletedRecentResult,
-    ...syncResults
+    ingestEventsResult,
+    pendingCountResult,
+    retryableCountResult,
+    deadLetterCountResult,
+    syncLogResult,
   ] = await Promise.all([
     // Contacts
     supabase.from("contacts").select("*", { count: "exact", head: true }),
@@ -125,12 +135,30 @@ export const GET = withErrorHandler(async function GET() {
       .eq("status", "done")
       .gte("updated_at", eightWeeksAgo),
 
-    // Sync health for all 5 tables
-    ...SYNC_TABLES.map((table) =>
-      supabase
-        .from(table)
-        .select("personize_sync_status")
-    ),
+    // Sync health: ingest_events by entity_type + status
+    supabase
+      .from("ingest_events")
+      .select("entity_type, status"),
+
+    // Sync health: queue counts
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["received", "processing"]),
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "retryable"),
+    supabase
+      .from("ingest_events")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "dead_letter"),
+
+    // Sync health: latest sync_log per source
+    supabase
+      .from("sync_log")
+      .select("source, status, completed_at")
+      .order("started_at", { ascending: false }),
   ]);
 
   // --- Contacts ---
@@ -209,16 +237,50 @@ export const GET = withErrorHandler(async function GET() {
     .map(([week, count]) => ({ week, count }));
 
   // --- Sync health ---
-  const sync = SYNC_TABLES.map((table, i) => {
-    const rows = syncResults[i].data ?? [];
-    const counts = { synced: 0, pending: 0, failed: 0, skipped: 0 };
-    for (const row of rows) {
-      const s = (row.personize_sync_status as string) || "pending";
-      if (s in counts) counts[s as keyof typeof counts] += 1;
-      else counts.pending += 1;
+  // Count ingest events by entity_type and status
+  const entityCounts: Record<string, { processed: number; retryable: number; dead_letter: number }> = {};
+  for (const et of INGEST_ENTITY_TYPES) {
+    entityCounts[et] = { processed: 0, retryable: 0, dead_letter: 0 };
+  }
+  for (const row of ingestEventsResult.data ?? []) {
+    const et = row.entity_type as string;
+    const status = row.status as string;
+    if (et in entityCounts) {
+      if (status === "processed") entityCounts[et].processed += 1;
+      else if (status === "retryable") entityCounts[et].retryable += 1;
+      else if (status === "dead_letter") entityCounts[et].dead_letter += 1;
     }
-    return { table, ...counts };
-  });
+  }
+
+  // Latest sync_log per n8n source → map to entity type
+  const sourceToEntity: Record<string, string> = {
+    "n8n:contacts": "contact",
+    "n8n:tasks": "task",
+    "n8n:conversations": "conversation",
+    "n8n:transactions": "transaction",
+  };
+  const lastSyncByEntity: Record<string, string | null> = {};
+  for (const log of syncLogResult.data ?? []) {
+    const entity = sourceToEntity[log.source as string];
+    if (entity && !(entity in lastSyncByEntity)) {
+      lastSyncByEntity[entity] = (log.completed_at as string) ?? null;
+    }
+  }
+
+  const syncEntities = INGEST_ENTITY_TYPES.map((entity) => ({
+    entity,
+    ...entityCounts[entity],
+    last_sync_at: lastSyncByEntity[entity] ?? null,
+  }));
+
+  const sync = {
+    entities: syncEntities,
+    queue: {
+      pending: pendingCountResult.count ?? 0,
+      retryable: retryableCountResult.count ?? 0,
+      dead_letter: deadLetterCountResult.count ?? 0,
+    },
+  };
 
   const response: AnalyticsOverviewResponse = {
     contacts: {
