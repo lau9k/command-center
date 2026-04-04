@@ -21,9 +21,23 @@ async function processContactPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Inject required defaults for webhook-ingested contacts.
+  // The contacts table requires project_id (NOT NULL) and user_id (NOT NULL),
+  // but n8n payloads may omit these. Fall back to the default project/user.
+  const DEFAULT_PROJECT_ID =
+    process.env.DEFAULT_PROJECT_ID ?? "9c5926fc-6f96-42c5-b1ee-2e69cd3ca2ae";
+  const DEFAULT_USER_ID =
+    process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
+
+  const enriched = items.map((item) => ({
+    ...item,
+    project_id: (item.project_id as string) || DEFAULT_PROJECT_ID,
+    user_id: (item.user_id as string) || DEFAULT_USER_ID,
+  }));
+
   const { data, error } = await supabase
     .from("contacts")
-    .upsert(items, { onConflict: "email" })
+    .upsert(enriched, { onConflict: "email" })
     .select();
 
   if (error) {
