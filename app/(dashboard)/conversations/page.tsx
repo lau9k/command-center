@@ -47,7 +47,7 @@ export default async function ConversationsPage() {
           .select("channel");
 
         const counts: Record<string, number> = { all: 0 };
-        const primaryChannels = new Set(["email", "slack", "telegram"]);
+        const primaryChannels = new Set(["email", "slack", "telegram", "linkedin"]);
         if (data) {
           counts.all = data.length;
           for (const row of data) {
