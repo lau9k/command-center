@@ -82,12 +82,12 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
 
     result.ingest_ack_ms = elapsed(ingestStart);
 
-    if (logResult.duplicate) {
+    if (logResult.outcome === "deduplicated") {
       result.error_message = "Smoke event was a duplicate — smoke_key collision";
       return fail(supabase, result, e2eStart);
     }
-    if (!logResult.event) {
-      result.error_message = "logIngestEvent returned no event and no duplicate";
+    if (logResult.outcome === "error") {
+      result.error_message = `logIngestEvent failed: ${logResult.error}`;
       return fail(supabase, result, e2eStart);
     }
 
@@ -169,7 +169,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
       payload,
     });
 
-    result.dedup_ok = dedupResult.duplicate === true;
+    result.dedup_ok = dedupResult.outcome === "deduplicated";
     if (!result.dedup_ok) {
       result.error_message = "Dedup check failed — second insert was not detected as duplicate";
       return fail(supabase, result, e2eStart);
