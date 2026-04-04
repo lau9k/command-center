@@ -1,5 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { NotificationBell } from "@/components/dashboard/NotificationBell";
+import { KeyboardShortcutsDialog } from "@/components/shared/KeyboardShortcutsDialog";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { UserNav } from "@/components/dashboard/user-nav";
 import { createClient } from "@/lib/supabase/server";
@@ -45,6 +46,7 @@ export async function Header({ projects }: HeaderProps) {
   return (
     <header className="flex h-14 items-center gap-3 border-b bg-background px-4">
       <div className="ml-auto flex items-center gap-3">
+        <KeyboardShortcutsDialog />
         <NotificationBell
           initialNotifications={notifications}
           initialUnreadCount={unreadCount}
