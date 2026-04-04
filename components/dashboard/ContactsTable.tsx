@@ -24,6 +24,7 @@ interface ContactsTableProps {
   onSelectContact: (contact: Contact) => void;
   onSortByScore?: () => void;
   scoreSortDirection?: "asc" | "desc" | null;
+  isEnriching?: boolean;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -195,6 +196,7 @@ export function ContactsTable({
   onSelectContact,
   onSortByScore,
   scoreSortDirection,
+  isEnriching = false,
 }: ContactsTableProps) {
   if (contacts.length === 0) {
     return (
@@ -259,10 +261,20 @@ export function ContactsTable({
               </TableCell>
               {hasPersonizeData && (
                 <TableCell className="text-muted-foreground text-sm">
-                  {contact.job_title ?? "\u2014"}
+                  {contact.job_title ? (
+                    contact.job_title
+                  ) : (
+                    <span className={`text-muted-foreground/50${isEnriching ? " animate-pulse" : ""}`}>{"\u2014"}</span>
+                  )}
                 </TableCell>
               )}
-              <TableCell>{contact.company ?? "\u2014"}</TableCell>
+              <TableCell>
+                {contact.company ? (
+                  contact.company
+                ) : (
+                  <span className={`text-muted-foreground/50${isEnriching ? " animate-pulse" : ""}`}>{"\u2014"}</span>
+                )}
+              </TableCell>
               {!hasPersonizeData && (
                 <TableCell className="text-muted-foreground">
                   {contact.email ?? "\u2014"}
