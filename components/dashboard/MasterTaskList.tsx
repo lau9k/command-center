@@ -96,7 +96,7 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 const ALL_VALUE = "__all__";
 
 const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = [
-  { label: "Active", value: ALL_VALUE },
+  { label: "All", value: ALL_VALUE },
   { label: "Todo", value: "todo" },
   { label: "In Progress", value: "in_progress" },
   { label: "Blocked", value: "blocked" },
@@ -260,7 +260,6 @@ export function MasterTaskList({
   const applyFilters = (t: TaskWithProject) => {
     if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
     if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
-    if (filterStatus === ALL_VALUE && t.status === "done") return false;
     if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
     if (filterType === "outreach") {
       if (!t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
@@ -286,7 +285,8 @@ export function MasterTaskList({
     filterProject !== ALL_VALUE ||
     filterPriority !== ALL_VALUE ||
     filterStatus !== ALL_VALUE ||
-    filterType !== ALL_VALUE;
+    filterType !== ALL_VALUE ||
+    search.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -434,7 +434,7 @@ export function MasterTaskList({
           icon={hasFilters ? <ListFilter /> : <CheckSquare />}
           title={hasFilters ? "No results match your filters" : "No tasks yet"}
           description={hasFilters ? "Try adjusting or clearing your filters to see tasks." : "Create your first task to start tracking work across projects."}
-          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); setFilterType(ALL_VALUE); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
+          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); setFilterType(ALL_VALUE); setSearch(""); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
         />
       ) : (
         <div className="space-y-2">
@@ -452,7 +452,7 @@ export function MasterTaskList({
             </span>
           </div>
           {sorted.map((task) => (
-            <div key={task.id} className="flex items-center gap-0">
+            <div key={task.id} className={cn("flex items-center gap-0", task.status === "done" && "opacity-60")}>
               <div className="flex shrink-0 items-center pl-4">
                 <Checkbox
                   checked={selection.selectedIds.has(task.id)}
@@ -460,7 +460,7 @@ export function MasterTaskList({
                   aria-label={`Select "${task.title}"`}
                 />
               </div>
-              <div className="flex-1 min-w-0 [&>div>span:first-child]:hidden">
+              <div className={cn("flex-1 min-w-0 [&>div>span:first-child]:hidden", task.status === "done" && "line-through")}>
                 <TaskCard
                   task={task}
                   onStatusChange={handleStatusChange}
