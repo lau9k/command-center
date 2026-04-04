@@ -30,7 +30,27 @@ interface ScoredContact {
   breakdown: ScoreBreakdown;
 }
 
-export const GET = withErrorHandler(async function GET() {
+function parseRecordIds(param: string | null): string[] | null {
+  if (!param) return null;
+
+  // Try JSON array first, then comma-separated
+  try {
+    const parsed: unknown = JSON.parse(param);
+    if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) {
+      return parsed.length > 0 ? parsed : null;
+    }
+  } catch {
+    // Not JSON — treat as comma-separated
+  }
+
+  const ids = param
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? ids : null;
+}
+
+export const GET = withErrorHandler(async function GET(request: Request) {
   if (!process.env.PERSONIZE_SECRET_KEY) {
     return NextResponse.json(
       { error: "Personize not configured" },
@@ -38,37 +58,54 @@ export const GET = withErrorHandler(async function GET() {
     );
   }
 
-  // Check cache first
-  const inputHash = computeInputHash("relationship-scores", "v1");
-  const cached = await getCachedContext(
-    CACHE_USER_ID,
-    CACHE_VIEW_TYPE,
-    null,
-    "default"
-  );
+  const { searchParams } = new URL(request.url);
+  const recordIds = parseRecordIds(searchParams.get("recordIds"));
 
-  if (cached && isCacheFresh(cached)) {
-    return NextResponse.json(cached.content);
+  // When scoped to specific records, skip the full-result cache
+  if (!recordIds) {
+    const inputHash = computeInputHash("relationship-scores", "v1");
+    const cached = await getCachedContext(
+      CACHE_USER_ID,
+      CACHE_VIEW_TYPE,
+      null,
+      "default"
+    );
+
+    if (cached && isCacheFresh(cached)) {
+      return NextResponse.json(cached.content);
+    }
   }
 
-  // Fetch all contacts from Personize with properties
+  type PersonizeRecord = {
+    recordId?: string;
+    record_id?: string;
+    properties?: Record<string, string>;
+  };
+
+  let records: PersonizeRecord[];
+
+  // Fetch contacts — use a smaller page when scoped to specific IDs
+  const pageSize = recordIds ? Math.max(recordIds.length, 50) : 100;
   const response = await client.memory.search({
     type: "Contact",
     collectionIds: [CONTACTS_COLLECTION_ID],
     returnRecords: true,
-    pageSize: 500,
+    pageSize,
     page: 1,
   });
 
-  const data = response.data as {
-    records?: Array<{
-      recordId?: string;
-      record_id?: string;
-      properties?: Record<string, string>;
-    }>;
-  } | null;
+  const data = response.data as { records?: PersonizeRecord[] } | null;
+  const allRecords = Array.isArray(data?.records) ? data.records : [];
 
-  const records = Array.isArray(data?.records) ? data.records : [];
+  if (recordIds) {
+    const idSet = new Set(recordIds);
+    records = allRecords.filter((r) => {
+      const id = r.recordId ?? r.record_id;
+      return id !== undefined && idSet.has(id);
+    });
+  } else {
+    records = allRecords;
+  }
 
   const contacts: ScoredContact[] = records.map((record) => {
     const props = record.properties ?? {};
@@ -92,17 +129,20 @@ export const GET = withErrorHandler(async function GET() {
 
   const result = { contacts };
 
-  // Cache for 2 hours
-  await setCachedContext(
-    CACHE_USER_ID,
-    CACHE_VIEW_TYPE,
-    null,
-    "default",
-    inputHash,
-    result as unknown as Record<string, unknown>,
-    0,
-    CACHE_TTL_MINUTES
-  );
+  // Cache full results for 2 hours (skip cache for scoped requests)
+  if (!recordIds) {
+    const inputHash = computeInputHash("relationship-scores", "v1");
+    await setCachedContext(
+      CACHE_USER_ID,
+      CACHE_VIEW_TYPE,
+      null,
+      "default",
+      inputHash,
+      result as unknown as Record<string, unknown>,
+      0,
+      CACHE_TTL_MINUTES
+    );
+  }
 
   return NextResponse.json(result);
 });
