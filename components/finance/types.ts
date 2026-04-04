@@ -84,14 +84,22 @@ export function getDaysUntilDue(dueDay: number): number {
   if (effectiveDueDay >= currentDay) {
     return effectiveDueDay - currentDay;
   }
-  // Already passed this month — treat as overdue
-  return effectiveDueDay - currentDay; // negative = overdue
+  // Already passed this month — calculate days until next month's due date
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const lastDayOfNextMonth = new Date(
+    nextMonth.getFullYear(),
+    nextMonth.getMonth() + 1,
+    0
+  ).getDate();
+  const effectiveDueDayNextMonth = Math.min(dueDay, lastDayOfNextMonth);
+  const daysLeftThisMonth = lastDayOfMonth - currentDay;
+  return daysLeftThisMonth + effectiveDueDayNextMonth;
 }
 
 export function getDueColor(daysUntil: number): string {
-  if (daysUntil <= 2) return "#EF4444"; // red
-  if (daysUntil <= 6) return "#EAB308"; // yellow
-  return "#22C55E"; // green
+  if (daysUntil <= 3) return "#EF4444"; // red — due very soon
+  if (daysUntil <= 7) return "#EAB308"; // yellow — due this week
+  return "#22C55E"; // green — distant
 }
 
 export function getDueGroup(daysUntil: number): string {
