@@ -157,10 +157,17 @@ export function StageColumn({ stage, items, onCardClick, onQuickAdd }: StageColu
             {provided.placeholder}
 
             {items.length === 0 && !snapshot.isDraggingOver && (
-              <div className="flex flex-1 items-center justify-center rounded-md border-2 border-dashed border-border py-8">
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-border py-8">
                 <p className="text-xs text-muted-foreground">
-                  Drop deals here
+                  No deals in {stage.name}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => onQuickAdd(stage.id)}
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  + Add deal
+                </button>
               </div>
             )}
           </div>
