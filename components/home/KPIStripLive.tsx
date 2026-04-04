@@ -289,9 +289,11 @@ export function KPIStripLive({
           value={safeValue(stats.contactsCount)}
           subtitle={stats.contactsCount > 0 ? "total tracked" : "none tracked yet"}
           secondarySubtitle={
-            stats.supabaseContactsCount != null && stats.supabaseContactsCount > 0
-              ? `${stats.supabaseContactsCount} in pipeline`
-              : undefined
+            stats.enrichment_pct > 0
+              ? `${stats.enrichment_pct}% enriched`
+              : stats.supabaseContactsCount != null && stats.supabaseContactsCount > 0
+                ? `${stats.supabaseContactsCount} in pipeline`
+                : undefined
           }
           icon={<Users className="size-5" />}
           accentColor={ACCENT.indigo}
