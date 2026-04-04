@@ -90,7 +90,28 @@ export function ContactsClient() {
 
   const { data: kpis } = useQuery<ContactsKpis>({
     queryKey: ["contacts", "kpis"],
-    staleTime: Infinity,
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/contacts/enrichment-stats");
+        if (!res.ok) throw new Error("Failed to fetch enrichment stats");
+        const json = await res.json();
+        const k = json.kpis as {
+          totalContacts: number;
+          withMemories: number;
+          withProperties: number;
+          lastUpdated: string;
+        };
+        return {
+          totalContacts: k.totalContacts,
+          withMemories: k.withMemories,
+          taggedThisWeek: k.withProperties,
+          untagged: k.totalContacts - k.withProperties,
+        };
+      } catch {
+        return { totalContacts: 0, taggedThisWeek: 0, withMemories: 0, untagged: 0 };
+      }
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch relationship scores
