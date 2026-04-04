@@ -11,6 +11,9 @@ const CONTACTS_COLLECTION_ID =
   process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
   "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
+const PERSONIZE_API_BASE = "https://agent.personize.ai";
+const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
+
 // ---------- Sub-types used in the response ----------
 
 export interface OutreachStats {
@@ -90,6 +93,7 @@ export interface HomeStatsResponse {
   overdueTasks: number;
   tasksCompletedToday: number;
   newContactsThisWeek: number;
+  enrichment_pct: number;
   contacts_source: "personize" | "supabase";
   lastUpdated: string;
 
@@ -183,6 +187,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     upcomingMeetings,
     scheduledContent,
     outreachRows,
+    enrichedContactsCount,
   ] = await Promise.all([
     // Tasks with full details for ranking + project summaries
     safeQuery(
@@ -426,6 +431,34 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
           .eq("task_type", "outreach"),
       [] as { outreach_status: string | null }[],
     ),
+
+    // Enrichment: contacts with email (proxy for enriched)
+    (async (): Promise<number> => {
+      try {
+        const response = await fetch(
+          `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${PERSONIZE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              collectionId: CONTACTS_COLLECTION_ID,
+              conditions: [{ propertyName: "email", operator: "exists" }],
+              limit: 1,
+            }),
+          },
+        );
+        if (!response.ok) return 0;
+        const data = (await response.json()) as {
+          data?: { total?: number; records?: unknown[] };
+        };
+        return data?.data?.total ?? data?.data?.records?.length ?? 0;
+      } catch {
+        return 0;
+      }
+    })(),
   ]);
 
   // --- KPI computations ---
@@ -526,6 +559,12 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     };
   });
 
+  // Enrichment coverage percentage
+  const enrichment_pct =
+    contactsResult.count > 0
+      ? Math.round((enrichedContactsCount / contactsResult.count) * 100)
+      : 0;
+
   const response: HomeStatsResponse = {
     activeTasks,
     activeProjectCount: activeProjectIds.size,
@@ -535,6 +574,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     contentPublishedCount,
     contentThisWeek,
     contactsCount: contactsResult.count,
+    enrichment_pct,
     contacts_source: contactsResult.source,
     conversationsCount,
     pipelineItemCount: pipelineCount,
