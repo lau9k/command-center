@@ -25,6 +25,12 @@ import { KpiStripSkeleton } from "@/components/home/kpi-card-skeleton";
 import { KpiErrorState } from "@/components/home/kpi-error-state";
 import type { HomeStatsResponse } from "@/app/api/home-stats/route";
 
+/** Extended stats shape — optional pipeline counts added by BAS-286 */
+type StatsWithPipeline = HomeStatsResponse & {
+  supabaseContactsCount?: number;
+  supabaseConversationsCount?: number;
+};
+
 const REFRESH_INTERVAL_MS = 300_000;
 
 /** Accent colors for KPI categories */
@@ -109,7 +115,7 @@ function formatTimeAgo(isoString: string): string {
 }
 
 interface KPIStripLiveProps {
-  initial: HomeStatsResponse;
+  initial: StatsWithPipeline;
   communityMemberCount: number;
   communityDelta?: number | null;
 }
@@ -120,7 +126,7 @@ export function KPIStripLive({
   communityDelta,
 }: KPIStripLiveProps) {
   const router = useRouter();
-  const [stats, setStats] = useState<HomeStatsResponse | null>(initial);
+  const [stats, setStats] = useState<StatsWithPipeline | null>(initial);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>(initial.lastUpdated);
@@ -131,7 +137,7 @@ export function KPIStripLive({
     try {
       const res = await fetch("/api/home-stats");
       if (res.ok) {
-        const json = (await res.json()) as { data: HomeStatsResponse };
+        const json = (await res.json()) as { data: StatsWithPipeline };
         setStats(json.data);
         setLastUpdated(json.data.lastUpdated);
         setHasError(false);
@@ -282,6 +288,11 @@ export function KPIStripLive({
           label="Contacts"
           value={safeValue(stats.contactsCount)}
           subtitle={stats.contactsCount > 0 ? "total tracked" : "none tracked yet"}
+          secondarySubtitle={
+            stats.supabaseContactsCount != null && stats.supabaseContactsCount > 0
+              ? `${stats.supabaseContactsCount} in pipeline`
+              : undefined
+          }
           icon={<Users className="size-5" />}
           accentColor={ACCENT.indigo}
           sparkline={sparklines && <MiniSparkline data={sparklines.contacts} color={ACCENT.indigo} />}
@@ -299,6 +310,13 @@ export function KPIStripLive({
           label="Conversations"
           value={safeValue(stats.conversationsCount)}
           subtitle={stats.conversationsCount > 0 ? "total tracked" : "none yet"}
+          secondarySubtitle={
+            stats.supabaseConversationsCount != null &&
+            stats.supabaseConversationsCount > 0 &&
+            stats.supabaseConversationsCount !== stats.conversationsCount
+              ? `${stats.supabaseConversationsCount} in pipeline`
+              : undefined
+          }
           icon={<MessagesSquare className="size-5" />}
           sparkline={sparklines && <MiniSparkline data={sparklines.conversations} color={ACCENT.blue} />}
         />

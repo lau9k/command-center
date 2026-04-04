@@ -7,6 +7,8 @@ interface KpiCardProps extends React.ComponentProps<"div"> {
   label: string
   value: string | number
   subtitle?: string
+  /** Secondary line below the subtitle, e.g. "3 in pipeline" */
+  secondarySubtitle?: string
   delta?: number
   deltaDirection?: "up" | "down"
   icon?: React.ReactNode
@@ -19,6 +21,7 @@ function KpiCard({
   label,
   value,
   subtitle,
+  secondarySubtitle,
   delta,
   deltaDirection,
   icon,
@@ -68,6 +71,9 @@ function KpiCard({
           )}
           {subtitle && (
             <span className="text-xs text-muted-foreground">{subtitle}</span>
+          )}
+          {secondarySubtitle && (
+            <span className="text-xs text-muted-foreground/70">{secondarySubtitle}</span>
           )}
         </div>
         {sparkline && <div className="shrink-0">{sparkline}</div>}
