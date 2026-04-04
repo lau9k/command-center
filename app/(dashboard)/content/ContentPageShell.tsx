@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Calendar, ClipboardCheck, LayoutGrid, Plus } from "lucide-react";
+import { Calendar, ClipboardCheck, LayoutGrid, Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -13,8 +13,10 @@ import { ContentBoard } from "@/components/dashboard/ContentBoard";
 import { ContentForm } from "@/components/dashboard/ContentForm";
 import type { ContentFormData } from "@/components/dashboard/ContentForm";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ContentStatusBadge } from "@/components/ui/status-badge";
 import { SeedContentButton } from "@/components/content/SeedButton";
 import type { ContentPost, Project } from "@/lib/types/database";
+import type { ContentStatus } from "@/components/ui/status-badge";
 
 type PostWithProject = ContentPost & {
   projects?: Pick<Project, "id" | "name" | "color"> | null;
@@ -49,6 +51,19 @@ export function ContentPageShell() {
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
+    },
+  });
+
+  const { data: unscheduledPosts = [] } = useQuery<PostWithProject[]>({
+    queryKey: ["content", "unscheduled"],
+    queryFn: async () => {
+      const res = await fetch("/api/content?unscheduled=true");
+      if (!res.ok) return [];
+      const json = await res.json();
+      const all = Array.isArray(json.data) ? json.data : [];
+      return all.filter(
+        (p: PostWithProject) => !p.scheduled_at && !p.scheduled_for
+      );
     },
   });
 
@@ -173,7 +188,59 @@ export function ContentPageShell() {
           </div>
         </div>
       ) : view === "calendar" ? (
-        <BufferCalendar initialPosts={calendarPosts} projects={projects} />
+        <div className="space-y-6">
+          {unscheduledPosts.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="size-4" />
+              <span>{unscheduledPosts.length} unscheduled</span>
+            </div>
+          )}
+          <BufferCalendar initialPosts={calendarPosts} projects={projects} />
+          {unscheduledPosts.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-lg font-medium text-foreground">
+                Unscheduled Posts
+              </h2>
+              <div className="grid gap-2">
+                {unscheduledPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {post.title || "Untitled"}
+                      </span>
+                      {post.projects && (
+                        <span
+                          className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                          style={{
+                            backgroundColor: post.projects.color
+                              ? `${post.projects.color}20`
+                              : undefined,
+                            color: post.projects.color ?? undefined,
+                          }}
+                        >
+                          {post.projects.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {post.platform && (
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {post.platform}
+                        </span>
+                      )}
+                      <ContentStatusBadge
+                        status={post.status as ContentStatus}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <ContentBoard
           initialPosts={posts}
