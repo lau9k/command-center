@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/export/ExportButton";
 import { ContactsSubNav } from "@/components/contacts/ContactsSubNav";
 import { getQueryClient } from "@/lib/query-client";
+import { contactListOptions } from "@/lib/queries/contacts";
 import client from "@/lib/personize/client";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +18,11 @@ export default async function ContactsPage() {
 
   let personizeAvailable = false;
 
-  // Prefetch contacts list into the query client
+  // Prefetch contacts list — spread shared factory for key/staleTime alignment,
+  // override queryFn with server-side data access (faster than routing through API).
+  const sharedOpts = contactListOptions();
   await queryClient.prefetchQuery({
-    queryKey: ["contacts", "list"],
+    ...sharedOpts,
     queryFn: async () => {
       // Try Personize first for live data
       if (process.env.PERSONIZE_SECRET_KEY) {
@@ -82,7 +85,7 @@ export default async function ContactsPage() {
         const listData = queryClient.getQueryData<{
           contacts: Contact[];
           total: number;
-        }>(["contacts", "list"]);
+        }>(sharedOpts.queryKey);
         totalContacts = listData?.total ?? 0;
       }
 
@@ -128,7 +131,7 @@ export default async function ContactsPage() {
     contacts: Contact[];
     total: number;
     personizeAvailable: boolean;
-  }>(["contacts", "list"]);
+  }>(sharedOpts.queryKey);
 
   const isPersonize = personizeAvailable || (contactsData?.personizeAvailable ?? false);
 
