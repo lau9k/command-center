@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Finance" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { FinanceEmptyState } from "./FinanceEmptyState";
 import { FinanceDashboardLazy } from "@/components/finance/FinanceDashboardLazy";

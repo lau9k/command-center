@@ -1,5 +1,6 @@
 import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { Header } from "@/components/layout/Header";
+import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
 import { MobileHeader } from "@/components/layout/MobileHeader";
 import { AuthProvider } from "@/components/providers/auth-provider";
@@ -73,6 +74,7 @@ export default async function DashboardLayout({
             <div className="hidden lg:block">
               <Header projects={projects} />
             </div>
+            <Breadcrumbs />
             <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
           </div>
         </div>

@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Meetings" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { MeetingsClient } from "@/components/meetings/meetings-client";
 import type { Meeting, MeetingAction } from "@/lib/types/database";

@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Tasks" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { MasterTaskList } from "@/components/dashboard/MasterTaskList";
 import type { TaskWithProject } from "@/lib/types/database";

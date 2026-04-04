@@ -17,7 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Command Center",
+  title: {
+    default: "Command Center",
+    template: "%s | Command Center",
+  },
   description: "Operational command center dashboard",
 };
 

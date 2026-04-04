@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Notifications" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { NotificationInbox } from "@/components/notifications/NotificationInbox";
