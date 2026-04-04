@@ -44,6 +44,32 @@ function getRedis(): Redis | null {
   return redis;
 }
 
+/* ── Hit / miss counters (in-memory, resets on cold start) ─────────── */
+
+const stats = { hits: 0, misses: 0 };
+
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  hitRate: number;
+}
+
+export function getCacheStats(): CacheStats {
+  const total = stats.hits + stats.misses;
+  return {
+    hits: stats.hits,
+    misses: stats.misses,
+    hitRate: total === 0 ? 0 : stats.hits / total,
+  };
+}
+
+/**
+ * Return the current L1 in-memory cache size.
+ */
+export function getL1Size(): number {
+  return l1.size;
+}
+
 /* ── Public API ────────────────────────────────────────────────────────── */
 
 const DEFAULT_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -71,7 +97,10 @@ export async function cached<T>(
 
   // 1) Check L1
   const l1Hit = l1Get<T>(fullKey);
-  if (l1Hit !== null) return l1Hit;
+  if (l1Hit !== null) {
+    stats.hits++;
+    return l1Hit;
+  }
 
   // 2) Check L2
   const r = opts.l1Only ? null : getRedis();
@@ -79,6 +108,7 @@ export async function cached<T>(
     try {
       const l2Hit = await r.get<T>(fullKey);
       if (l2Hit !== null && l2Hit !== undefined) {
+        stats.hits++;
         l1Set(fullKey, l2Hit, ttlMs); // promote to L1
         return l2Hit;
       }
@@ -87,7 +117,8 @@ export async function cached<T>(
     }
   }
 
-  // 3) Fetch fresh data
+  // 3) Cache miss — fetch fresh data
+  stats.misses++;
   try {
     const fresh = await fetcher();
     l1Set(fullKey, fresh, ttlMs);
