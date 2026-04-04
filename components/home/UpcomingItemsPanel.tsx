@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UpcomingMeeting {
   id: string;
@@ -82,6 +83,45 @@ const priorityColors: Record<string, string> = {
   medium: "text-[#EAB308]",
   low: "text-muted-foreground",
 };
+
+/** Skeleton card matching the shape of a single upcoming-items column */
+function UpcomingColumnSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      {/* Header: icon + title */}
+      <div className="mb-3 flex items-center gap-2">
+        <Skeleton className="size-4 rounded" />
+        <Skeleton className="h-4 w-28" />
+      </div>
+      {/* 3 list item rows */}
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <Skeleton className="mt-0.5 size-3 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Loading skeleton matching the 3-column UpcomingItemsPanel layout */
+export function UpcomingItemsSkeleton() {
+  return (
+    <section className="space-y-3">
+      <Skeleton className="h-5 w-28" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <UpcomingColumnSkeleton />
+        <UpcomingColumnSkeleton />
+        <UpcomingColumnSkeleton />
+      </div>
+    </section>
+  );
+}
 
 export function UpcomingItemsPanel({
   meetings,
