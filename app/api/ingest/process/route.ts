@@ -36,12 +36,7 @@ async function handleProcess(request: NextRequest) {
   const { data: reaped, error: reapError } = await supabase.rpc("reap_expired_claims");
 
   if (reapError) {
-    console.error("[ingest/process] Reaper failed:", reapError.message);
-  } else {
-    const reapCount = typeof reaped === "number" ? reaped : 0;
-    if (reapCount > 0) {
-      console.log(`[ingest/process] Reaped ${reapCount} expired claims`);
-    }
+    if (process.env.NODE_ENV === "development") console.error("[ingest/process] Reaper failed:", reapError.message);
   }
 
   const result = await processUnprocessedEvents();

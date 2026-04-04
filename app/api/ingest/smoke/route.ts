@@ -229,6 +229,6 @@ async function persistResult(
   });
 
   if (error) {
-    console.error("[smoke] Failed to persist smoke result:", error.message);
+    if (process.env.NODE_ENV === "development") console.error("[smoke] Failed to persist smoke result:", error.message);
   }
 }
