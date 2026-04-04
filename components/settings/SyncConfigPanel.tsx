@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import {
   Video,
   Workflow,
   UserSearch,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,33 @@ interface SyncLogEntry {
   status: "success" | "error" | "partial" | "running";
   completed_at: string | null;
   started_at: string;
+}
+
+interface PipelineHealthData {
+  status: "healthy" | "degraded" | "unhealthy";
+  data: {
+    n8n: Record<string, {
+      last_sync_at: string | null;
+      status: string | null;
+      records_synced: number | null;
+    }>;
+    queue: {
+      pending: number;
+      retryable: number;
+      dead_letter: number;
+      oldest_pending_age_ms: number | null;
+    };
+    pipeline: {
+      sync_stats_24h: {
+        success: number;
+        error: number;
+        partial: number;
+        running: number;
+        total: number;
+      };
+    };
+    checked_at: string;
+  };
 }
 
 const SYNC_SOURCES: SyncSource[] = [
@@ -89,6 +118,16 @@ export function SyncConfigPanel() {
   const [syncingSources, setSyncingSources] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [lastSyncTimes, setLastSyncTimes] = useState<Record<string, string | null>>({});
+
+  const { data: healthData } = useQuery<PipelineHealthData>({
+    queryKey: ["ingest-health"],
+    queryFn: async () => {
+      const res = await fetch("/api/ingest/health");
+      if (!res.ok) throw new Error("Failed to fetch pipeline health");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+  });
 
   const fetchStatuses = useCallback(async () => {
     try {
@@ -249,6 +288,124 @@ export function SyncConfigPanel() {
           </div>
         );
       })}
+
+      {/* Pipeline Health Section */}
+      {healthData?.data && (
+        <div className="rounded-lg border border-border p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium text-foreground">
+                Pipeline Health
+              </h3>
+            </div>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                healthData.status === "healthy" && "bg-green-500/10 text-green-500",
+                healthData.status === "degraded" && "bg-yellow-500/10 text-yellow-500",
+                healthData.status === "unhealthy" && "bg-red-500/10 text-red-500"
+              )}
+            >
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  healthData.status === "healthy" && "bg-green-500",
+                  healthData.status === "degraded" && "bg-yellow-500",
+                  healthData.status === "unhealthy" && "bg-red-500"
+                )}
+              />
+              {healthData.status === "healthy"
+                ? "Pipeline Healthy"
+                : healthData.status === "degraded"
+                  ? "Pipeline Warning"
+                  : "Pipeline Error"}
+            </span>
+          </div>
+
+          {/* Queue Status */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              Queue Status
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {(
+                [
+                  ["Pending", healthData.data.queue.pending, healthData.data.queue.pending > 0 ? "text-yellow-500" : "text-green-500"],
+                  ["Retryable", healthData.data.queue.retryable, healthData.data.queue.retryable > 0 ? "text-yellow-500" : "text-green-500"],
+                  ["Dead Letter", healthData.data.queue.dead_letter, healthData.data.queue.dead_letter > 0 ? "text-red-500" : "text-green-500"],
+                ] as const
+              ).map(([label, count, color]) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <span className="text-muted-foreground">{label}:</span>
+                  <span className={cn("font-medium", color)}>{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* n8n Source Freshness */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              n8n Source Freshness
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(healthData.data.n8n).map(([source, info]) => (
+                <div
+                  key={source}
+                  className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-1.5 text-xs"
+                >
+                  <span className="text-muted-foreground">
+                    {source.replace("n8n:", "")}
+                  </span>
+                  <span className="text-foreground">
+                    {info.last_sync_at
+                      ? formatRelativeTime(info.last_sync_at)
+                      : "never"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 24h Sync Stats */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              24h Sync Stats
+            </p>
+            <div className="flex flex-wrap gap-3 text-xs">
+              <span>
+                <span className="text-muted-foreground">Success: </span>
+                <span className="font-medium text-green-500">
+                  {healthData.data.pipeline.sync_stats_24h.success}
+                </span>
+              </span>
+              <span>
+                <span className="text-muted-foreground">Errors: </span>
+                <span
+                  className={cn(
+                    "font-medium",
+                    healthData.data.pipeline.sync_stats_24h.error > 0
+                      ? "text-red-500"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {healthData.data.pipeline.sync_stats_24h.error}
+                </span>
+              </span>
+              <span>
+                <span className="text-muted-foreground">Total: </span>
+                <span className="font-medium text-foreground">
+                  {healthData.data.pipeline.sync_stats_24h.total}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
