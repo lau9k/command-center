@@ -3,8 +3,13 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { scoreTask } from "@/lib/task-scoring";
+import personizeClient from "@/lib/personize/client";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 import type { ScoringFactor } from "@/lib/task-scoring";
+
+const CONTACTS_COLLECTION_ID =
+  process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
+  "5686312a-7ab7-4cef-897c-576bfeb92aec";
 
 // ---------- Sub-types used in the response ----------
 
@@ -85,6 +90,7 @@ export interface HomeStatsResponse {
   overdueTasks: number;
   tasksCompletedToday: number;
   newContactsThisWeek: number;
+  contacts_source: "personize" | "supabase";
   lastUpdated: string;
 
   // Community
@@ -158,7 +164,7 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     tasks,
     projects,
     allContent,
-    contactsCount,
+    contactsResult,
     pipelineCount,
     pipelineValues,
     invoices,
@@ -213,12 +219,33 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
       [] as ContentPost[],
     ),
 
-    // Contacts count
-    safeCount("contacts_count", () =>
-      supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true }),
-    ),
+    // Contacts count — Personize primary, Supabase fallback
+    (async (): Promise<{ count: number; source: "personize" | "supabase" }> => {
+      try {
+        const searchResponse = await personizeClient.memory.search({
+          collectionIds: [CONTACTS_COLLECTION_ID],
+          pageSize: 1,
+          page: 1,
+        });
+        const searchData = (searchResponse?.data ?? searchResponse) as {
+          totalMatched?: number;
+        };
+        const total = searchData?.totalMatched ?? 0;
+        if (total > 0) return { count: total, source: "personize" };
+      } catch (err) {
+        console.warn(
+          "[home-stats] Personize contacts count failed, falling back to Supabase:",
+          (err as Error).message ?? err,
+        );
+      }
+      // Fallback to Supabase
+      const sbCount = await safeCount("contacts_count", () =>
+        supabase
+          .from("contacts")
+          .select("id", { count: "exact", head: true }),
+      );
+      return { count: sbCount, source: "supabase" };
+    })(),
 
     // Pipeline count
     safeCount("pipeline_count", () =>
@@ -507,7 +534,8 @@ export async function getHomeStats(): Promise<HomeStatsResponse> {
     contentScheduledCount,
     contentPublishedCount,
     contentThisWeek,
-    contactsCount,
+    contactsCount: contactsResult.count,
+    contacts_source: contactsResult.source,
     conversationsCount,
     pipelineItemCount: pipelineCount,
     pipelineTotalValue,
