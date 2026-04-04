@@ -35,6 +35,18 @@ const TIMEZONES = [
   { value: "Australia/Sydney", label: "Sydney (UTC+11)" },
 ];
 
+function detectTimezone(): string {
+  try {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (TIMEZONES.some((tz) => tz.value === detected)) {
+      return detected;
+    }
+  } catch {
+    // Intl API not available
+  }
+  return "America/Los_Angeles";
+}
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
@@ -45,7 +57,7 @@ function getInitials(name: string): string {
 
 export function ProfileForm({ email, userId }: ProfileFormProps) {
   const [displayName, setDisplayName] = useState("");
-  const [timezone, setTimezone] = useState("America/New_York");
+  const [timezone, setTimezone] = useState(detectTimezone);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
