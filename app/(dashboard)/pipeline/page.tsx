@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Pipeline" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { PipelineKPIStripConnected } from "@/components/pipeline/PipelineKPIStripConnected";

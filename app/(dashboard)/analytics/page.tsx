@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Analytics" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { getQueryClient } from "@/lib/query-client";
 import { getAnalyticsSummary } from "@/lib/analytics/get-summary";

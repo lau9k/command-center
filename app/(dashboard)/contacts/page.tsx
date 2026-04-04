@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+
+export const metadata: Metadata = { title: "Contacts" };
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
