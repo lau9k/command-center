@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Mic,
   Users,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -84,6 +85,46 @@ const SOURCE_ICONS: Record<string, typeof Linkedin> = {
   personize: Users,
 };
 
+// ---------------------------------------------------------------------------
+// Ingest Health Types & Config
+// ---------------------------------------------------------------------------
+
+interface IngestSourceFreshness {
+  level: "fresh" | "stale" | "outdated" | "unknown";
+  age_ms: number | null;
+  last_sync_at: string | null;
+}
+
+const FRESHNESS_CONFIG = {
+  fresh: {
+    dot: "bg-green-500",
+    label: "Fresh",
+    badgeClass: "bg-green-500/20 text-green-600",
+  },
+  stale: {
+    dot: "bg-yellow-500",
+    label: "Stale",
+    badgeClass: "bg-yellow-500/20 text-yellow-600",
+  },
+  outdated: {
+    dot: "bg-red-500",
+    label: "Outdated",
+    badgeClass: "bg-red-500/20 text-red-600",
+  },
+  unknown: {
+    dot: "bg-muted-foreground",
+    label: "Unknown",
+    badgeClass: "bg-muted text-muted-foreground",
+  },
+} as const;
+
+const N8N_SOURCE_LABELS: Record<string, string> = {
+  "n8n:contacts": "Contacts",
+  "n8n:conversations": "Conversations",
+  "n8n:tasks": "Tasks",
+  "n8n:transactions": "Transactions",
+};
+
 function formatRelativeTime(iso: string | null): string {
   if (!iso) return "Never";
   const diff = Date.now() - new Date(iso).getTime();
@@ -104,6 +145,11 @@ export function SyncHealthWidget() {
   const [sources, setSources] = useState<SyncSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
+  const [ingestFreshness, setIngestFreshness] = useState<
+    Record<string, IngestSourceFreshness>
+  >({});
+  const [ingestError, setIngestError] = useState<string | null>(null);
+  const [ingestLoading, setIngestLoading] = useState(true);
 
   const fetchSources = useCallback(async () => {
     try {
@@ -120,15 +166,45 @@ export function SyncHealthWidget() {
     }
   }, []);
 
+  const fetchIngestHealth = useCallback(async () => {
+    setIngestError(null);
+    try {
+      const res = await fetch("/api/ingest/health");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to fetch ingest health");
+      // Filter to n8n sources only
+      const freshness = json.data?.source_freshness as
+        | Record<string, IngestSourceFreshness>
+        | undefined;
+      if (freshness) {
+        const n8nSources: Record<string, IngestSourceFreshness> = {};
+        for (const [key, value] of Object.entries(freshness)) {
+          if (key.startsWith("n8n:")) {
+            n8nSources[key] = value;
+          }
+        }
+        setIngestFreshness(n8nSources);
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to fetch ingest health";
+      setIngestError(message);
+    } finally {
+      setIngestLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSources();
-  }, [fetchSources]);
+    fetchIngestHealth();
+  }, [fetchSources, fetchIngestHealth]);
 
   const handleRefresh = useCallback(async () => {
     setLoading(true);
-    await fetchSources();
+    setIngestLoading(true);
+    await Promise.all([fetchSources(), fetchIngestHealth()]);
     toast.success("Sync health refreshed");
-  }, [fetchSources]);
+  }, [fetchSources, fetchIngestHealth]);
 
   if (loading && sources.length === 0) {
     return (
@@ -209,6 +285,57 @@ export function SyncHealthWidget() {
               </button>
             );
           })}
+        </div>
+
+        {/* n8n Ingest Health */}
+        <div className="mt-6 border-t pt-4">
+          <h4 className="mb-3 text-sm font-medium text-muted-foreground">
+            n8n Ingest Health
+          </h4>
+          {ingestLoading && Object.keys(ingestFreshness).length === 0 ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : ingestError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {ingestError}
+            </div>
+          ) : Object.keys(ingestFreshness).length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No n8n ingest data available
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {Object.entries(ingestFreshness).map(([source, info]) => {
+                const config = FRESHNESS_CONFIG[info.level];
+                const label = N8N_SOURCE_LABELS[source] ?? source;
+                return (
+                  <div
+                    key={source}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${config.dot}`}
+                      />
+                      <Database className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="text-sm font-medium">{label}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelativeTime(info.last_sync_at)}
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}
+                      >
+                        {config.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

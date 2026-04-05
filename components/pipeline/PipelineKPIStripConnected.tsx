@@ -18,7 +18,7 @@ const STAGE_WEIGHTS: Record<string, number> = {
 };
 
 type ItemMeta = {
-  deal_value?: number | string;
+  value?: number | string;
   close_date?: string;
   probability?: number | string;
 };
@@ -47,7 +47,7 @@ export function PipelineKPIStripConnected() {
 
     const totalValue = items.reduce((sum, item) => {
       const meta = (item.metadata ?? {}) as ItemMeta;
-      return sum + parseDealValue(meta.deal_value);
+      return sum + parseDealValue(meta.value);
     }, 0);
 
     const avgDealSize = totalDeals > 0 ? Math.round(totalValue / totalDeals) : 0;
@@ -75,7 +75,7 @@ export function PipelineKPIStripConnected() {
         if (wonStageIds.has(item.stage_id) || lostStageIds.has(item.stage_id))
           return sum;
         const meta = (item.metadata ?? {}) as ItemMeta;
-        const value = parseDealValue(meta.deal_value);
+        const value = parseDealValue(meta.value);
         const weight = STAGE_WEIGHTS[stage.slug] ?? 0.5;
         return sum + value * weight;
       }, 0)
