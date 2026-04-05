@@ -44,6 +44,8 @@ import ContactDetail from "@/components/contacts/ContactDetail";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
+export const dynamic = "force-dynamic";
+
 const statusColors: Record<ContactStatus, "default" | "secondary" | "outline" | "destructive"> = {
   active: "default",
   inactive: "outline",

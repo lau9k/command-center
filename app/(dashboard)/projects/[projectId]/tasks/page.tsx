@@ -48,6 +48,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 const statusConfig: Record<
   TaskStatus,
   { label: string; icon: typeof Circle; variant: "default" | "secondary" | "outline" }

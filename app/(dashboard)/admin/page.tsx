@@ -34,6 +34,8 @@ import { CronMonitor } from "@/components/admin/cron-monitor";
 import { SyncHealthWidget } from "@/components/admin/SyncHealthWidget";
 import { SyncStatusWidget } from "@/components/admin/SyncStatusWidget";
 
+export const dynamic = "force-dynamic";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

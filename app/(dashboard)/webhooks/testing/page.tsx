@@ -16,6 +16,8 @@ import { WebhookTester } from "@/components/webhooks/WebhookTester";
 import { WebhookPayloadViewer } from "@/components/webhooks/WebhookPayloadViewer";
 import type { WebhookEvent } from "@/lib/webhook-events";
 
+export const dynamic = "force-dynamic";
+
 const PAGE_SIZE = 20;
 
 function StatusBadge({ statusCode }: { statusCode: number }) {
