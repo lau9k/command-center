@@ -3,17 +3,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { scoreTask } from "@/lib/task-scoring";
-import personizeClient from "@/lib/personize/client";
 import { cached, getRedis } from "@/lib/cache/redis";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 import type { ScoringFactor } from "@/lib/task-scoring";
-
-const CONTACTS_COLLECTION_ID =
-  process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-  "5686312a-7ab7-4cef-897c-576bfeb92aec";
-
-const PERSONIZE_API_BASE = "https://agent.personize.ai";
-const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
 
 // ---------- Sub-types used in the response ----------
 
@@ -136,7 +128,7 @@ export interface HomeStatsResponse {
   tasksCompletedToday: number;
   newContactsThisWeek: number;
   enrichment_pct: number;
-  contacts_source: "personize" | "supabase";
+  contacts_source: "supabase";
   lastUpdated: string;
 
   // Community
@@ -201,9 +193,9 @@ const EMPTY_SUMMARY: DashboardSummary = {
  * Architecture (April 2026 refactor):
  * - KPI counts/sums → single get_dashboard_summary() RPC (replaces 12 individual queries)
  * - Full-row data for widgets → individual queries (tasks, projects, content, meetings, activity)
- * - External API calls → cached via lib/cache/redis (Personize, Telegram)
+ * - External API calls → cached via lib/cache/redis (Telegram)
  *
- * Total: 1 RPC + 8 data queries + 3 cached external calls = 12 parallel calls
+ * Total: 1 RPC + 10 data queries + 1 cached external call = 12 parallel calls
  * (down from 23 before the RPC consolidation)
  */
 export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warnings: string[] }> {
@@ -281,29 +273,18 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
       warnings,
     ),
 
-    // 5) Contacts count — Personize primary, Supabase fallback (cached 15 min)
-    cached<{ count: number; source: "personize" | "supabase" }>(
+    // 5) Contacts count — Supabase primary (cached 15 min)
+    cached<{ count: number; source: "supabase" }>(
       "home:contacts:count",
       async () => {
-        try {
-          const searchResponse = await personizeClient.memory.search({
-            collectionIds: [CONTACTS_COLLECTION_ID],
-            pageSize: 1,
-            page: 1,
-          });
-          const searchData = (searchResponse?.data ?? searchResponse) as {
-            totalMatched?: number;
-          };
-          const total = searchData?.totalMatched ?? 0;
-          if (total > 0) return { count: total, source: "personize" as const };
-        } catch (err) {
-          console.warn(
-            "[home-stats] Personize contacts count failed, falling back to Supabase:",
-            (err as Error).message ?? err,
-          );
+        const { count, error } = await supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true });
+        if (error) {
+          console.warn("[home-stats] Supabase contacts count failed:", error.message);
+          return { count: 0, source: "supabase" as const };
         }
-        // Fallback to RPC count, then Supabase direct
-        return { count: 0, source: "supabase" as const };
+        return { count: count ?? 0, source: "supabase" as const };
       },
       { ttlMs: 15 * 60 * 1000 },
     ),
@@ -385,34 +366,19 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
       warnings,
     ),
 
-    // 12) Enrichment count — Personize API (cached 15 min)
+    // 12) Enrichment count — Supabase contacts with email (cached 15 min)
     cached<number>(
       "home:personize:enrichment",
       async () => {
-        try {
-          const response = await fetch(
-            `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${PERSONIZE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                collectionId: CONTACTS_COLLECTION_ID,
-                conditions: [{ propertyName: "email", operator: "exists" }],
-                limit: 1,
-              }),
-            },
-          );
-          if (!response.ok) return 0;
-          const data = (await response.json()) as {
-            data?: { total?: number; records?: unknown[] };
-          };
-          return data?.data?.total ?? data?.data?.records?.length ?? 0;
-        } catch {
+        const { count, error } = await supabase
+          .from("contacts")
+          .select("*", { count: "exact", head: true })
+          .not("email", "is", null);
+        if (error) {
+          console.warn("[home-stats] Supabase enrichment count failed:", error.message);
           return 0;
         }
+        return count ?? 0;
       },
       { ttlMs: 15 * 60 * 1000 },
     ),
@@ -443,13 +409,10 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
     }
   }
 
-  // Use Personize count if available, else fall back to RPC count
+  // Use direct Supabase count if available, else fall back to RPC count
   const finalContactsCount = contactsResult.count > 0
     ? contactsResult.count
     : s.contacts_count;
-  const contactsSource = contactsResult.count > 0
-    ? contactsResult.source
-    : "supabase" as const;
 
   // Community growth delta
   const communityDelta =
@@ -522,7 +485,7 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
     contentThisWeek: s.content_this_week,
     contactsCount: finalContactsCount,
     enrichment_pct,
-    contacts_source: contactsSource,
+    contacts_source: "supabase",
     conversationsCount: s.conversations_count,
     pipelineItemCount: s.pipeline_count,
     pipelineTotalValue: s.pipeline_total_value,
