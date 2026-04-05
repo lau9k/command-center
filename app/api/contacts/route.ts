@@ -81,10 +81,13 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
   // Supabase fallback (with pagination)
   const supabase = createServiceClient();
 
+  // Determine sort column — allow last_interaction_date with updated_at fallback
+  const sortColumn = sort === "last_interaction_date" ? "last_interaction_date" : "updated_at";
+
   let dbQuery = supabase
     .from("contacts")
     .select("*", { count: "exact" })
-    .order("updated_at", { ascending: false });
+    .order(sortColumn, { ascending: false, nullsFirst: false });
 
   if (query) {
     dbQuery = dbQuery.or(
@@ -110,11 +113,46 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
   if (error) throw error;
 
   const total = count ?? 0;
+  const contacts = data ?? [];
 
-  const supabaseContacts = (data ?? []).map((c) => ({
-    ...c,
-    enrichment_eligible: !c.job_title || !c.company,
-  }));
+  // Batch-fetch conversation stats for contacts in a single query
+  const contactIds = contacts
+    .map((c) => c.id)
+    .filter((id): id is string => Boolean(id));
+
+  let convStatsMap = new Map<string, { conv_count: number; msg_count: number }>();
+  if (contactIds.length > 0) {
+    try {
+      const { data: convData } = await supabase
+        .from("conversations")
+        .select("contact_id, metadata")
+        .in("contact_id", contactIds);
+
+      if (convData) {
+        for (const row of convData) {
+          if (!row.contact_id) continue;
+          const existing = convStatsMap.get(row.contact_id) ?? { conv_count: 0, msg_count: 0 };
+          existing.conv_count += 1;
+          const msgCount = (row.metadata as Record<string, unknown>)?.message_count;
+          existing.msg_count += (typeof msgCount === "number" ? msgCount : parseInt(String(msgCount ?? "0"), 10)) || 0;
+          convStatsMap.set(row.contact_id, existing);
+        }
+      }
+    } catch (err) {
+      console.error("[API] Conversation stats batch fetch failed:", err);
+      // Graceful degradation — keep contacts without conversation stats
+    }
+  }
+
+  const supabaseContacts = contacts.map((c) => {
+    const stats = convStatsMap.get(c.id);
+    return {
+      ...c,
+      has_conversation: stats ? stats.conv_count > 0 : false,
+      message_count: stats?.msg_count ?? 0,
+      enrichment_eligible: !c.job_title || !c.company,
+    };
+  });
   const supabaseEligibleCount = supabaseContacts.filter((c) => c.enrichment_eligible).length;
 
   return NextResponse.json({
