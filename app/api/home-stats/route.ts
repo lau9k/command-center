@@ -219,9 +219,10 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
     scheduledContent,
     enrichedContactsCount,
   ] = await Promise.all([
-    // 1) Single RPC replaces 12 individual count/sum queries
-    (async (): Promise<DashboardSummary> => {
-      try {
+    // 1) Single RPC replaces 12 individual count/sum queries (cached 60 s)
+    cached<DashboardSummary>(
+      "home:dashboard:summary",
+      async () => {
         const { data, error } = await supabase.rpc("get_dashboard_summary");
         if (error) {
           console.warn("[home-stats] get_dashboard_summary RPC failed:", error.message);
@@ -229,12 +230,9 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
           return EMPTY_SUMMARY;
         }
         return (data as DashboardSummary) ?? EMPTY_SUMMARY;
-      } catch (err) {
-        console.warn("[home-stats] get_dashboard_summary threw:", (err as Error).message);
-        warnings.push("Dashboard summary");
-        return EMPTY_SUMMARY;
-      }
-    })(),
+      },
+      { ttlMs: 60_000 },
+    ),
 
     // 2) Tasks with full details — needed for ranking engine + project summaries
     safeQuery(
