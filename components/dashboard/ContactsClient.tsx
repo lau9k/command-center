@@ -193,7 +193,7 @@ export function ContactsClient() {
   // Manual batch-enrich — triggered by user clicking "Enrich" button
   const handleBatchEnrich = useCallback(async () => {
     const needsEnrichment = contacts.filter(
-      (c) => c.record_id && (!c.job_title || !c.company)
+      (c) => c.record_id && (!c.role || !c.company)
     );
     if (needsEnrichment.length === 0) {
       toast.info("All visible contacts already enriched");
@@ -274,7 +274,7 @@ export function ContactsClient() {
             c.name.toLowerCase().includes(q) ||
             (c.email && c.email.toLowerCase().includes(q)) ||
             (c.company && c.company.toLowerCase().includes(q)) ||
-            (c.job_title && c.job_title.toLowerCase().includes(q))
+            (c.role && c.role.toLowerCase().includes(q))
         );
       }
     }

@@ -21,7 +21,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request: NextReq
     .from("contacts")
     .select("*")
     .or(
-      `name.ilike.%${q}%,email.ilike.%${q}%,company.ilike.%${q}%,job_title.ilike.%${q}%`
+      `name.ilike.%${q}%,email.ilike.%${q}%,company.ilike.%${q}%,role.ilike.%${q}%`
     )
     .order("updated_at", { ascending: false })
     .limit(50);

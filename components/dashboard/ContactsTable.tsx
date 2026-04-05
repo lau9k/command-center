@@ -208,8 +208,6 @@ export function ContactsTable({
     );
   }
 
-  // Detect if contacts have Personize-specific fields
-  const hasPersonizeData = contacts.some((c) => c.job_title !== undefined);
   const hasScores = contacts.some((c) => c.relationship_score !== undefined);
 
   return (
@@ -218,16 +216,9 @@ export function ContactsTable({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            {hasPersonizeData && <TableHead>Title</TableHead>}
+            <TableHead>Email</TableHead>
             <TableHead>Company</TableHead>
-            {!hasPersonizeData && <TableHead>Email</TableHead>}
-            {hasPersonizeData && (
-              <TableHead className="text-center">Conv.</TableHead>
-            )}
-            {hasPersonizeData && (
-              <TableHead className="text-right">Messages</TableHead>
-            )}
-            {!hasPersonizeData && <TableHead>Tags</TableHead>}
+            <TableHead>Source</TableHead>
             <TableHead>Last Activity</TableHead>
             <TableHead className="text-right">
               {hasScores && onSortByScore ? (
@@ -260,62 +251,25 @@ export function ContactsTable({
                   <MemoryCountBadge count={contact.memory_count} />
                 </span>
               </TableCell>
-              {hasPersonizeData && (
-                <TableCell className="text-muted-foreground text-sm">
-                  {contact.job_title ? (
-                    contact.job_title
-                  ) : (
-                    <span className={`text-muted-foreground/50${isEnriching ? " animate-pulse" : ""}`}>{"\u2014"}</span>
-                  )}
-                </TableCell>
-              )}
+              <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                {contact.email ?? <span className="text-muted-foreground/50">{"\u2014"}</span>}
+              </TableCell>
               <TableCell>
                 {contact.company ? (
                   contact.company
                 ) : (
-                  <span className={`text-muted-foreground/50${isEnriching ? " animate-pulse" : ""}`}>{"\u2014"}</span>
+                  <span className="text-muted-foreground/50">{"\u2014"}</span>
                 )}
               </TableCell>
-              {!hasPersonizeData && (
-                <TableCell className="text-muted-foreground">
-                  {contact.email ?? "\u2014"}
-                </TableCell>
-              )}
-              {hasPersonizeData && (
-                <TableCell className="text-center">
-                  {contact.has_conversation ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400 border border-green-500/20">
-                      <MessageCircle className="size-3" />
-                      Yes
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{"\u2014"}</span>
-                  )}
-                </TableCell>
-              )}
-              {hasPersonizeData && (
-                <TableCell className="text-right tabular-nums text-sm">
-                  {contact.message_count ?? 0}
-                </TableCell>
-              )}
-              {!hasPersonizeData && (
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {contact.tags && contact.tags.length > 0 ? (
-                      contact.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[tag] ?? "bg-muted text-muted-foreground border-border"}`}
-                        >
-                          {tag}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{"\u2014"}</span>
-                    )}
-                  </div>
-                </TableCell>
-              )}
+              <TableCell>
+                {contact.source ? (
+                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[contact.source] ?? "bg-muted text-muted-foreground border-border"}`}>
+                    {contact.source}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/50">{"\u2014"}</span>
+                )}
+              </TableCell>
               <TableCell>
                 {formatDate(
                   contact.last_interaction_date ?? contact.last_contact_date ?? contact.updated_at
@@ -342,7 +296,7 @@ export function ContactsTable({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button variant="ghost" size="icon" className="size-7">
-                      <Linkedin className="size-4" />
+                      <Linkedin className="size-4 text-[#0A66C2]" />
                     </Button>
                   </a>
                 ) : (
@@ -350,17 +304,15 @@ export function ContactsTable({
                 )}
               </TableCell>
               <TableCell>
-                {!contact.record_id && (
-                  <Link
-                    href={`/contacts/${contact.id}/prep`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
-                      <FileSearch className="size-3.5" />
-                      Prep
-                    </Button>
-                  </Link>
-                )}
+                <Link
+                  href={`/contacts/${contact.id}/prep`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                    <FileSearch className="size-3.5" />
+                    Prep
+                  </Button>
+                </Link>
               </TableCell>
             </TableRow>
           ))}

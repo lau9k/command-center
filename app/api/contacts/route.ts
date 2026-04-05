@@ -27,6 +27,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
   let dbQuery = supabase
     .from("contacts")
     .select("*", { count: "exact" })
+    .order("email", { ascending: true, nullsFirst: false })
     .order(sortColumn, { ascending: false, nullsFirst: false });
 
   if (query) {
@@ -90,7 +91,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
       ...c,
       has_conversation: stats ? stats.conv_count > 0 : false,
       message_count: stats?.msg_count ?? 0,
-      enrichment_eligible: !c.job_title || !c.company,
+      enrichment_eligible: !c.role || !c.company,
       personize_synced_at: c.personize_synced_at ?? null,
     };
   });

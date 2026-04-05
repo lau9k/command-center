@@ -25,6 +25,7 @@ export default async function ContactsPage() {
       const contactsRes = await supabase
         .from("contacts")
         .select("*", { count: "exact" })
+        .order("email", { ascending: true, nullsFirst: false })
         .order("updated_at", { ascending: false })
         .range(0, 49);
 
