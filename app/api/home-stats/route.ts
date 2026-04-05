@@ -4,7 +4,7 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { scoreTask } from "@/lib/task-scoring";
 import personizeClient from "@/lib/personize/client";
-import { cached } from "@/lib/cache/redis";
+import { cached, getRedis } from "@/lib/cache/redis";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 import type { ScoringFactor } from "@/lib/task-scoring";
 
@@ -103,9 +103,18 @@ interface DashboardSummary {
   outreach_total: number;
 }
 
+// ---------- Health meta ----------
+
+export interface HomeStatsMeta {
+  status: "ok" | "rpc_missing" | "empty_data" | "error";
+  degraded: boolean;
+  reason?: string;
+}
+
 // ---------- Main response interface ----------
 
 export interface HomeStatsResponse {
+  _meta: HomeStatsMeta;
   // KPI numbers
   activeTasks: number;
   activeProjectCount: number;
@@ -220,16 +229,16 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
     enrichedContactsCount,
   ] = await Promise.all([
     // 1) Single RPC replaces 12 individual count/sum queries (cached 60 s)
-    cached<DashboardSummary>(
+    cached<{ summary: DashboardSummary; rpcError: boolean }>(
       "home:dashboard:summary",
       async () => {
         const { data, error } = await supabase.rpc("get_dashboard_summary");
         if (error) {
           console.warn("[home-stats] get_dashboard_summary RPC failed:", error.message);
           warnings.push("Dashboard summary");
-          return EMPTY_SUMMARY;
+          return { summary: EMPTY_SUMMARY, rpcError: true };
         }
-        return (data as DashboardSummary) ?? EMPTY_SUMMARY;
+        return { summary: (data as DashboardSummary) ?? EMPTY_SUMMARY, rpcError: false };
       },
       { ttlMs: 60_000 },
     ),
@@ -410,7 +419,29 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
   ]);
 
   // ── Read KPIs from RPC summary ──
-  const s = summaryResult;
+  const { summary: s, rpcError } = summaryResult;
+
+  // ── Compute _meta health status ──
+  const rpcMissing = process.env.__DASHBOARD_RPC_STATUS === "missing";
+
+  let _meta: HomeStatsMeta;
+  if (rpcMissing) {
+    _meta = { status: "rpc_missing", degraded: true, reason: "get_dashboard_summary RPC is not deployed" };
+  } else if (rpcError) {
+    _meta = { status: "error", degraded: true, reason: "get_dashboard_summary RPC returned an error" };
+  } else if (s === EMPTY_SUMMARY || s.total_tasks === 0) {
+    _meta = { status: "empty_data", degraded: true, reason: "Dashboard query returned no data" };
+  } else {
+    _meta = { status: "ok", degraded: false };
+  }
+
+  // Write degraded state to Redis (fire-and-forget)
+  if (_meta.degraded) {
+    const r = getRedis();
+    if (r) {
+      r.set("cc:dashboard:health", { ..._meta, timestamp: new Date().toISOString() }, { ex: 300 }).catch(() => {});
+    }
+  }
 
   // Use Personize count if available, else fall back to RPC count
   const finalContactsCount = contactsResult.count > 0
@@ -481,6 +512,7 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
       : 0;
 
   const response: HomeStatsResponse = {
+    _meta,
     activeTasks: s.active_tasks,
     activeProjectCount: s.active_project_count,
     totalContentPosts: s.total_content_posts,
