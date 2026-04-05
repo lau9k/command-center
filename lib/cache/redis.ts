@@ -32,7 +32,7 @@ function l1Set(key: string, data: unknown, ttlMs: number): void {
 
 let redis: Redis | null = null;
 
-function getRedis(): Redis | null {
+export function getRedis(): Redis | null {
   if (redis) return redis;
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
