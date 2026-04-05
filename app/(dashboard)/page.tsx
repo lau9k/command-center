@@ -82,8 +82,8 @@ export default async function DashboardPage() {
         <DataSourceSummaryBar
           contactsSource={stats.contacts_source}
           lastUpdated={stats.lastUpdated}
-          degraded={stats._meta.degraded}
-          degradedReason={stats._meta.reason}
+          degraded={stats?._meta?.degraded ?? false}
+          degradedReason={stats?._meta?.reason}
         />
 
         {/* Quick Actions */}
