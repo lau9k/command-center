@@ -4,6 +4,8 @@ import { Activity, HeartPulse } from "lucide-react";
 import { IntegrationHealthGrid } from "@/components/admin/integration-health-grid";
 import { CronMonitor } from "@/components/admin/cron-monitor";
 
+export const dynamic = "force-dynamic";
+
 export default function AdminHealthPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">

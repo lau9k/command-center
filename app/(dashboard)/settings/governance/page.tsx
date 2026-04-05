@@ -21,6 +21,8 @@ import {
 } from "@/components/settings/governance-editor";
 import { toast } from "sonner";
 
+export const dynamic = "force-dynamic";
+
 // ── Pre-seed templates ───────────────────────────────────
 
 interface GovernanceTemplate {
