@@ -2,7 +2,7 @@
 
 import type { Contact } from "@/lib/types/database";
 import Link from "next/link";
-import { MessageCircle, FileSearch, ArrowUpDown, Brain } from "lucide-react";
+import { MessageCircle, FileSearch, ArrowUpDown, Brain, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -243,6 +243,7 @@ export function ContactsTable({
                 "Score"
               )}
             </TableHead>
+            <TableHead className="w-[50px]" />
             <TableHead className="w-[70px]" />
           </TableRow>
         </TableHeader>
@@ -330,6 +331,22 @@ export function ContactsTable({
                   <span className="tabular-nums">
                     {contact.priority_score ?? contact.score ?? 0}
                   </span>
+                )}
+              </TableCell>
+              <TableCell className="text-center">
+                {contact.linkedin_url ? (
+                  <a
+                    href={contact.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button variant="ghost" size="icon" className="size-7">
+                      <Linkedin className="size-4" />
+                    </Button>
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground/50">{"\u2014"}</span>
                 )}
               </TableCell>
               <TableCell>
