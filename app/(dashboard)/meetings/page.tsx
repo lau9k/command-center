@@ -4,6 +4,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 export const metadata: Metadata = { title: "Meetings" };
 import { createServiceClient } from "@/lib/supabase/service";
 import { MeetingsClient } from "@/components/meetings/meetings-client";
+import { MeetingsKPIStripConnected } from "@/components/meetings/MeetingsKPIStripConnected";
 import type { Meeting, MeetingAction } from "@/lib/types/database";
 import { getQueryClient } from "@/lib/query-client";
 
@@ -64,17 +65,6 @@ export default async function MeetingsPage() {
     },
   });
 
-  // Compute KPIs from prefetched data
-  const meetings =
-    queryClient.getQueryData<MeetingWithActions[]>(["meetings", "list"]) ?? [];
-
-  const totalMeetings = meetings.length;
-  const pendingReview = meetings.filter((m) => m.status === "pending_review").length;
-  const reviewed = meetings.filter((m) => m.status === "reviewed").length;
-  const allActions = meetings.flatMap((m) => m.actions);
-  const totalActions = allActions.length;
-  const completedActions = allActions.filter((a) => a.status === "completed").length;
-
   return (
     <div className="space-y-6">
       <div>
@@ -84,29 +74,8 @@ export default async function MeetingsPage() {
         </p>
       </div>
 
-      {/* KPI Strip */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Total Meetings</p>
-          <p className="mt-1 text-lg font-bold text-foreground">{totalMeetings}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Pending Review</p>
-          <p className="mt-1 text-lg font-bold text-[#F59E0B]">{pendingReview}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Reviewed</p>
-          <p className="mt-1 text-lg font-bold text-[#22C55E]">{reviewed}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground">Actions Completed</p>
-          <p className="mt-1 text-lg font-bold text-foreground">
-            {completedActions}/{totalActions}
-          </p>
-        </div>
-      </div>
-
       <HydrationBoundary state={dehydrate(queryClient)}>
+        <MeetingsKPIStripConnected />
         <MeetingsClient />
       </HydrationBoundary>
     </div>
