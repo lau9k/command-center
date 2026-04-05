@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
-import client from "@/lib/personize/client";
 import { createServiceClient } from "@/lib/supabase/service";
-
-const CONTACTS_COLLECTION_ID =
-  process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-  "5686312a-7ab7-4cef-897c-576bfeb92aec";
-
-const PERSONIZE_API_BASE = "https://agent.personize.ai";
-const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,7 +27,7 @@ export interface EnrichmentKpis {
 }
 
 // ---------------------------------------------------------------------------
-// Simple in-memory cache (same pattern as actions.ts)
+// Simple in-memory cache
 // ---------------------------------------------------------------------------
 
 interface CachedResponse {
@@ -48,41 +40,7 @@ let cached: CachedResponse | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function fetchPropertyCount(
-  propertyName: string,
-  limit = 1
-): Promise<number> {
-  try {
-    const response = await fetch(
-      `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PERSONIZE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          collectionId: CONTACTS_COLLECTION_ID,
-          conditions: [{ propertyName, operator: "exists" }],
-          limit,
-        }),
-      }
-    );
-    if (!response.ok) return 0;
-    const data = (await response.json()) as {
-      data?: { total?: number; records?: unknown[] };
-    };
-    return data?.data?.total ?? data?.data?.records?.length ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Route handler
+// Route handler — Supabase-primary (no Personize read queries)
 // ---------------------------------------------------------------------------
 
 export const GET = withErrorHandler(async function GET() {
@@ -91,42 +49,37 @@ export const GET = withErrorHandler(async function GET() {
     return NextResponse.json({ data: cached.data, kpis: cached.kpis });
   }
 
-  // 1. Get total contacts from Personize (pageSize: 1 to read total without pulling all records)
-  const searchResponse = await client.memory.search({
-    collectionIds: [CONTACTS_COLLECTION_ID],
-    pageSize: 1,
-    page: 1,
-  });
-
-  const searchData = (searchResponse?.data ?? searchResponse) as {
-    totalMatched?: number;
-  };
-  const totalContacts = searchData?.totalMatched ?? 0;
-
-  // 2. Query Supabase memory_stats for contacts with memories
   const supabase = createServiceClient();
-  const { count: withMemories } = await supabase
-    .from("memory_stats")
-    .select("id", { count: "exact", head: true })
-    .gt("count", 0);
-
-  // 3. Fetch property counts + tag analytics in parallel
   const sevenDaysAgo = new Date(
     Date.now() - 7 * 24 * 60 * 60 * 1000
   ).toISOString();
 
+  // Run all counts in parallel — Supabase only
   const [
-    hasEmail,
-    hasLinkedin,
-    hasGmail,
-    hasApollo,
+    { count: totalContacts },
+    { count: withMemories },
+    { count: hasEmail },
+    { count: hasLinkedin },
     { count: taggedThisWeekCount },
     { count: untaggedCount },
   ] = await Promise.all([
-    fetchPropertyCount("email"),
-    fetchPropertyCount("linkedin_url"),
-    fetchPropertyCount("gmail_context_stored"),
-    fetchPropertyCount("apollo_enriched"),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true }),
+    supabase
+      .from("memory_stats")
+      .select("id", { count: "exact", head: true })
+      .gt("count", 0),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .not("email", "is", null)
+      .neq("email", ""),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .not("linkedin_url", "is", null)
+      .neq("linkedin_url", ""),
     supabase
       .from("contacts")
       .select("id", { count: "exact", head: true })
@@ -140,22 +93,23 @@ export const GET = withErrorHandler(async function GET() {
   ]);
 
   const now = new Date().toISOString();
+  const total = totalContacts ?? 0;
 
   // Legacy enrichment breakdown (EnrichmentCoverageCard)
   const data: EnrichmentStats = {
-    total: totalContacts,
-    has_email: hasEmail,
-    has_linkedin: hasLinkedin,
-    has_gmail: hasGmail,
-    has_apollo: hasApollo,
+    total,
+    has_email: hasEmail ?? 0,
+    has_linkedin: hasLinkedin ?? 0,
+    has_gmail: 0, // Gmail sync count not tracked in Supabase yet
+    has_apollo: 0, // Apollo enrichment count not tracked in Supabase yet
     generated_at: now,
   };
 
   // KPI shape for contacts page
   const kpis: EnrichmentKpis = {
-    totalContacts,
+    totalContacts: total,
     withMemories: withMemories ?? 0,
-    withProperties: hasEmail, // contacts with email = primary enrichment signal
+    withProperties: hasEmail ?? 0,
     taggedThisWeek: taggedThisWeekCount ?? 0,
     untagged: untaggedCount ?? 0,
     lastUpdated: now,

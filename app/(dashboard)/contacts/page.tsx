@@ -5,13 +5,11 @@ export const metadata: Metadata = { title: "Contacts" };
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Contact } from "@/lib/types/database";
 import { ContactsClient } from "@/components/dashboard/ContactsClient";
-import { searchContacts } from "@/lib/personize/actions";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ExportButton } from "@/components/export/ExportButton";
 import { ContactsSubNav } from "@/components/contacts/ContactsSubNav";
 import { getQueryClient } from "@/lib/query-client";
 import { contactListOptions } from "@/lib/queries/contacts";
-import client from "@/lib/personize/client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,32 +17,11 @@ export default async function ContactsPage() {
   const supabase = createServiceClient();
   const queryClient = getQueryClient();
 
-  let personizeAvailable = false;
-
-  // Prefetch contacts list — spread shared factory for key/staleTime alignment,
-  // override queryFn with server-side data access (faster than routing through API).
+  // Prefetch contacts list — Supabase-primary (no Personize read path)
   const sharedOpts = contactListOptions();
   await queryClient.prefetchQuery({
     ...sharedOpts,
     queryFn: async () => {
-      // Try Personize first for live data
-      if (process.env.PERSONIZE_SECRET_KEY) {
-        try {
-          const result = await searchContacts(undefined, 1, 50, "priority_score");
-          personizeAvailable = true;
-          return {
-            contacts: result.contacts,
-            total: result.total,
-            personizeAvailable: true,
-            pagination: { page: 1, pageSize: 50, total: result.total, hasMore: result.total > 50 },
-          };
-        } catch (error) {
-          console.error("[Contacts] Personize search failed:", error);
-          // Fall through to Supabase
-        }
-      }
-
-      // Supabase fallback (first page only)
       const contactsRes = await supabase
         .from("contacts")
         .select("*", { count: "exact" })
@@ -62,43 +39,22 @@ export default async function ContactsPage() {
     },
   });
 
-  // Prefetch KPI stats from Personize + Supabase for real enrichment counts
+  // Prefetch KPI stats — Supabase-only counts
   await queryClient.prefetchQuery({
     queryKey: ["contacts", "kpis"],
     queryFn: async () => {
-      const CONTACTS_COLLECTION_ID =
-        process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-        "5686312a-7ab7-4cef-897c-576bfeb92aec";
+      // 1. Total contacts from Supabase
+      const { count: totalContacts } = await supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true });
 
-      // 1. Get total contacts from Personize (pageSize: 1, read totalMatched)
-      let totalContacts = 0;
-      try {
-        const searchResponse = await client.memory.search({
-          collectionIds: [CONTACTS_COLLECTION_ID],
-          pageSize: 1,
-          page: 1,
-        });
-        const searchData = (searchResponse?.data ?? searchResponse) as {
-          totalMatched?: number;
-        };
-        totalContacts = searchData?.totalMatched ?? 0;
-      } catch (error) {
-        console.error("[Contacts] Personize collection count failed:", error);
-        // Fallback to prefetched contacts list count
-        const listData = queryClient.getQueryData<{
-          contacts: Contact[];
-          total: number;
-        }>(sharedOpts.queryKey);
-        totalContacts = listData?.total ?? 0;
-      }
-
-      // 2. Fetch withMemories from Supabase memory_stats (real enrichment count)
+      // 2. Fetch withMemories from Supabase memory_stats
       const { count: withMemories } = await supabase
         .from("memory_stats")
         .select("id", { count: "exact", head: true })
         .gt("count", 0);
 
-      // 3. Fetch tagged-this-week and untagged from Supabase contacts
+      // 3. Fetch tagged-this-week from Supabase contacts
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const taggedThisWeekRes = await supabase
@@ -113,6 +69,7 @@ export default async function ContactsPage() {
 
       const taggedThisWeek = taggedThisWeekRes.count ?? 0;
 
+      // 4. Untagged contacts
       const untaggedRes = await supabase
         .from("contacts")
         .select("id", { count: "exact", head: true })
@@ -121,7 +78,7 @@ export default async function ContactsPage() {
       const untagged = untaggedRes.count ?? 0;
 
       return {
-        totalContacts,
+        totalContacts: totalContacts ?? 0,
         taggedThisWeek,
         withMemories: withMemories ?? 0,
         untagged,
@@ -129,24 +86,11 @@ export default async function ContactsPage() {
     },
   });
 
-  // Read back data for the page header description
-  const contactsData = queryClient.getQueryData<{
-    contacts: Contact[];
-    total: number;
-    personizeAvailable: boolean;
-  }>(sharedOpts.queryKey);
-
-  const isPersonize = personizeAvailable || (contactsData?.personizeAvailable ?? false);
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Contacts"
-        description={
-          isPersonize
-            ? "Live contacts from your LinkedIn network via Personize"
-            : "Manage contacts with Personize memory integration"
-        }
+        description="Manage your network — contacts stored in Supabase, enriched by Personize"
         actions={<ExportButton table="contacts" />}
       />
 
