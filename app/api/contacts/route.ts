@@ -5,6 +5,7 @@ import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 import { syncToPersonize } from "@/lib/personize/sync";
 import { createContact as createContactDb } from "@/lib/api/contacts";
+import { invalidate } from "@/lib/cache/redis";
 
 export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const { searchParams } = request.nextUrl;
@@ -131,6 +132,11 @@ export const POST = withErrorHandler(withAuth(async function POST(request, _user
   }).catch((err) => {
     console.error("[API] POST /api/contacts sync error:", err);
   });
+
+  // Invalidate home dashboard caches so KPIs reflect the new contact immediately
+  void invalidate("home:contacts:count").catch(() => {});
+  void invalidate("home:personize:enrichment").catch(() => {});
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json({ data }, { status: 201 });
 }));

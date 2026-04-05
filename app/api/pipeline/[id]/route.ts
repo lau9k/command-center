@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { updatePipelineItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { uuidParam } from "@/lib/validations";
+import { invalidate } from "@/lib/cache/redis";
 
 export const PATCH = withErrorHandler(async function PATCH(
   request: NextRequest,
@@ -38,6 +39,9 @@ export const PATCH = withErrorHandler(async function PATCH(
     return NextResponse.json({ error: error.message }, { status });
   }
 
+  // Invalidate home dashboard cache so pipeline KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
+
   return NextResponse.json(data);
 });
 
@@ -60,6 +64,9 @@ export const DELETE = withErrorHandler(async function DELETE(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Invalidate home dashboard cache so pipeline KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json({ success: true });
 });
