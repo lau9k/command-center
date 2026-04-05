@@ -1,8 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import type { Contact } from "@/lib/types/database";
 import Link from "next/link";
 import { MessageCircle, FileSearch, ArrowUpDown, Brain, Linkedin } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -191,6 +193,8 @@ function RelationshipBadge({
   );
 }
 
+const ROW_HEIGHT = 56;
+
 export function ContactsTable({
   contacts,
   onSelectContact,
@@ -198,6 +202,15 @@ export function ContactsTable({
   scoreSortDirection,
   isEnriching = false,
 }: ContactsTableProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: contacts.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+
   if (contacts.length === 0) {
     return (
       <div className="flex items-center justify-center rounded-md border border-border p-12">
@@ -209,11 +222,20 @@ export function ContactsTable({
   }
 
   const hasScores = contacts.some((c) => c.relationship_score !== undefined);
+  const virtualItems = virtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0
+      ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+      : 0;
 
   return (
-    <div className="rounded-md border border-border">
+    <div
+      ref={scrollRef}
+      className="max-h-[calc(100vh-280px)] overflow-auto rounded-md border border-border"
+    >
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10 bg-background">
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
@@ -239,83 +261,96 @@ export function ContactsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {contacts.map((contact) => (
-            <TableRow
-              key={contact.id}
-              className="cursor-pointer"
-              onClick={() => onSelectContact(contact)}
-            >
-              <TableCell className="font-medium">
-                <span className="inline-flex items-center gap-2">
-                  {contact.name}
-                  <MemoryCountBadge count={contact.memory_count} />
-                </span>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                {contact.email ?? <span className="text-muted-foreground/50">{"\u2014"}</span>}
-              </TableCell>
-              <TableCell>
-                {contact.company ? (
-                  contact.company
-                ) : (
-                  <span className="text-muted-foreground/50">{"\u2014"}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {contact.source ? (
-                  <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[contact.source] ?? "bg-muted text-muted-foreground border-border"}`}>
-                    {contact.source}
+          {paddingTop > 0 && (
+            <tr>
+              <td style={{ height: paddingTop }} />
+            </tr>
+          )}
+          {virtualItems.map((virtualRow) => {
+            const contact = contacts[virtualRow.index];
+            return (
+              <TableRow
+                key={contact.id}
+                className="cursor-pointer"
+                onClick={() => onSelectContact(contact)}
+              >
+                <TableCell className="font-medium">
+                  <span className="inline-flex items-center gap-2">
+                    {contact.name}
+                    <MemoryCountBadge count={contact.memory_count} />
                   </span>
-                ) : (
-                  <span className="text-muted-foreground/50">{"\u2014"}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {formatDate(
-                  contact.last_interaction_date ?? contact.last_contact_date ?? contact.updated_at
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                {contact.relationship_score !== undefined ? (
-                  <RelationshipBadge
-                    score={contact.relationship_score}
-                    breakdown={contact.score_breakdown}
-                  />
-                ) : (
-                  <span className="tabular-nums">
-                    {contact.priority_score ?? contact.score ?? 0}
-                  </span>
-                )}
-              </TableCell>
-              <TableCell className="text-center">
-                {contact.linkedin_url ? (
-                  <a
-                    href={contact.linkedin_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                  {contact.email ?? <span className="text-muted-foreground/50">{"\u2014"}</span>}
+                </TableCell>
+                <TableCell>
+                  {contact.company ? (
+                    contact.company
+                  ) : (
+                    <span className="text-muted-foreground/50">{"\u2014"}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {contact.source ? (
+                    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tagColors[contact.source] ?? "bg-muted text-muted-foreground border-border"}`}>
+                      {contact.source}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/50">{"\u2014"}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {formatDate(
+                    contact.last_interaction_date ?? contact.last_contact_date ?? contact.updated_at
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {contact.relationship_score !== undefined ? (
+                    <RelationshipBadge
+                      score={contact.relationship_score}
+                      breakdown={contact.score_breakdown}
+                    />
+                  ) : (
+                    <span className="tabular-nums">
+                      {contact.priority_score ?? contact.score ?? 0}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  {contact.linkedin_url ? (
+                    <a
+                      href={contact.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button variant="ghost" size="icon" className="size-7">
+                        <Linkedin className="size-4 text-[#0A66C2]" />
+                      </Button>
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground/50">{"\u2014"}</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Link
+                    href={`/contacts/${contact.id}/prep`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Button variant="ghost" size="icon" className="size-7">
-                      <Linkedin className="size-4 text-[#0A66C2]" />
+                    <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                      <FileSearch className="size-3.5" />
+                      Prep
                     </Button>
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground/50">{"\u2014"}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/contacts/${contact.id}/prep`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
-                    <FileSearch className="size-3.5" />
-                    Prep
-                  </Button>
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
+                  </Link>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+          {paddingBottom > 0 && (
+            <tr>
+              <td style={{ height: paddingBottom }} />
+            </tr>
+          )}
         </TableBody>
       </Table>
     </div>
