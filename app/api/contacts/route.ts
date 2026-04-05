@@ -61,7 +61,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
     .map((c) => c.id)
     .filter((id): id is string => Boolean(id));
 
-  let convStatsMap = new Map<string, { conv_count: number; msg_count: number }>();
+  const convStatsMap = new Map<string, { conv_count: number; msg_count: number }>();
   if (contactIds.length > 0) {
     try {
       const { data: convData } = await supabase

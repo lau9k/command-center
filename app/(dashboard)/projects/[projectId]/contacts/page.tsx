@@ -136,9 +136,15 @@ export default function ProjectContactsPage() {
   }, [fetchContacts, projectId, supabase]);
 
   // Reset page on filter change
-  useEffect(() => {
-    setPage(1);
-  }, [search, filterStatus, filterSource]);
+  const [prevFilters, setPrevFilters] = useState({ search, filterStatus, filterSource });
+  if (
+    prevFilters.search !== search ||
+    prevFilters.filterStatus !== filterStatus ||
+    prevFilters.filterSource !== filterSource
+  ) {
+    setPrevFilters({ search, filterStatus, filterSource });
+    if (page !== 1) setPage(1);
+  }
 
   const filtered = useMemo(() => {
     let result = contacts;

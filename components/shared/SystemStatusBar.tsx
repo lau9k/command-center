@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 const STORAGE_KEY = "dashboard-status-dismissed";
@@ -11,18 +11,25 @@ interface SystemStatusBarProps {
 }
 
 export function SystemStatusBar({ status, reason }: SystemStatusBarProps) {
-  const [dismissed, setDismissed] = useState(false);
-
-  // Clear dismissed flag when status changes
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && stored !== status) {
-      localStorage.removeItem(STORAGE_KEY);
-      setDismissed(false);
-    } else if (stored === status) {
-      setDismissed(true);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem(STORAGE_KEY) === status;
+  });
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (prevStatus !== status) {
+    setPrevStatus(status);
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored && stored !== status) {
+        localStorage.removeItem(STORAGE_KEY);
+        setDismissed(false);
+      } else if (stored === status) {
+        setDismissed(true);
+      } else {
+        setDismissed(false);
+      }
     }
-  }, [status]);
+  }
 
   if (status === "ok" || dismissed) return null;
 

@@ -107,6 +107,7 @@ export default async function PipelineAnalyticsPage() {
       : 0;
 
   // Stage durations + metrics grid data
+  // eslint-disable-next-line react-hooks/purity -- Date.now() in async server component is safe
   const now = Date.now();
   const stageDurations = stages.map((stage) => {
     const stageItems = itemsByStage.get(stage.id) ?? [];

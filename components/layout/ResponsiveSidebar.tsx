@@ -19,11 +19,13 @@ export function ResponsiveSidebar({ projects, hasMeekWallet }: ResponsiveSidebar
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const touchStartX = useRef<number | null>(null);
+  const [prevPathname, setPrevPathname] = useState(pathname);
 
   // Close sidebar on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (mobileOpen) setMobileOpen(false);
+  }
 
   // Lock body scroll when sidebar is open
   useEffect(() => {
