@@ -3,11 +3,18 @@ import { Header } from "@/components/layout/Header";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { KeyboardShortcuts } from "@/components/layout/KeyboardShortcuts";
 import { MobileHeader } from "@/components/layout/MobileHeader";
+import { SystemStatusBar } from "@/components/shared/SystemStatusBar";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { CommandPaletteProvider } from "@/components/search/CommandPaletteProvider";
 import { createClient } from "@/lib/supabase/server";
+import { cached } from "@/lib/cache/redis";
 import type { Project } from "@/lib/types/project";
 import type { Notification } from "@/lib/types/database";
+
+interface DashboardHealth {
+  status: "ok" | "rpc_missing" | "empty_data" | "error";
+  reason?: string;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +28,17 @@ export default async function DashboardLayout({
   let userEmail: string | null = null;
   let unreadCount = 0;
   let notifications: Notification[] = [];
+  let health: DashboardHealth = { status: "ok" };
+
+  try {
+    health = await cached<DashboardHealth>(
+      "dashboard:health",
+      async () => ({ status: "ok" }),
+      { l1Only: true, ttlMs: 60_000 },
+    );
+  } catch {
+    // Redis unavailable — default to ok so the banner stays hidden
+  }
 
   try {
     const supabase = await createClient();
@@ -68,6 +86,7 @@ export default async function DashboardLayout({
         <div className="flex h-screen">
           <ResponsiveSidebar projects={projects} hasMeekWallet={hasMeekWallet} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <SystemStatusBar status={health.status} reason={health.reason} />
             {/* Mobile header: hamburger + bell + avatar (visible < lg) */}
             <MobileHeader email={userEmail} unreadCount={unreadCount} initialNotifications={notifications} />
             {/* Desktop header: full header (visible >= lg) */}
