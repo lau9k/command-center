@@ -12,6 +12,7 @@ import {
   Loader2,
   Database,
   ExternalLink,
+  AlertCircle,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -173,5 +174,44 @@ export function DataSourceStatus() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/* ── Compact summary bar for placement below the KPI strip ── */
+
+interface DataSourceSummaryBarProps {
+  contactsSource: "personize" | "supabase";
+  lastUpdated: string;
+  degraded: boolean;
+  degradedReason?: string;
+}
+
+export function DataSourceSummaryBar({
+  contactsSource,
+  lastUpdated,
+  degraded,
+  degradedReason,
+}: DataSourceSummaryBarProps) {
+  const sourceLabel = contactsSource === "supabase" ? "Supabase" : "Personize";
+  const timeAgo = formatRelativeTime(lastUpdated);
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1">
+        <Database className="size-3" />
+        Data from: {sourceLabel}
+      </span>
+      <span className="text-border">|</span>
+      <span>Last updated: {timeAgo}</span>
+      <span className="text-border">|</span>
+      {degraded ? (
+        <span className="inline-flex items-center gap-1 text-destructive" title={degradedReason}>
+          <AlertCircle className="size-3" />
+          Degraded
+        </span>
+      ) : (
+        <span className="text-green-600 dark:text-green-400">Errors: 0</span>
+      )}
+    </div>
   );
 }
