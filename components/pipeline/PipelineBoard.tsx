@@ -53,7 +53,7 @@ function initDrawerForm(item: PipelineItemData): DrawerForm {
     company: String(meta.company ?? ""),
     value: meta.value ? String(meta.value) : "",
     close_date: String(meta.close_date ?? ""),
-    contact_name: String(meta.contact_name ?? ""),
+    contact_name: String(meta.contact_name ?? meta.contact ?? ""),
     probability: String(meta.probability ?? ""),
     next_action: String(meta.next_action ?? ""),
     notes: String(meta.notes ?? ""),
@@ -366,7 +366,7 @@ function MobileListView({
                     {stageItems.map((item) => {
                       const meta = item.metadata ?? {};
                       const dealValue = parseDealValue(meta.value);
-                      const contactName = String(meta.contact_name ?? "");
+                      const contactName = String(meta.contact_name ?? meta.contact ?? "");
 
                       return (
                         <button

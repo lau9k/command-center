@@ -45,7 +45,7 @@ export function DealCard({ item, onClick, dragHandleProps }: DealCardProps) {
   const meta = item.metadata ?? {};
   const dealValue = parseDealValue(meta.value);
   const company = String(meta.company ?? "");
-  const contactName = String(meta.contact_name ?? "");
+  const contactName = String(meta.contact_name ?? meta.contact ?? "");
   const qualifiedStatus = String(meta.qualified_status ?? "");
 
   return (
