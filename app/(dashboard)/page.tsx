@@ -4,6 +4,7 @@ import { buildKPIData } from "@/lib/kpi-data";
 import { QuickActions } from "@/components/home/QuickActions";
 import { RecentActivityFeed } from "@/components/home/RecentActivityFeed";
 import { WidgetErrorBoundary } from "@/components/shared/WidgetErrorBoundary";
+import { DataSourceSummaryBar } from "@/components/home/data-source-status";
 import { DashboardRefreshListener } from "@/components/dashboard/DashboardRefreshListener";
 import { getQueryClient } from "@/lib/query-client";
 import { getHomeStats } from "@/app/api/home-stats/route";
@@ -76,6 +77,14 @@ export default async function DashboardPage() {
         <WidgetErrorBoundary name="KPI Cards">
           <KPICards initial={kpiData} />
         </WidgetErrorBoundary>
+
+        {/* Data Source Summary */}
+        <DataSourceSummaryBar
+          contactsSource={stats.contacts_source}
+          lastUpdated={stats.lastUpdated}
+          degraded={stats._meta.degraded}
+          degradedReason={stats._meta.reason}
+        />
 
         {/* Quick Actions */}
         <QuickActions />
