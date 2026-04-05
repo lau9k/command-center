@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -32,19 +32,15 @@ export function ImportProgress({
   batchSize = 50,
 }: ImportProgressProps) {
   const [startTime] = useState(() => Date.now());
-  const [eta, setEta] = useState("Calculating...");
 
   const percent = total > 0 ? Math.round((processed / total) * 100) : 0;
   const currentBatch = Math.ceil(processed / batchSize) || 1;
   const totalBatches = Math.ceil(total / batchSize);
   const isComplete = status === "complete" || status === "failed";
 
-  useEffect(() => {
-    if (isComplete) {
-      setEta("Done");
-      return;
-    }
-    setEta(formatETA(total, processed, startTime));
+  const eta = useMemo(() => {
+    if (isComplete) return "Done";
+    return formatETA(total, processed, startTime);
   }, [total, processed, startTime, isComplete]);
 
   if (isComplete) {

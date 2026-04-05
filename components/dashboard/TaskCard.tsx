@@ -96,7 +96,7 @@ export function TaskCard({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(task); } } : undefined}
     >
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      { }
       <span onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={isDone}
@@ -173,7 +173,7 @@ export function TaskCard({
         </div>
       </div>
 
-      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      { }
       <TooltipProvider>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
           {task.description && (

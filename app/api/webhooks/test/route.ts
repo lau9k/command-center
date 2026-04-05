@@ -45,7 +45,7 @@ const handler = withErrorHandler(async (request: NextRequest) => {
   const startTime = Date.now();
   let statusCode: number;
   let responseBody: string;
-  let responseHeaders: Record<string, string> = {};
+  const responseHeaders: Record<string, string> = {};
   let errorMessage: string | null = null;
 
   try {

@@ -34,7 +34,7 @@ describe("Finance integration", () => {
       setTableData("transactions", txns);
 
       const { GET } = await getTransactionHandlers();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/transactions"));
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -45,7 +45,7 @@ describe("Finance integration", () => {
       setTableData("transactions", []);
 
       const { GET } = await getTransactionHandlers();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/transactions"));
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -56,7 +56,7 @@ describe("Finance integration", () => {
       setTableData("transactions", null, { message: "connection refused" });
 
       const { GET } = await getTransactionHandlers();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/transactions"));
       const body = await res.json();
 
       expect(res.status).toBe(500);
@@ -160,7 +160,7 @@ describe("Finance integration", () => {
       setTableData("reimbursement_payment_allocations", []);
 
       const { GET } = await getFloatCostHandler();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/float-cost"));
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -175,7 +175,7 @@ describe("Finance integration", () => {
       setTableData("reimbursement_requests", []);
 
       const { GET } = await getFloatCostHandler();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/float-cost"));
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -203,7 +203,7 @@ describe("Finance integration", () => {
       setTableData("reimbursement_payment_allocations", allocations);
 
       const { GET } = await getFloatCostHandler();
-      const res = await GET();
+      const res = await GET(new NextRequest("https://localhost/api/finance/float-cost"));
       const body = await res.json();
 
       expect(res.status).toBe(200);

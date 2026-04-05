@@ -163,7 +163,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
 
   // For actual gmail properties, we need to use smartRecall to get contacts with gmail data
   // Let's use a targeted search for gmail contacts
-  let scoredContacts: ScoredContact[] = [];
+  const scoredContacts: ScoredContact[] = [];
 
   try {
     const gmailRecallResult = await searchContacts(

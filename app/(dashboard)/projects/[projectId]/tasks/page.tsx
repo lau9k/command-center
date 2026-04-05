@@ -151,9 +151,16 @@ export default function ProjectTasksPage() {
   }, [fetchTasks, projectId, supabase]);
 
   // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [search, filterStatus, filterPriority, sortBy]);
+  const [prevFilters, setPrevFilters] = useState({ search, filterStatus, filterPriority, sortBy });
+  if (
+    prevFilters.search !== search ||
+    prevFilters.filterStatus !== filterStatus ||
+    prevFilters.filterPriority !== filterPriority ||
+    prevFilters.sortBy !== sortBy
+  ) {
+    setPrevFilters({ search, filterStatus, filterPriority, sortBy });
+    if (page !== 1) setPage(1);
+  }
 
   const filtered = useMemo(() => {
     let result = tasks;

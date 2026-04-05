@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import type { HomeStatsMeta } from "@/app/api/home-stats/route";
 
@@ -12,17 +12,16 @@ interface DegradedBannerProps {
 const DISMISS_KEY = "degraded-banner-dismissed";
 
 export function DegradedBanner({ status, reason }: DegradedBannerProps) {
-  const [dismissed, setDismissed] = useState(false);
-
-  // Re-show the banner when the status changes
-  useEffect(() => {
-    const stored = sessionStorage.getItem(DISMISS_KEY);
-    if (stored === status) {
-      setDismissed(true);
-    } else {
-      setDismissed(false);
-    }
-  }, [status]);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof sessionStorage === "undefined") return false;
+    return sessionStorage.getItem(DISMISS_KEY) === status;
+  });
+  const [prevStatus, setPrevStatus] = useState(status);
+  if (prevStatus !== status) {
+    setPrevStatus(status);
+    const stored = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(DISMISS_KEY) : null;
+    setDismissed(stored === status);
+  }
 
   if (status === "ok" || dismissed) return null;
 
