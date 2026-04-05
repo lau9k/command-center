@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logActivity } from "@/lib/activity-logger";
 import { logSync } from "@/lib/gmail-sync-log";
@@ -6,6 +7,93 @@ import { scoreTask } from "@/lib/task-scoring";
 import type { Task, IngestEvent } from "@/lib/types/database";
 
 type EntityType = "contact" | "conversation" | "task" | "transaction";
+
+// ── Processor-level Zod schemas ─────────────────────────
+// These validate the MINIMUM required fields before upsert,
+// catching data quality issues that would otherwise surface
+// as cryptic Supabase constraint violations.
+
+const processorContactSchema = z
+  .object({
+    name: z.string().min(1).nullish(),
+    email: z.string().email().nullish(),
+  })
+  .passthrough()
+  .refine((d) => (d.name && d.name.length > 0) || (d.email && d.email.length > 0), {
+    message: "Contact must have at least a name or an email",
+  });
+
+const processorConversationSchema = z
+  .object({
+    external_id: z.string().min(1).nullish(),
+    contact_email: z.string().email().nullish(),
+  })
+  .passthrough()
+  .refine((d) => (d.external_id && d.external_id.length > 0) || (d.contact_email && d.contact_email.length > 0), {
+    message: "Conversation must have at least an external_id or a contact_email",
+  });
+
+const processorTaskSchema = z
+  .object({
+    title: z.string().min(1, "Task must have a title"),
+  })
+  .passthrough();
+
+const processorTransactionSchema = z
+  .object({
+    amount: z.number({ error: "Transaction must have an amount" }),
+    date: z.string().min(1).nullish(),
+    due_day: z.number().nullish(),
+  })
+  .passthrough()
+  .refine((d) => (d.date && d.date.length > 0) || (d.due_day != null), {
+    message: "Transaction must have a date or due_day",
+  });
+
+const PROCESSOR_SCHEMAS: Record<EntityType, z.ZodType> = {
+  contact: processorContactSchema,
+  conversation: processorConversationSchema,
+  task: processorTaskSchema,
+  transaction: processorTransactionSchema,
+};
+
+/**
+ * Validate items with the processor-level schema.
+ * Returns { valid, invalid } arrays. Invalid items are logged and
+ * recorded in ingest_events with status "validation_failed".
+ */
+async function validateItems<T>(
+  supabase: ReturnType<typeof createServiceClient>,
+  entityType: EntityType,
+  items: Record<string, unknown>[],
+): Promise<{ valid: T[]; invalidCount: number }> {
+  const schema = PROCESSOR_SCHEMAS[entityType];
+  const valid: T[] = [];
+  let invalidCount = 0;
+
+  for (const item of items) {
+    const result = schema.safeParse(item);
+    if (result.success) {
+      valid.push(result.data as T);
+    } else {
+      invalidCount++;
+      const errorMsg = result.error.issues.map((e: { message: string }) => e.message).join("; ");
+      const keys = Object.keys(item).join(", ");
+      console.error(
+        `[ingest:${entityType}] Validation failed: ${errorMsg} — payload keys: ${keys}`
+      );
+      // Record the failure in ingest_events for observability
+      void supabase.from("ingest_events").insert({
+        entity_type: entityType,
+        status: "validation_failed",
+        payload: item,
+        metadata: { validation_errors: result.error.issues },
+      });
+    }
+  }
+
+  return { valid, invalidCount };
+}
 
 interface ProcessResult {
   processed: number;
@@ -41,6 +129,14 @@ async function processContactPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Validate items before processing
+  const { valid, invalidCount } = await validateItems<Record<string, unknown>>(
+    supabase, "contact", items as Record<string, unknown>[],
+  );
+  if (valid.length === 0) {
+    throw new Error(`All ${invalidCount} contact item(s) failed validation`);
+  }
+
   // Inject required defaults for webhook-ingested contacts.
   // The contacts table requires project_id (NOT NULL) and user_id (NOT NULL),
   // but n8n payloads may omit these. Fall back to the default project/user.
@@ -49,11 +145,11 @@ async function processContactPayload(
   const DEFAULT_USER_ID =
     process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
 
-  const rows = items.map((item) => {
+  const rows = valid.map((item) => {
     const picked: Record<string, unknown> = {};
     for (const col of CONTACT_COLUMNS) {
-      if ((item as Record<string, unknown>)[col] !== undefined) {
-        picked[col] = (item as Record<string, unknown>)[col];
+      if (item[col] !== undefined) {
+        picked[col] = item[col];
       }
     }
     picked.project_id = (item.project_id as string) || DEFAULT_PROJECT_ID;
@@ -90,6 +186,14 @@ async function processConversationPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Validate items before processing
+  const { valid, invalidCount } = await validateItems<Record<string, unknown>>(
+    supabase, "conversation", items as Record<string, unknown>[],
+  );
+  if (valid.length === 0) {
+    throw new Error(`All ${invalidCount} conversation item(s) failed validation`);
+  }
+
   // Inject required defaults for webhook-ingested conversations.
   // The conversations table requires user_id (NOT NULL) and channel (NOT NULL in production),
   // but n8n payloads may omit these. Fall back to sensible defaults.
@@ -99,7 +203,7 @@ async function processConversationPayload(
   // Batch-lookup contacts by email
   const emails = [
     ...new Set(
-      items.map((c) => c.contact_email as string).filter(Boolean)
+      valid.map((c) => c.contact_email as string).filter(Boolean)
     ),
   ];
   const { data: contacts } = await supabase
@@ -132,10 +236,10 @@ async function processConversationPayload(
   ]);
 
   // Build upsert rows with contact_id resolved + required defaults injected
-  const rows = items.map((item) => {
+  const rows = valid.map((item) => {
     const contactEmail = item.contact_email as string | undefined;
     const cleaned: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(item)) {
       if (key !== "contact_email" && CONVERSATION_COLUMNS.has(key)) {
         cleaned[key] = value;
       }
@@ -175,6 +279,14 @@ async function processTaskPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Validate items before processing
+  const { valid, invalidCount } = await validateItems<Record<string, unknown>>(
+    supabase, "task", items as Record<string, unknown>[],
+  );
+  if (valid.length === 0) {
+    throw new Error(`All ${invalidCount} task item(s) failed validation`);
+  }
+
   // Inject required defaults for webhook-ingested tasks.
   // The tasks table requires project_id (NOT NULL) and user_id (NOT NULL),
   // but n8n payloads may omit these. Fall back to the default project/user.
@@ -185,7 +297,7 @@ async function processTaskPayload(
 
   // Collect unique project IDs to batch-fetch names
   const projectIds = [
-    ...new Set(items.map((t) => t.project_id as string).filter(Boolean)),
+    ...new Set(valid.map((t) => t.project_id as string).filter(Boolean)),
   ];
   const projectMap = new Map<string, { name: string }>();
 
@@ -219,7 +331,7 @@ async function processTaskPayload(
   ]);
 
   // Score each task and prepare upsert rows
-  const rows = items.map((item) => {
+  const rows = valid.map((item) => {
     const taskForScoring: Task = {
       id: "",
       external_id: item.external_id as string | undefined,
@@ -245,7 +357,7 @@ async function processTaskPayload(
 
     // Strip unknown fields — only keep columns that exist in the tasks table
     const cleaned: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(item)) {
       if (TASK_COLUMNS.has(key)) {
         cleaned[key] = value;
       }
@@ -285,6 +397,14 @@ async function processTransactionPayload(
 ) {
   const items = Array.isArray(payload) ? payload : [payload];
 
+  // Validate items before processing
+  const { valid, invalidCount } = await validateItems<Record<string, unknown>>(
+    supabase, "transaction", items as Record<string, unknown>[],
+  );
+  if (valid.length === 0) {
+    throw new Error(`All ${invalidCount} transaction item(s) failed validation`);
+  }
+
   // Inject required defaults for webhook-ingested transactions.
   // The transactions table requires user_id (NOT NULL).
   const DEFAULT_USER_ID =
@@ -310,9 +430,9 @@ async function processTransactionPayload(
     "plaid_transaction_id",
   ]);
 
-  const enriched = items.map((item) => {
+  const enriched = valid.map((item) => {
     const cleaned: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(item)) {
       if (TRANSACTION_COLUMNS.has(key)) {
         cleaned[key] = value;
       }
