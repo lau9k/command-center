@@ -119,6 +119,7 @@ const CONTACT_COLUMNS = [
   "metadata",
   "tags",
   "score",
+  "notes",
   "project_id",
   "user_id",
 ] as const;
@@ -145,12 +146,21 @@ async function processContactPayload(
   const DEFAULT_USER_ID =
     process.env.DEFAULT_USER_ID ?? "de054c30-3eb0-4ffd-a661-200f4c2d5cf6";
 
+  const allowedSet = new Set<string>(CONTACT_COLUMNS);
   const rows = valid.map((item) => {
     const picked: Record<string, unknown> = {};
-    for (const col of CONTACT_COLUMNS) {
-      if (item[col] !== undefined) {
-        picked[col] = item[col];
+    const stripped: string[] = [];
+    for (const key of Object.keys(item)) {
+      if (allowedSet.has(key)) {
+        picked[key] = item[key];
+      } else {
+        stripped.push(key);
       }
+    }
+    if (stripped.length > 0) {
+      console.warn(
+        `[ingest:contact] Stripped unknown columns: ${stripped.join(", ")}`
+      );
     }
     picked.project_id = (item.project_id as string) || DEFAULT_PROJECT_ID;
     picked.user_id = (item.user_id as string) || DEFAULT_USER_ID;
@@ -543,7 +553,27 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
         throw new Error(`Unknown entity_type: ${event.entity_type}`);
       }
 
-      await processor(supabase, event.payload);
+      try {
+        await processor(supabase, event.payload);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("schema cache")) {
+          console.warn(
+            `[processor] Schema cache error for event ${event.id}, retrying in 1s...`
+          );
+          void logSync(
+            `n8n:${event.entity_type}`,
+            "error",
+            0,
+            `Schema cache retry (attempt ${event.attempt_count + 1}): ${message}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await processor(supabase, event.payload);
+        } else {
+          throw err;
+        }
+      }
+
       await markClaimedEventProcessed(supabase, event.id);
       processed++;
     } catch (err) {
