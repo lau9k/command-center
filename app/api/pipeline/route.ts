@@ -4,6 +4,7 @@ import { createPipelineItemSchema, updatePipelineItemSchema } from "@/lib/valida
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 import { syncDealToPersonize } from "@/lib/personize/sync";
+import { invalidate } from "@/lib/cache/redis";
 
 export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
@@ -73,6 +74,9 @@ export const POST = withErrorHandler(withAuth(async function POST(request, _user
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Invalidate home dashboard cache so pipeline KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json(data, { status: 201 });
 }));
@@ -155,6 +159,9 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
       }
     });
   }
+
+  // Invalidate home dashboard cache so pipeline KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json(data);
 });

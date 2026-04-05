@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { updateTaskSchema } from "@/lib/validations";
 import { generateNextOccurrence } from "@/lib/recurring-tasks";
 import { syncToPersonize } from "@/lib/personize/sync";
+import { invalidate } from "@/lib/cache/redis";
 
 export async function GET(
   _request: NextRequest,
@@ -90,6 +91,9 @@ export async function PUT(
     }
   }
 
+  // Invalidate home dashboard cache so task KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
+
   return NextResponse.json({ data, nextOccurrence });
 }
 
@@ -108,6 +112,9 @@ export async function DELETE(
     console.error(`[API] DELETE /api/tasks/${id} error:`, error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Invalidate home dashboard cache so task KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json({ success: true });
 }

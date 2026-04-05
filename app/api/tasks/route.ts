@@ -4,6 +4,7 @@ import { createTaskSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
 import { syncToPersonize } from "@/lib/personize/sync";
+import { invalidate } from "@/lib/cache/redis";
 
 export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
@@ -93,6 +94,9 @@ export const POST = withErrorHandler(withAuth(async function POST(request, _user
   }).catch((err) => {
     console.error("[API] POST /api/tasks sync error:", err);
   });
+
+  // Invalidate home dashboard cache so task KPIs reflect immediately
+  void invalidate("home:dashboard:summary").catch(() => {});
 
   return NextResponse.json({ data }, { status: 201 });
 }));
