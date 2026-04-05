@@ -463,6 +463,7 @@ function mapRecordToContact(
     project_id: "00000000-0000-0000-0000-000000000000",
     last_contact_date: props.last_interaction_date ?? null,
     merged_into_id: null,
+    linkedin_url: props.linkedin_url ?? null,
     created_at: props.created_at ?? new Date().toISOString(),
     updated_at: props.updated_at ?? new Date().toISOString(),
   };
@@ -522,6 +523,7 @@ function mapCrmKeyToContact(
     project_id: "00000000-0000-0000-0000-000000000000",
     last_contact_date: null,
     merged_into_id: null,
+    linkedin_url: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -799,6 +801,7 @@ export async function recallContacts(
           project_id: "00000000-0000-0000-0000-000000000000",
           last_contact_date: null,
           merged_into_id: null,
+          linkedin_url: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });

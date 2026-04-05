@@ -132,6 +132,7 @@ export interface PersonizeContact {
   project_id: string;
   last_contact_date: string | null;
   merged_into_id: string | null;
+  linkedin_url: string | null;
   created_at: string;
   updated_at: string;
 }
