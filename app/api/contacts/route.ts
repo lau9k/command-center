@@ -3,7 +3,6 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createContactSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { withAuth } from "@/lib/auth/api-guard";
-import { searchContacts, batchGetMemoryCounts } from "@/lib/personize/actions";
 import { syncToPersonize } from "@/lib/personize/sync";
 import { createContact as createContactDb } from "@/lib/api/contacts";
 
@@ -17,68 +16,8 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
   const tag = searchParams.get("tag") ?? undefined;
   const status = searchParams.get("status") ?? undefined;
   const contactSource = searchParams.get("contactSource") ?? undefined;
-  const source = searchParams.get("source") ?? "personize";
 
-  // Try Personize first (unless explicitly requesting supabase)
-  if (source !== "supabase" && process.env.PERSONIZE_SECRET_KEY) {
-    try {
-      const result = await searchContacts(query, page, pageSize, sort);
-
-      // Batch-fetch memory counts for contacts that don't already have them
-      let contacts = result.contacts;
-      const needsCounts = contacts.filter(
-        (c) => c.record_id && (c.memory_count === undefined || c.memory_count === null || c.memory_count === 0)
-      );
-      if (needsCounts.length > 0) {
-        try {
-          const recordIds = needsCounts
-            .map((c) => c.record_id)
-            .filter((id): id is string => Boolean(id));
-          const memoryCounts = await batchGetMemoryCounts(recordIds);
-          contacts = contacts.map((c) => ({
-            ...c,
-            memory_count: c.record_id
-              ? (memoryCounts.get(c.record_id) ?? c.memory_count ?? null)
-              : (c.memory_count ?? null),
-          }));
-        } catch (err) {
-          console.error("[API] Memory count batch fetch failed:", err);
-          // Graceful degradation — keep contacts without counts
-        }
-      }
-
-      // Apply client-side tag filter if provided
-      if (tag) {
-        contacts = contacts.filter((c) => c.tags.includes(tag));
-      }
-
-      const enrichedContacts = contacts.map((c) => ({
-        ...c,
-        enrichment_eligible: !c.job_title || !c.company,
-      }));
-      const eligibleCount = enrichedContacts.filter((c) => c.enrichment_eligible).length;
-
-      return NextResponse.json({
-        data: enrichedContacts,
-        pagination: {
-          page: result.page,
-          pageSize: result.pageSize,
-          total: result.total,
-          hasMore: result.hasMore,
-        },
-        source: "personize",
-        enrichment: {
-          eligible_count: eligibleCount,
-          total: enrichedContacts.length,
-        },
-      });
-    } catch (error) {
-      console.error("[API] Personize search failed, falling back to Supabase:", error);
-      // Fall through to Supabase
-    }
-  }
-
-  // Supabase fallback (with pagination)
+  // Supabase primary read path (Personize enrichment happens via background sync)
   const supabase = createServiceClient();
 
   // Determine sort column — allow last_interaction_date with updated_at fallback
@@ -151,6 +90,7 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
       has_conversation: stats ? stats.conv_count > 0 : false,
       message_count: stats?.msg_count ?? 0,
       enrichment_eligible: !c.job_title || !c.company,
+      personize_synced_at: c.personize_synced_at ?? null,
     };
   });
   const supabaseEligibleCount = supabaseContacts.filter((c) => c.enrichment_eligible).length;
