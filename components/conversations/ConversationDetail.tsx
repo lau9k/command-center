@@ -88,26 +88,40 @@ function parseMessages(conversation: ConversationWithContact): ParsedMessage[] {
   const metaMessages = conversation.metadata?.messages;
   if (Array.isArray(metaMessages)) {
     for (const msg of metaMessages) {
-      if (
-        typeof msg === "object" &&
-        msg !== null &&
-        "text" in msg &&
-        typeof (msg as Record<string, unknown>).text === "string"
-      ) {
-        const m = msg as Record<string, unknown>;
-        messages.push({
-          id: (m.id as string) ?? `msg-${messages.length}`,
-          sender: (m.sender as string) ?? (m.from as string) ?? "Unknown",
-          text: m.text as string,
-          timestamp:
-            (m.timestamp as string) ??
-            (m.date as string) ??
-            conversation.created_at,
-          isContact:
-            (m.is_contact as boolean) ??
-            (m.sender ?? m.from) === conversation.contacts?.name,
-        });
+      if (typeof msg !== "object" || msg === null) continue;
+      const m = msg as Record<string, unknown>;
+
+      // Support both field naming conventions:
+      //   LinkedIn ingest: { content, from, date, direction }
+      //   Generic/manual:  { text, sender, timestamp, is_contact }
+      const text = (m.text as string) ?? (m.content as string) ?? null;
+      if (typeof text !== "string" || !text) continue;
+
+      const sender =
+        (m.sender as string) ?? (m.from as string) ?? "Unknown";
+      const timestamp =
+        (m.timestamp as string) ??
+        (m.date as string) ??
+        conversation.created_at;
+
+      // Determine if this message is from the contact (not from Lautaro)
+      let isContact: boolean;
+      if (typeof m.is_contact === "boolean") {
+        isContact = m.is_contact;
+      } else if (typeof m.direction === "string") {
+        // LinkedIn ingest uses "INBOUND" / "OUTBOUND"
+        isContact = (m.direction as string).toUpperCase() === "INBOUND";
+      } else {
+        isContact = sender !== "Lautaro Cepeda" && sender === conversation.contacts?.name;
       }
+
+      messages.push({
+        id: (m.id as string) ?? `msg-${messages.length}`,
+        sender,
+        text,
+        timestamp,
+        isContact,
+      });
     }
   }
 

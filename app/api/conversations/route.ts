@@ -51,18 +51,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Compute channel counts from the full (unfiltered) set
-  const countsQuery = supabase
-    .from("conversations")
-    .select("channel");
-
-  if (contactId) {
-    countsQuery.eq("contact_id", contactId);
-  }
-
-  const { data: countRows } = await countsQuery;
-
-  const channelCounts: Record<string, number> = { all: 0 };
+  // Compute channel counts using count queries (avoids PostgREST 1000-row default limit)
   const primaryChannelIds = await cached<string[]>(
     "conversations:channels:list",
     async () => {
@@ -74,22 +63,37 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     },
     { ttlMs: 10 * 60 * 1000 },
   );
-  const primaryChannels = new Set(primaryChannelIds);
-  if (countRows) {
-    channelCounts.all = countRows.length;
-    for (const row of countRows) {
-      const ch = row.channel ?? "other";
-      channelCounts[ch] = (channelCounts[ch] ?? 0) + 1;
-    }
-    // Aggregate non-primary into "other"
-    let otherCount = 0;
-    for (const [k, v] of Object.entries(channelCounts)) {
-      if (k !== "all" && !primaryChannels.has(k)) {
-        otherCount += v;
-      }
-    }
-    channelCounts.other = otherCount;
+
+  // Get total count and per-channel counts in parallel
+  let totalCountQuery = supabase
+    .from("conversations")
+    .select("id", { count: "exact", head: true });
+  if (contactId) totalCountQuery = totalCountQuery.eq("contact_id", contactId);
+
+  const channelCountPromises = primaryChannelIds.map(async (ch) => {
+    let q = supabase
+      .from("conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("channel", ch);
+    if (contactId) q = q.eq("contact_id", contactId);
+    const { count } = await q;
+    return [ch, count ?? 0] as [string, number];
+  });
+
+  const [totalRes, ...channelResults] = await Promise.all([
+    totalCountQuery,
+    ...channelCountPromises,
+  ]);
+
+  const channelCounts: Record<string, number> = {
+    all: totalRes.count ?? 0,
+  };
+  let primaryTotal = 0;
+  for (const [ch, cnt] of channelResults) {
+    channelCounts[ch] = cnt;
+    primaryTotal += cnt;
   }
+  channelCounts.other = Math.max(0, (totalRes.count ?? 0) - primaryTotal);
 
   return NextResponse.json({ data, channel_counts: channelCounts });
 });
