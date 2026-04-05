@@ -43,7 +43,7 @@ function formatCurrency(value: number): string {
 
 export function DealCard({ item, onClick, dragHandleProps }: DealCardProps) {
   const meta = item.metadata ?? {};
-  const dealValue = parseDealValue(meta.deal_value);
+  const dealValue = parseDealValue(meta.value);
   const company = String(meta.company ?? "");
   const contactName = String(meta.contact_name ?? "");
   const qualifiedStatus = String(meta.qualified_status ?? "");
