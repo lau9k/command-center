@@ -38,7 +38,7 @@ interface PipelineBoardProps {
 
 interface DrawerForm {
   company: string;
-  deal_value: string;
+  value: string;
   close_date: string;
   contact_name: string;
   probability: string;
@@ -51,7 +51,7 @@ function initDrawerForm(item: PipelineItemData): DrawerForm {
   const meta = item.metadata ?? {};
   return {
     company: String(meta.company ?? ""),
-    deal_value: meta.deal_value ? String(meta.deal_value) : "",
+    value: meta.value ? String(meta.value) : "",
     close_date: String(meta.close_date ?? ""),
     contact_name: String(meta.contact_name ?? ""),
     probability: String(meta.probability ?? ""),
@@ -96,8 +96,8 @@ function DrawerContent({
     try {
       const metadata: Record<string, unknown> = { ...item.metadata };
       metadata.company = form.company.trim() || undefined;
-      const parsedValue = parseFloat(form.deal_value.replace(/[$,\s]/g, ""));
-      metadata.deal_value = !isNaN(parsedValue) ? parsedValue : undefined;
+      const parsedValue = parseFloat(form.value.replace(/[$,\s]/g, ""));
+      metadata.value = !isNaN(parsedValue) ? parsedValue : undefined;
       metadata.close_date = form.close_date.trim() || undefined;
       metadata.contact_name = form.contact_name.trim() || undefined;
       metadata.probability = form.probability.trim() || undefined;
@@ -161,8 +161,8 @@ function DrawerContent({
           <DollarSign className="size-4 shrink-0 text-muted-foreground" />
           <input
             type="text"
-            value={form.deal_value}
-            onChange={(e) => updateField("deal_value", e.target.value)}
+            value={form.value}
+            onChange={(e) => updateField("value", e.target.value)}
             placeholder="10000"
             className={inputClass}
           />
@@ -365,7 +365,7 @@ function MobileListView({
                   <div className="divide-y divide-border">
                     {stageItems.map((item) => {
                       const meta = item.metadata ?? {};
-                      const dealValue = parseDealValue(meta.deal_value);
+                      const dealValue = parseDealValue(meta.value);
                       const contactName = String(meta.contact_name ?? "");
 
                       return (
@@ -468,7 +468,7 @@ export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId 
   }, [items, sortedStages]);
 
   const totalValue = useMemo(
-    () => items.reduce((sum, item) => sum + parseDealValue(item.metadata?.deal_value), 0),
+    () => items.reduce((sum, item) => sum + parseDealValue(item.metadata?.value), 0),
     [items]
   );
 
