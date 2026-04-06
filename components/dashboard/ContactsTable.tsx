@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ScoreBreakdown } from "@/lib/personize/relationship-score";
+import { MemoryPreviewTooltip } from "@/components/contacts/MemoryPreviewTooltip";
 
 interface ContactWithScore extends Contact {
   relationship_score?: number;
@@ -138,7 +139,7 @@ function MemoryCountBadge({ count }: { count: number | null | undefined }) {
   return (
     <span
       className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-xs font-medium ${className}`}
-      title={
+      aria-label={
         count !== null && count !== undefined
           ? `${count} Personize memor${count === 1 ? "y" : "ies"}`
           : "Memory count unavailable"
@@ -277,7 +278,9 @@ export function ContactsTable({
                 <TableCell className="font-medium">
                   <span className="inline-flex items-center gap-2">
                     {contact.name}
-                    <MemoryCountBadge count={contact.memory_count} />
+                    <MemoryPreviewTooltip contactId={contact.id}>
+                      <MemoryCountBadge count={contact.memory_count} />
+                    </MemoryPreviewTooltip>
                   </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
