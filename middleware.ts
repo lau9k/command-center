@@ -71,7 +71,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/api/plaid/sync") ||
       pathname.startsWith("/api/personize/sync-contacts") ||
       pathname.startsWith("/api/sync/granola") ||
-      pathname.startsWith("/api/content/sync")
+      pathname.startsWith("/api/content/sync") ||
+      pathname.startsWith("/api/personize/cache-memories")
     ) {
       const cronSecret = process.env.CRON_SECRET;
       const apiSecret = process.env.API_SECRET;

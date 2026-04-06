@@ -27,6 +27,8 @@ interface ContactsTableProps {
   onSelectContact: (contact: Contact) => void;
   onSortByScore?: () => void;
   scoreSortDirection?: "asc" | "desc" | null;
+  onSortByRDS?: () => void;
+  rdsSortDirection?: "asc" | "desc" | null;
   isEnriching?: boolean;
 }
 
@@ -102,25 +104,120 @@ function buildScoreTooltip(
   ].join("\n");
 }
 
+function getRDSColor(score: number): {
+  text: string;
+  bar: string;
+  badge: string;
+} {
+  if (score >= 70) {
+    return {
+      text: "text-green-700 dark:text-green-400",
+      bar: "bg-green-500",
+      badge: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+    };
+  }
+  if (score >= 30) {
+    return {
+      text: "text-amber-700 dark:text-amber-400",
+      bar: "bg-amber-500",
+      badge: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20",
+    };
+  }
+  return {
+    text: "text-muted-foreground",
+    bar: "bg-muted-foreground/40",
+    badge: "bg-muted text-muted-foreground border-border",
+  };
+}
+
+function computeRDSSubScores(contact: Contact): {
+  recency: number;
+  volume: number;
+  diversity: number;
+} {
+  const memCount = contact.memory_count ?? 0;
+  if (memCount === 0) return { recency: 0, volume: 0, diversity: 0 };
+
+  // Recency: decay over 180 days
+  let recency = 0;
+  if (contact.last_memory_at) {
+    const daysSince = Math.max(
+      0,
+      (Date.now() - new Date(contact.last_memory_at).getTime()) / 86_400_000
+    );
+    recency = Math.max(0, 1 - daysSince / 180);
+  }
+
+  // Volume: log-scale capped at 50
+  const volume = Math.min(1, Math.log(1 + memCount) / Math.log(1 + 50));
+
+  // Diversity: out of 4 source types
+  const sourceCount = contact.memory_sources?.length ?? 0;
+  const diversity = Math.min(1, sourceCount / 4);
+
+  return {
+    recency: Math.round(recency * 100),
+    volume: Math.round(volume * 100),
+    diversity: Math.round(diversity * 100),
+  };
+}
+
+function RelationshipDepthBadge({ contact }: { contact: Contact }) {
+  const score = contact.relationship_depth_score ?? 0;
+  const colors = getRDSColor(score);
+  const sub = computeRDSSubScores(contact);
+
+  return (
+    <div className="group relative inline-flex items-center gap-1.5">
+      {/* Segmented mini-bar */}
+      <div className="flex h-2.5 w-8 gap-px overflow-hidden rounded-sm">
+        <div
+          className={`${score >= 30 ? (sub.recency >= 50 ? "bg-green-500" : "bg-amber-500") : "bg-muted-foreground/20"}`}
+          style={{ width: `${Math.max(10, sub.recency)}%` }}
+        />
+        <div
+          className={`${score >= 30 ? (sub.volume >= 50 ? "bg-green-500" : "bg-amber-500") : "bg-muted-foreground/20"}`}
+          style={{ width: `${Math.max(10, sub.volume)}%` }}
+        />
+        <div
+          className={`${score >= 30 ? (sub.diversity >= 50 ? "bg-green-500" : "bg-amber-500") : "bg-muted-foreground/20"}`}
+          style={{ width: `${Math.max(10, sub.diversity)}%` }}
+        />
+      </div>
+      {/* Numeric score */}
+      <span className={`text-xs font-medium tabular-nums ${colors.text}`}>
+        {score}
+      </span>
+      {/* Hover tooltip */}
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md group-hover:block">
+        <p className={`font-semibold ${colors.text} mb-1`}>
+          Depth Score: {score}/100
+        </p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground whitespace-nowrap">
+          <span>Recency</span>
+          <span className="text-right tabular-nums">{sub.recency}%</span>
+          <span>Volume</span>
+          <span className="text-right tabular-nums">{sub.volume}%</span>
+          <span>Diversity</span>
+          <span className="text-right tabular-nums">{sub.diversity}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getMemoryBadgeStyle(count: number | null | undefined): {
   className: string;
   label: string;
 } {
-  if (count === null || count === undefined) {
-    return {
-      className:
-        "bg-muted text-muted-foreground border-border",
-      label: "—",
-    };
-  }
-  if (count >= 10) {
-    return {
-      className:
-        "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
-      label: String(count),
-    };
-  }
-  if (count >= 1) {
+  if (count !== null && count !== undefined && count > 0) {
+    if (count >= 10) {
+      return {
+        className:
+          "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+        label: String(count),
+      };
+    }
     return {
       className:
         "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
@@ -201,6 +298,8 @@ export function ContactsTable({
   onSelectContact,
   onSortByScore,
   scoreSortDirection,
+  onSortByRDS,
+  rdsSortDirection,
   isEnriching = false,
 }: ContactsTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -255,6 +354,20 @@ export function ContactsTable({
                 </button>
               ) : (
                 "Score"
+              )}
+            </TableHead>
+            <TableHead className="text-right">
+              {onSortByRDS ? (
+                <button
+                  type="button"
+                  onClick={onSortByRDS}
+                  className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  Depth
+                  <ArrowUpDown className={`size-3.5 ${rdsSortDirection ? "text-foreground" : "text-muted-foreground"}`} />
+                </button>
+              ) : (
+                "Depth"
               )}
             </TableHead>
             <TableHead className="w-[50px]" />
@@ -318,6 +431,9 @@ export function ContactsTable({
                       {contact.priority_score ?? contact.score ?? 0}
                     </span>
                   )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <RelationshipDepthBadge contact={contact} />
                 </TableCell>
                 <TableCell className="text-center">
                   {contact.linkedin_url ? (
