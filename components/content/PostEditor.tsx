@@ -59,11 +59,11 @@ export function PostEditor({ post }: PostEditorProps) {
     post?.platforms?.length ? post.platforms : post?.platform ? [post.platform] : []
   );
   const [scheduledDate, setScheduledDate] = React.useState(() => {
-    const dt = post?.scheduled_at ?? post?.scheduled_for;
+    const dt = post?.scheduled_for;
     return dt ? format(new Date(dt), "yyyy-MM-dd") : "";
   });
   const [scheduledTime, setScheduledTime] = React.useState(() => {
-    const dt = post?.scheduled_at ?? post?.scheduled_for;
+    const dt = post?.scheduled_for;
     return dt ? format(new Date(dt), "HH:mm") : "12:00";
   });
   const [status, setStatus] = React.useState<ContentPostStatus>(
@@ -140,7 +140,7 @@ export function PostEditor({ post }: PostEditorProps) {
       image_url: imageUrl.trim() || null,
       platforms: selectedPlatforms,
       platform: selectedPlatforms[0] ?? null,
-      scheduled_at: scheduledAt,
+      scheduled_for: scheduledAt,
       status: saveStatus,
     };
 

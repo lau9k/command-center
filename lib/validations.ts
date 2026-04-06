@@ -57,7 +57,7 @@ export const createContentPostSchema = z.object({
   caption: z.string().max(5000).optional().nullable(),
   platform: z.string().max(100).optional().nullable(),
   status: z.string().max(50).optional(),
-  scheduled_at: z.string().datetime().optional().nullable(),
+  scheduled_for: z.string().datetime().optional().nullable(),
   published_at: z.string().datetime().optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
   image_url: z.string().url().optional().nullable(),
