@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import PreCallBriefBanner from "./PreCallBriefBanner";
 
 interface ContactDetailProps {
   contact: Contact;
@@ -151,6 +152,14 @@ export default function ContactDetail({ contact, onBack }: ContactDetailProps) {
       </div>
 
       <Separator />
+
+      {/* Pre-Call Brief Banner */}
+      {contact.email && (
+        <PreCallBriefBanner
+          contactEmail={contact.email}
+          contactName={contact.name}
+        />
+      )}
 
       {/* Personize Memory Section */}
       <div className="space-y-4">
