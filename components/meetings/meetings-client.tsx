@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  MinusCircle,
   Filter,
   RefreshCw,
   Loader2,
@@ -56,6 +57,24 @@ function formatDateShort(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
+type EnrichmentStatus = "full" | "partial" | "none";
+
+function getEnrichmentStatus(meeting: Meeting): EnrichmentStatus {
+  const hasSummary = !!meeting.summary;
+  const hasDecisions = Array.isArray(meeting.decisions) && meeting.decisions.length > 0;
+  const hasActionItems = Array.isArray(meeting.action_items) && meeting.action_items.length > 0;
+
+  if (hasSummary && hasDecisions && hasActionItems) return "full";
+  if (hasSummary || hasDecisions || hasActionItems) return "partial";
+  return "none";
+}
+
+const ENRICHMENT_CONFIG: Record<EnrichmentStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle2 }> = {
+  full: { label: "Enriched", color: "text-[#22C55E]", bg: "bg-[#22C55E]/20", icon: CheckCircle2 },
+  partial: { label: "Partial", color: "text-[#F59E0B]", bg: "bg-[#F59E0B]/20", icon: Clock },
+  none: { label: "No data", color: "text-muted-foreground", bg: "bg-muted", icon: MinusCircle },
+};
+
 function MeetingRow({
   meeting,
   selected,
@@ -68,6 +87,8 @@ function MeetingRow({
   const [expanded, setExpanded] = useState(false);
   const config = STATUS_CONFIG[meeting.status];
   const StatusIcon = config.icon;
+  const enrichment = ENRICHMENT_CONFIG[getEnrichmentStatus(meeting)];
+  const EnrichmentIcon = enrichment.icon;
   const attendees = (meeting.attendees ?? []) as MeetingAttendee[];
   const actionItems = (meeting.action_items ?? []) as MeetingActionItem[];
   const decisions = (meeting.decisions ?? []) as string[];
@@ -103,6 +124,10 @@ function MeetingRow({
             <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.bg} ${config.color}`}>
               <StatusIcon className="size-3" />
               {config.label}
+            </span>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${enrichment.bg} ${enrichment.color}`}>
+              <EnrichmentIcon className="size-3" />
+              {enrichment.label}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
