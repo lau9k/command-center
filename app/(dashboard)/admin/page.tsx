@@ -34,6 +34,7 @@ import { CronMonitor } from "@/components/admin/cron-monitor";
 import { SyncHealthWidget } from "@/components/admin/SyncHealthWidget";
 import { SyncStatusWidget } from "@/components/admin/SyncStatusWidget";
 import { PersonizeSyncRunner } from "@/components/admin/PersonizeSyncRunner";
+import { SyncHealthDashboard } from "@/components/admin/SyncHealthDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -257,6 +258,15 @@ export default function AdminPage() {
           Data Source Health
         </h2>
         <SyncHealthWidget />
+      </section>
+
+      {/* Sync Health Dashboard */}
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Activity className="h-5 w-5" />
+          Sync Health Dashboard
+        </h2>
+        <SyncHealthDashboard />
       </section>
 
       {/* Sync Status */}
