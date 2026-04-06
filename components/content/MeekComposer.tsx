@@ -68,7 +68,7 @@ export function MeekComposer({
       setSelectedPlatforms(
         post.platforms?.length ? post.platforms : post.platform ? [post.platform] : []
       );
-      const dt = post.scheduled_at ?? post.scheduled_for;
+      const dt = post.scheduled_for;
       if (dt) {
         const d = new Date(dt);
         setScheduledDate(format(d, "yyyy-MM-dd"));

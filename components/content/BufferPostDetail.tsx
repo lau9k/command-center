@@ -42,7 +42,7 @@ export function BufferPostDetail({
   if (!post) return null;
 
   const caption = post.caption ?? post.body ?? "";
-  const time = post.scheduled_at ?? post.scheduled_for;
+  const time = post.scheduled_for;
   const platforms =
     post.platforms?.length > 0
       ? post.platforms
@@ -64,8 +64,8 @@ export function BufferPostDetail({
         body: JSON.stringify({
           id: post.id,
           status: newStatus,
-          ...(newStatus === "scheduled" && !post.scheduled_at
-            ? { scheduled_at: new Date().toISOString() }
+          ...(newStatus === "scheduled" && !post.scheduled_for
+            ? { scheduled_for: new Date().toISOString() }
             : {}),
         }),
       });

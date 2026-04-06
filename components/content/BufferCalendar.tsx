@@ -123,7 +123,7 @@ export function BufferCalendar({
   const postsByDate = React.useMemo(() => {
     const map = new Map<string, PostWithProject[]>();
     for (const post of posts) {
-      const dateStr = post.scheduled_at ?? post.scheduled_for;
+      const dateStr = post.scheduled_for;
       if (!dateStr) continue;
       const dateKey = format(parseISO(dateStr), "yyyy-MM-dd");
       const existing = map.get(dateKey) ?? [];
@@ -181,7 +181,7 @@ export function BufferCalendar({
       newDate = `${y}-${m}-${d}T${h.padStart(2, "0")}:00:00.000Z`;
     } else {
       // month view: "yyyy-MM-dd" — keep original time
-      const existing = post.scheduled_at ?? post.scheduled_for;
+      const existing = post.scheduled_for;
       if (existing) {
         const dt = parseISO(existing);
         newDate = `${destSlot}T${format(dt, "HH:mm:ss")}.000Z`;
@@ -373,7 +373,7 @@ function WeekView({
   const postsByDateHour = React.useMemo(() => {
     const map = new Map<string, PostWithProject[]>();
     for (const post of posts) {
-      const dateStr = post.scheduled_at ?? post.scheduled_for;
+      const dateStr = post.scheduled_for;
       if (!dateStr) continue;
       const dt = parseISO(dateStr);
       const dateKey = format(dt, "yyyy-MM-dd");

@@ -12,9 +12,9 @@ export async function publishPost(id: string): Promise<ContentPost> {
 
 export async function schedulePost(
   id: string,
-  scheduled_at: string
+  scheduled_for: string
 ): Promise<ContentPost> {
-  return updatePost(id, { scheduled_at, status: "scheduled" });
+  return updatePost(id, { scheduled_for, status: "scheduled" });
 }
 
 export async function updatePostStatus(

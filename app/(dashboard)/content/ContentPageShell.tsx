@@ -62,7 +62,7 @@ export function ContentPageShell() {
       const json = await res.json();
       const all = Array.isArray(json.data) ? json.data : [];
       return all.filter(
-        (p: PostWithProject) => !p.scheduled_at && !p.scheduled_for
+        (p: PostWithProject) => !p.scheduled_for
       );
     },
   });
@@ -99,7 +99,7 @@ export function ContentPageShell() {
             body: data.body || null,
             platform: data.platform,
             status: data.status,
-            scheduled_at: data.scheduled_at,
+            scheduled_for: data.scheduled_for,
             image_url: data.image_url || null,
             type: "post",
             platforms: data.platform ? [data.platform] : [],
