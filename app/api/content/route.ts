@@ -41,9 +41,9 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
     if (!isNaN(parsed.getTime())) {
       const monthStart = startOfMonth(parsed).toISOString();
       const monthEnd = endOfMonth(parsed).toISOString();
-      query = query.or(
-        `and(scheduled_at.gte.${monthStart},scheduled_at.lte.${monthEnd}),and(scheduled_for.gte.${monthStart},scheduled_for.lte.${monthEnd})`
-      );
+      query = query
+        .gte("scheduled_for", monthStart)
+        .lte("scheduled_for", monthEnd);
     }
   }
 
@@ -90,9 +90,9 @@ export const GET = withErrorHandler(withAuth(async function GET(request, _user) 
       if (!isNaN(parsed.getTime())) {
         const monthStart = startOfMonth(parsed).toISOString();
         const monthEnd = endOfMonth(parsed).toISOString();
-        fallbackQuery = fallbackQuery.or(
-          `and(scheduled_at.gte.${monthStart},scheduled_at.lte.${monthEnd}),and(scheduled_for.gte.${monthStart},scheduled_for.lte.${monthEnd})`
-        );
+        fallbackQuery = fallbackQuery
+          .gte("scheduled_for", monthStart)
+          .lte("scheduled_for", monthEnd);
       }
     }
     if (project) {
