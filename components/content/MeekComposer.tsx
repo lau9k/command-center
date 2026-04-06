@@ -114,7 +114,7 @@ export function MeekComposer({
       title: title.trim() || null,
       image_url: imageUrl.trim() || null,
       platforms: selectedPlatforms,
-      scheduled_at: scheduledAt,
+      scheduled_for: scheduledAt,
       status: asStatus,
       project_id: projectId,
     };

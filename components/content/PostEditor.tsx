@@ -140,7 +140,7 @@ export function PostEditor({ post }: PostEditorProps) {
       image_url: imageUrl.trim() || null,
       platforms: selectedPlatforms,
       platform: selectedPlatforms[0] ?? null,
-      scheduled_at: scheduledAt,
+      scheduled_for: scheduledAt,
       status: saveStatus,
     };
 
