@@ -171,6 +171,9 @@ export interface Contact {
   priority_score?: number;
   last_interaction_date?: string | null;
   memory_count?: number | null;
+  relationship_depth_score?: number;
+  last_memory_at?: string | null;
+  memory_sources?: string[];
 }
 
 export interface PipelineStage {
