@@ -33,6 +33,7 @@ import { SeedRunner } from "@/components/admin/SeedRunner";
 import { CronMonitor } from "@/components/admin/cron-monitor";
 import { SyncHealthWidget } from "@/components/admin/SyncHealthWidget";
 import { SyncStatusWidget } from "@/components/admin/SyncStatusWidget";
+import { PersonizeSyncRunner } from "@/components/admin/PersonizeSyncRunner";
 
 export const dynamic = "force-dynamic";
 
@@ -265,6 +266,15 @@ export default function AdminPage() {
           Personize Sync Status
         </h2>
         <SyncStatusWidget />
+      </section>
+
+      {/* Personize Sync Runner */}
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Activity className="h-5 w-5" />
+          Personize Contact Sync
+        </h2>
+        <PersonizeSyncRunner />
       </section>
 
       {/* Cron Monitor */}
