@@ -51,7 +51,7 @@ export function BufferPostCard({
         ? [post.platform]
         : [];
   const caption = post.caption ?? post.body ?? post.title ?? "Untitled";
-  const time = post.scheduled_at ?? post.scheduled_for;
+  const time = post.scheduled_for;
   const status = post.status as ContentStatus;
 
   if (compact) {

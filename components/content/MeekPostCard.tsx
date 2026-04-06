@@ -35,7 +35,7 @@ export function MeekPostCard({ post, onClick, compact = false }: MeekPostCardPro
   const caption = post.caption ?? post.body ?? post.title ?? "Untitled";
   const displayCaption = caption.length > 80 ? caption.slice(0, 80) + "…" : caption;
   const platforms = post.platforms?.length ? post.platforms : post.platform ? [post.platform] : [];
-  const scheduledTime = post.scheduled_at ?? post.scheduled_for;
+  const scheduledTime = post.scheduled_for;
   const statusConfig = STATUS_PILL[post.status] ?? STATUS_PILL.draft;
   const imageUrl = post.image_url ?? post.media_urls?.[0] ?? null;
 

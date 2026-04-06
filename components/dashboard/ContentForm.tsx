@@ -35,7 +35,7 @@ export interface ContentFormData {
   body: string;
   platform: string;
   status: ContentPostStatus;
-  scheduled_at: string | null;
+  scheduled_for: string | null;
   image_url: string;
 }
 
@@ -51,7 +51,7 @@ const emptyForm: ContentFormData = {
   body: "",
   platform: "linkedin",
   status: "draft",
-  scheduled_at: null,
+  scheduled_for: null,
   image_url: "",
 };
 
@@ -81,7 +81,7 @@ export function ContentForm({
         body: post.body ?? post.caption ?? "",
         platform: post.platform ?? "linkedin",
         status: post.status,
-        scheduled_at: post.scheduled_at ?? post.scheduled_for ?? null,
+        scheduled_for: post.scheduled_for ?? post.scheduled_for ?? null,
         image_url: post.image_url ?? "",
       });
     } else {
@@ -196,12 +196,12 @@ export function ContentForm({
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !form.scheduled_at && "text-muted-foreground"
+                    !form.scheduled_for && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="size-4" />
-                  {form.scheduled_at
-                    ? format(new Date(form.scheduled_at), "MMM d, yyyy")
+                  {form.scheduled_for
+                    ? format(new Date(form.scheduled_for), "MMM d, yyyy")
                     : "Pick a date"}
                 </Button>
               </PopoverTrigger>
@@ -209,14 +209,14 @@ export function ContentForm({
                 <Calendar
                   mode="single"
                   selected={
-                    form.scheduled_at
-                      ? new Date(form.scheduled_at)
+                    form.scheduled_for
+                      ? new Date(form.scheduled_for)
                       : undefined
                   }
                   onSelect={(date) =>
                     setForm({
                       ...form,
-                      scheduled_at: date ? date.toISOString() : null,
+                      scheduled_for: date ? date.toISOString() : null,
                     })
                   }
                 />

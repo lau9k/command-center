@@ -33,7 +33,7 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
 
   // Filter to this month's posts
   const monthPosts = posts.filter((post) => {
-    const dateStr = post.scheduled_at ?? post.scheduled_for;
+    const dateStr = post.scheduled_for;
     if (!dateStr) return false;
     const d = parseISO(dateStr);
     return d >= monthStart && d <= monthEnd;
@@ -42,7 +42,7 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
   // Group posts by date
   const postsByDate = new Map<string, ContentPost[]>();
   for (const post of monthPosts) {
-    const dateStr = post.scheduled_at ?? post.scheduled_for;
+    const dateStr = post.scheduled_for;
     if (!dateStr) continue;
     const dateKey = format(parseISO(dateStr), "yyyy-MM-dd");
     const existing = postsByDate.get(dateKey) ?? [];
@@ -140,7 +140,7 @@ export function ContentCalendarPreview({ posts }: ContentCalendarPreviewProps) {
         {monthPosts.length > 0 && (
           <div className="mt-3 border-t border-border pt-3 space-y-2">
             {monthPosts.slice(0, 5).map((post) => {
-              const dateStr = post.scheduled_at ?? post.scheduled_for;
+              const dateStr = post.scheduled_for;
               const platforms = post.platforms ?? [];
               const primary = platforms[0] ?? post.platform;
               const color = primary ? PLATFORM_COLORS[primary] ?? "#666" : "#666";

@@ -40,7 +40,7 @@ export function MeekCalendarStrip({ posts, projectId }: MeekCalendarStripProps) 
   // Group posts by date
   const postsByDate = new Map<string, ContentPost[]>();
   for (const post of posts) {
-    const dateStr = post.scheduled_at ?? post.scheduled_for;
+    const dateStr = post.scheduled_for;
     if (!dateStr) continue;
     const dateKey = format(parseISO(dateStr), "yyyy-MM-dd");
     const existing = postsByDate.get(dateKey) ?? [];

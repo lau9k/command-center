@@ -145,7 +145,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               body: data.body || null,
               platform: data.platform,
               status: data.status,
-              scheduled_at: data.scheduled_at,
+              scheduled_for: data.scheduled_for,
               image_url: data.image_url || null,
             }),
           });
@@ -160,7 +160,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
               body: data.body || null,
               platform: data.platform,
               status: data.status,
-              scheduled_at: data.scheduled_at,
+              scheduled_for: data.scheduled_for,
               image_url: data.image_url || null,
               type: "post",
               platforms: data.platform ? [data.platform] : [],
@@ -268,7 +268,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                   const isValidPlatform =
                     platform && VALID_PLATFORMS.has(platform);
                   const scheduledDate =
-                    post.scheduled_at ?? post.scheduled_for;
+                    post.scheduled_for;
                   const isSelected = selectedIds.has(post.id);
 
                   return (
@@ -456,7 +456,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
             )}
 
             {/* Scheduled time */}
-            {(drawerPost.scheduled_at ?? drawerPost.scheduled_for) && (
+            {(drawerPost.scheduled_for) && (
               <div>
                 <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Scheduled For
@@ -465,7 +465,7 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
                   <Clock className="size-4 text-muted-foreground" />
                   {format(
                     new Date(
-                      (drawerPost.scheduled_at ?? drawerPost.scheduled_for)!
+                      (drawerPost.scheduled_for)!
                     ),
                     "EEEE, MMM d, yyyy 'at' h:mm a"
                   )}
