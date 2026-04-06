@@ -48,7 +48,7 @@ export async function getPosts(
   let query = supabase
     .from("content_posts")
     .select(POST_WITH_PROJECT)
-    .order("scheduled_at", { ascending: true, nullsFirst: false })
+    .order("scheduled_for", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   if (filters?.status) {
@@ -62,7 +62,7 @@ export async function getPosts(
     let fallback = supabase
       .from("content_posts")
       .select(POST_WITHOUT_PROJECT)
-      .order("scheduled_at", { ascending: true, nullsFirst: false })
+      .order("scheduled_for", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (filters?.status) {
@@ -132,9 +132,9 @@ export async function updatePost(
 
 export async function schedulePost(
   id: string,
-  scheduled_at: string
+  scheduled_for: string
 ): Promise<ContentPost> {
-  return updatePost(id, { scheduled_at, status: "scheduled" });
+  return updatePost(id, { scheduled_for, status: "scheduled" });
 }
 
 export async function deletePost(id: string): Promise<void> {

@@ -20,10 +20,9 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("content_posts")
     .select("*, projects:project_id(id, name, color)")
-    .or(
-      `and(scheduled_at.gte.${start},scheduled_at.lte.${end}),and(scheduled_for.gte.${start},scheduled_for.lte.${end})`
-    )
-    .order("scheduled_at", { ascending: true, nullsFirst: false });
+    .gte("scheduled_for", start)
+    .lte("scheduled_for", end)
+    .order("scheduled_for", { ascending: true, nullsFirst: false });
 
   if (projectId) {
     query = query.eq("project_id", projectId);
@@ -42,10 +41,9 @@ export async function GET(request: NextRequest) {
     let fallbackQuery = supabase
       .from("content_posts")
       .select("*")
-      .or(
-        `and(scheduled_at.gte.${start},scheduled_at.lte.${end}),and(scheduled_for.gte.${start},scheduled_for.lte.${end})`
-      )
-      .order("scheduled_at", { ascending: true, nullsFirst: false });
+      .gte("scheduled_for", start)
+      .lte("scheduled_for", end)
+      .order("scheduled_for", { ascending: true, nullsFirst: false });
 
     if (projectId) {
       fallbackQuery = fallbackQuery.eq("project_id", projectId);
