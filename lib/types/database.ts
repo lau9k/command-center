@@ -249,7 +249,6 @@ export interface ContentPost {
   caption: string | null;
   image_url: string | null;
   platforms: string[];
-  scheduled_at: string | null;
   published_at: string | null;
   engagement: Record<string, unknown>;
   buffer_id: string | null;
