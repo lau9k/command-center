@@ -3,7 +3,7 @@ import { syncGranola } from "@/lib/granola-sync";
 import { withErrorHandler } from "@/lib/api-error-handler";
 import { verifyCronAuth } from "@/lib/cron-auth";
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+async function handleSync(request: NextRequest) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 
@@ -18,4 +18,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     },
     { status: result.success ? 200 : 207 }
   );
-});
+}
+
+export const GET = withErrorHandler(handleSync);
+export const POST = withErrorHandler(handleSync);

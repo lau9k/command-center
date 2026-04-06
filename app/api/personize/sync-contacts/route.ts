@@ -6,8 +6,18 @@ const BATCH_LIMIT = 50;
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
-  return authHeader.slice(7) === process.env.API_SECRET;
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  const cronKey = request.headers.get("x-cron-key");
+
+  const apiSecret = process.env.API_SECRET;
+  const cronSecret = process.env.CRON_SECRET;
+
+  return (
+    (!!apiSecret && (bearerToken === apiSecret || cronKey === apiSecret)) ||
+    (!!cronSecret && (bearerToken === cronSecret || cronKey === cronSecret))
+  );
 }
 
 function getServiceRoleClient() {
@@ -74,7 +84,7 @@ function contactToRow(contact: ContactRow): Record<string, unknown> {
   };
 }
 
-export async function POST(request: NextRequest) {
+async function handleSync(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -82,7 +92,7 @@ export async function POST(request: NextRequest) {
   const supabase = getServiceRoleClient();
 
   try {
-    // Fetch unmemorized contacts
+    // Fetch unsynced contacts
     const { data: contacts, error: fetchError } = await supabase
       .from("contacts")
       .select("id, name, email, role, company, linkedin_url, phone, source")
@@ -133,12 +143,10 @@ export async function POST(request: NextRequest) {
         (result as { recordIds?: Record<string, string> })?.recordIds ?? {};
 
       for (const contact of contacts) {
-        const recordId = recordIds[contact.id] ?? recordIds[contact.email ?? ""] ?? null;
         const { error: updateError } = await supabase
           .from("contacts")
           .update({
             personize_synced_at: new Date().toISOString(),
-            ...(recordId ? { personize_record_id: recordId } : {}),
           })
           .eq("id", contact.id);
 
@@ -215,4 +223,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleSync(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleSync(request);
 }

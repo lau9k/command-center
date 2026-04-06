@@ -65,17 +65,24 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Cron-triggered sync routes — require CRON_SECRET
+    // Cron-triggered sync routes — require CRON_SECRET or API_SECRET
     if (
       pathname.startsWith("/api/gmail/sync") ||
-      pathname.startsWith("/api/plaid/sync")
+      pathname.startsWith("/api/plaid/sync") ||
+      pathname.startsWith("/api/personize/sync-contacts") ||
+      pathname.startsWith("/api/sync/granola") ||
+      pathname.startsWith("/api/content/sync")
     ) {
-      const secret = process.env.CRON_SECRET;
-      if (!secret) return NextResponse.next();
+      const cronSecret = process.env.CRON_SECRET;
+      const apiSecret = process.env.API_SECRET;
+      if (!cronSecret && !apiSecret) return NextResponse.next();
       const authHeader = request.headers.get("authorization");
       const bearerToken = authHeader?.replace("Bearer ", "");
       const cronKey = request.headers.get("x-cron-key");
-      if (bearerToken !== secret && cronKey !== secret) {
+      const isValid =
+        (cronSecret && (bearerToken === cronSecret || cronKey === cronSecret)) ||
+        (apiSecret && (bearerToken === apiSecret || cronKey === apiSecret));
+      if (!isValid) {
         return unauthorized("Invalid cron secret");
       }
       return NextResponse.next();
