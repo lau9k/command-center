@@ -41,6 +41,8 @@ interface MockQueryBuilder {
   delete: ReturnType<typeof vi.fn>;
   eq: ReturnType<typeof vi.fn>;
   neq: ReturnType<typeof vi.fn>;
+  gte: ReturnType<typeof vi.fn>;
+  lte: ReturnType<typeof vi.fn>;
   in: ReturnType<typeof vi.fn>;
   is: ReturnType<typeof vi.fn>;
   or: ReturnType<typeof vi.fn>;
@@ -69,6 +71,8 @@ function createMockQueryBuilder(
     delete: vi.fn(),
     eq: vi.fn(),
     neq: vi.fn(),
+    gte: vi.fn(),
+    lte: vi.fn(),
     in: vi.fn(),
     is: vi.fn(),
     or: vi.fn(),
@@ -82,7 +86,7 @@ function createMockQueryBuilder(
 
   const chainMethods = [
     "select", "insert", "update", "upsert", "delete",
-    "eq", "neq", "in", "is", "or", "ilike", "contains", "order", "range", "limit",
+    "eq", "neq", "gte", "lte", "in", "is", "or", "ilike", "contains", "order", "range", "limit",
   ] as const;
 
   for (const method of chainMethods) {

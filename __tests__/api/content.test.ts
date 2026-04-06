@@ -54,7 +54,7 @@ describe("GET /api/content/calendar", () => {
   });
 
   it("returns posts within date range", async () => {
-    const posts = [makeContentPost({ scheduled_at: "2025-03-10T10:00:00Z" })];
+    const posts = [makeContentPost({ scheduled_for: "2025-03-10T10:00:00Z" })];
     setTableData("content_posts", posts);
 
     const { GET } = await getCalendarHandler();
