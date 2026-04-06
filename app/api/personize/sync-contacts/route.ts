@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const { data: contacts, error: fetchError } = await supabase
       .from("contacts")
       .select("id, name, email, role, company, linkedin_url, phone, source")
-      .is("memorized_at", null)
+      .is("personize_synced_at", null)
       .order("created_at", { ascending: true })
       .limit(BATCH_LIMIT);
 
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       const { count } = await supabase
         .from("contacts")
         .select("id", { count: "exact", head: true })
-        .is("memorized_at", null);
+        .is("personize_synced_at", null);
 
       return NextResponse.json({
         success: true,
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         const { error: updateError } = await supabase
           .from("contacts")
           .update({
-            memorized_at: new Date().toISOString(),
+            personize_synced_at: new Date().toISOString(),
             ...(recordId ? { personize_record_id: recordId } : {}),
           })
           .eq("id", contact.id);
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
 
           const { error: updateError } = await supabase
             .from("contacts")
-            .update({ memorized_at: new Date().toISOString() })
+            .update({ personize_synced_at: new Date().toISOString() })
             .eq("id", contact.id);
 
           if (updateError) {
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
     const { count: remaining } = await supabase
       .from("contacts")
       .select("id", { count: "exact", head: true })
-      .is("memorized_at", null);
+      .is("personize_synced_at", null);
 
     return NextResponse.json({
       success: true,
