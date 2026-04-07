@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const TABLES = [
@@ -54,7 +55,7 @@ async function getTableSyncCounts(
   return result;
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const results = await Promise.all(
@@ -70,9 +71,9 @@ export const GET = withErrorHandler(async function GET() {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST() {
+export const POST = withErrorHandler(withAuth(async function POST(_request, _user) {
   const supabase = createServiceClient();
 
   // Retry: set all 'failed' records back to 'pending' across all tables
@@ -98,4 +99,4 @@ export const POST = withErrorHandler(async function POST() {
   }
 
   return NextResponse.json({ data: { retried } });
-});
+}));

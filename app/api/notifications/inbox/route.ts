@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const inboxQuerySchema = z.object({
   type: z.enum(["task", "alert", "info", "signal"]).optional(),
@@ -14,7 +15,7 @@ const bulkArchiveSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, "At least one notification ID is required"),
 });
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -67,9 +68,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandler(withAuth(async function DELETE(request, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -93,4 +94,4 @@ export const DELETE = withErrorHandler(async function DELETE(request: NextReques
   }
 
   return NextResponse.json({ archived: ids.length });
-});
+}));

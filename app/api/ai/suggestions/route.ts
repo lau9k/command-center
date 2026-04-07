@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { scoreTask } from "@/lib/task-scoring";
 import { smartRecall } from "@/lib/personize/actions";
 import type { TaskWithProject } from "@/lib/types/database";
@@ -62,7 +63,7 @@ function generateReason(
   return "recommended based on priority and timing";
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -119,4 +120,4 @@ export const GET = withErrorHandler(async function GET() {
   }));
 
   return NextResponse.json({ data: suggestions });
-});
+}));

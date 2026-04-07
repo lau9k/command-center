@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getGitHubStats } from "@/lib/github";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 const GITHUB_OWNER = "lau9k";
 const GITHUB_REPO = "command-center";
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   // 1. Check for a recent cached row (< 10 min old)
@@ -95,4 +96,4 @@ export const GET = withErrorHandler(async function GET() {
     fetchedAt: stats.fetchedAt,
     source: "live",
   });
-});
+}));

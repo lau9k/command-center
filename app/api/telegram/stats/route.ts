@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { fetchTelegramStats } from "@/lib/telegram/community";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   // 1. Check for a recent cached row (< 5 min old)
@@ -70,4 +71,4 @@ export const GET = withErrorHandler(async function GET() {
     fetchedAt: stats.fetchedAt,
     source: "live",
   });
-});
+}));

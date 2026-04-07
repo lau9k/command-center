@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const INGEST_ENTITY_TYPES = [
   "contact",
@@ -61,7 +62,7 @@ export interface AnalyticsOverviewResponse {
   };
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
   const now = new Date();
   const eightWeeksAgo = weeksAgo(8);
@@ -313,4 +314,4 @@ export const GET = withErrorHandler(async function GET() {
   };
 
   return NextResponse.json(response);
-});
+}));

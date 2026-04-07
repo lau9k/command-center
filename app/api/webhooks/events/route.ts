@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const querySchema = z.object({
   source: z.string().optional(),
@@ -13,7 +14,7 @@ const querySchema = z.object({
   offset: z.coerce.number().int().min(0).optional().default(0),
 });
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   const { searchParams } = request.nextUrl;
 
   const parsed = querySchema.safeParse(Object.fromEntries(searchParams));
@@ -63,4 +64,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data, total: count });
-});
+}));
