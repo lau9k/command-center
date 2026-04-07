@@ -293,7 +293,7 @@ interface PropertyLookupEntry {
  */
 async function fetchPropertyValues(
   propertyName: string,
-  limit = 200
+  pageSize = 200
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   try {
@@ -307,7 +307,7 @@ async function fetchPropertyValues(
         collectionIds: [CONTACTS_COLLECTION_ID],
         groups: [{ conditions: [{ propertyName, operator: "exists" }] }],
         returnRecords: true,
-        pageSize: limit,
+        pageSize,
       }),
     });
     if (!response.ok) return result;

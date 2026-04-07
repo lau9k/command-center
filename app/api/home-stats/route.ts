@@ -367,19 +367,49 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
       warnings,
     ),
 
-    // 12) Enrichment count — Supabase contacts with email (cached 15 min)
+    // 12) Enrichment count — Personize search for contacts with email (cached 15 min)
     cached<number>(
       "home:personize:enrichment",
       async () => {
-        const { count, error } = await supabase
-          .from("contacts")
-          .select("*", { count: "exact", head: true })
-          .not("email", "is", null);
-        if (error) {
-          console.warn("[home-stats] Supabase enrichment count failed:", error.message);
+        const apiBase = "https://agent.personize.ai";
+        const apiKey = process.env.PERSONIZE_SECRET_KEY ?? "";
+        const collectionId = process.env.PERSONIZE_CONTACTS_COLLECTION_ID ?? "";
+        if (!apiKey || !collectionId) {
+          console.warn("[home-stats] Missing PERSONIZE_SECRET_KEY or PERSONIZE_CONTACTS_COLLECTION_ID");
           return 0;
         }
-        return count ?? 0;
+        try {
+          const response = await fetch(`${apiBase}/api/v1/search`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              collectionIds: [collectionId],
+              groups: [
+                {
+                  conditions: [
+                    { propertyName: "email", operator: "exists" },
+                  ],
+                },
+              ],
+              returnRecords: true,
+              pageSize: 1,
+            }),
+          });
+          if (!response.ok) {
+            console.warn(`[home-stats] Personize enrichment search failed: ${response.status}`);
+            return 0;
+          }
+          const data = (await response.json()) as {
+            data?: { total?: number; records?: unknown[] };
+          };
+          return data?.data?.total ?? data?.data?.records?.length ?? 0;
+        } catch (err) {
+          console.warn("[home-stats] Personize enrichment search error:", err);
+          return 0;
+        }
       },
       { ttlMs: 15 * 60 * 1000 },
     ),
