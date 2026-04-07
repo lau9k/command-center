@@ -449,8 +449,12 @@ function PostDetail({
 
       {/* Badges row */}
       <div className="flex flex-wrap items-center gap-2">
-        {post.platform && (
+        {post.platform ? (
           <PlatformBadge platform={post.platform as PlatformType} />
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            No platform
+          </span>
         )}
         <StatusBadge status={post.status as StatusType} />
         {post.type !== "post" && (
