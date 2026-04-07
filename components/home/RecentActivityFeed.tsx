@@ -114,7 +114,7 @@ function entityTypeLabel(entityType: string): string {
 }
 
 export function RecentActivityFeed({ initial }: RecentActivityFeedProps) {
-  const [entries, setEntries] = useState<ActivityEntry[]>(initial.slice(0, 10));
+  const [entries, setEntries] = useState<ActivityEntry[]>((initial ?? []).slice(0, 10));
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchActivity = useCallback(async () => {
