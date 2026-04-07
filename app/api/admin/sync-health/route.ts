@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // ---------------------------------------------------------------------------
@@ -69,7 +70,7 @@ function isStale(
 // GET /api/admin/sync-health
 // ---------------------------------------------------------------------------
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -87,14 +88,15 @@ export const GET = withErrorHandler(async function GET() {
   }));
 
   return NextResponse.json({ data: sources });
-});
+}));
 
 // ---------------------------------------------------------------------------
 // PATCH /api/admin/sync-health
 // ---------------------------------------------------------------------------
 
-export const PATCH = withErrorHandler(async function PATCH(
-  request: NextRequest,
+export const PATCH = withErrorHandler(withAuth(async function PATCH(
+  request,
+  _user,
 ) {
   const body = await request.json();
   const { source, success, error: errorMessage } = body as {
@@ -163,4 +165,4 @@ export const PATCH = withErrorHandler(async function PATCH(
   }
 
   return NextResponse.json({ data: updated });
-});
+}));

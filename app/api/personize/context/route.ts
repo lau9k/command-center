@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { smartRecall, smartDigest } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request, _user) {
   if (!process.env.PERSONIZE_SECRET_KEY) {
     return NextResponse.json(
       { error: "Personize not configured" },
@@ -58,4 +59,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
       lastInteraction: properties?.last_interaction_date ?? null,
     },
   });
-});
+}));

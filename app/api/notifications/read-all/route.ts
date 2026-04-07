@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const POST = withErrorHandler(async function POST() {
+export const POST = withErrorHandler(withAuth(async function POST(_request, _user) {
   const supabase = createServiceClient();
 
   const { error } = await supabase
@@ -15,4 +16,4 @@ export const POST = withErrorHandler(async function POST() {
   }
 
   return NextResponse.json({ success: true });
-});
+}));

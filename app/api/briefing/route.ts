@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(_request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(_request, user) {
   const supabase = createServiceClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const { data, error } = await supabase.rpc("get_daily_briefing", {
     p_user_id: user.id,
@@ -23,4 +15,4 @@ export const GET = withErrorHandler(async function GET(_request: NextRequest) {
   }
 
   return NextResponse.json({ data });
-});
+}));

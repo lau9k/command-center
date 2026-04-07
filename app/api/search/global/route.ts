@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import type { SearchResult } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ const searchParamsSchema = z.object({
   q: z.string().min(2).max(200),
 });
 
-export const GET = withErrorHandler(async (request: NextRequest) => {
+export const GET = withErrorHandler(withAuth(async (request, _user) => {
   const { searchParams } = new URL(request.url);
   const parsed = searchParamsSchema.safeParse({ q: searchParams.get("q") });
 
@@ -160,4 +161,4 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   }
 
   return NextResponse.json({ results });
-});
+}));

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ interface SyncHealthDashboardData {
 // GET /api/admin/sync-health-dashboard
 // ---------------------------------------------------------------------------
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   // Run all queries in parallel
@@ -141,4 +142,4 @@ export const GET = withErrorHandler(async function GET() {
   };
 
   return NextResponse.json({ data });
-});
+}));
