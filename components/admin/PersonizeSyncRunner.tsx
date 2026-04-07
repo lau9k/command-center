@@ -42,8 +42,6 @@ export function PersonizeSyncRunner() {
   const [initialRemaining, setInitialRemaining] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const apiSecret = process.env.NEXT_PUBLIC_API_SECRET ?? "";
-
   const startSync = useCallback(async () => {
     setRunning(true);
     setStats(null);
@@ -62,10 +60,8 @@ export function PersonizeSyncRunner() {
       while (!controller.signal.aborted) {
         const res = await fetch("/api/personize/sync-contacts", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiSecret}`,
-          },
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           signal: controller.signal,
         });
 
@@ -118,7 +114,7 @@ export function PersonizeSyncRunner() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [apiSecret]);
+  }, []);
 
   const stopSync = useCallback(() => {
     abortRef.current?.abort();
@@ -150,7 +146,7 @@ export function PersonizeSyncRunner() {
               Stop
             </Button>
           ) : (
-            <Button onClick={startSync} disabled={!apiSecret}>
+            <Button onClick={startSync}>
               <Play className="mr-2 h-4 w-4" />
               Start Sync
             </Button>

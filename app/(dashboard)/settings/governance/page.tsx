@@ -209,7 +209,7 @@ export default function GovernancePage() {
   const fetchVariables = useCallback(async () => {
     try {
       const res = await fetch("/api/personize/governance", {
-        headers: { Authorization: `Bearer ${getApiSecret()}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
@@ -230,10 +230,8 @@ export default function GovernancePage() {
     async (data: GovernanceFormData) => {
       const res = await fetch("/api/personize/governance", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getApiSecret()}`,
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
 
@@ -258,10 +256,8 @@ export default function GovernancePage() {
       try {
         const res = await fetch("/api/personize/governance", {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getApiSecret()}`,
-          },
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ id: variable.id }),
         });
 
@@ -505,6 +501,3 @@ export default function GovernancePage() {
 
 // ── Helpers ──────────────────────────────────────────────
 
-function getApiSecret(): string {
-  return process.env.NEXT_PUBLIC_API_SECRET ?? "";
-}

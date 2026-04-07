@@ -24,9 +24,7 @@ export function SeedDemoButton() {
     try {
       const res = await fetch("/api/admin/seed/demo", {
         method: "POST",
-        headers: {
-          "x-seed-secret": process.env.NEXT_PUBLIC_SEED_SECRET ?? "",
-        },
+        credentials: "include",
       })
 
       if (!res.ok) {
