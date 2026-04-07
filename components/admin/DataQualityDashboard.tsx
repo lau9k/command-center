@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -98,38 +99,24 @@ function formatRelativeTime(iso: string | null): string {
 // ---------------------------------------------------------------------------
 
 export function DataQualityDashboard() {
-  const [metrics, setMetrics] = useState<TableMetrics[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [expandedTable, setExpandedTable] = useState<string | null>(null);
 
-  const fetchMetrics = useCallback(async () => {
-    try {
+  const { data: metrics = [], isLoading, refetch } = useQuery<TableMetrics[]>({
+    queryKey: ["admin", "data-quality"],
+    queryFn: async () => {
       const res = await fetch("/api/admin/data-quality");
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to fetch data quality");
-      setMetrics(json.data);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch data quality";
-      toast.error(message);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  }, []);
+      if (!res.ok) throw new Error(json.error ?? "Failed to fetch");
+      return json.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
-
-  const handleRefresh = useCallback(async () => {
-    setLoading(true);
-    await fetchMetrics();
+  const handleRefresh = async () => {
+    await refetch();
     toast.success("Data quality refreshed");
-  }, [fetchMetrics]);
+  };
 
-  if (initialLoad && metrics.length === 0) {
+  if (isLoading && metrics.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
@@ -149,8 +136,8 @@ export function DataQualityDashboard() {
               Row counts, field completeness, and freshness for core tables
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-            {loading ? (
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
+            {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <RefreshCw className="h-4 w-4" />
