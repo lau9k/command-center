@@ -288,7 +288,7 @@ interface PropertyLookupEntry {
 
 /**
  * Fetch all contacts that have a given property set, via the deterministic
- * /api/v1/memory/filter-by-property endpoint (no LLM, no token cost).
+ * /api/v1/search endpoint (no LLM, no token cost).
  * Returns a Map of recordId → property value.
  */
 async function fetchPropertyValues(
@@ -297,24 +297,26 @@ async function fetchPropertyValues(
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   try {
-    const response = await fetch(`${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`, {
+    const response = await fetch(`${PERSONIZE_API_BASE}/api/v1/search`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${PERSONIZE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        collectionId: CONTACTS_COLLECTION_ID,
-        conditions: [{ propertyName, operator: "exists" }],
-        limit,
+        collectionIds: [CONTACTS_COLLECTION_ID],
+        groups: [{ conditions: [{ propertyName, operator: "exists" }] }],
+        returnRecords: true,
+        pageSize: limit,
       }),
     });
     if (!response.ok) return result;
     const data = await response.json();
-    const records = data?.data?.records ?? [];
-    for (const rec of records) {
-      if (rec.recordId && rec.matchedProperties?.[propertyName]) {
-        result.set(rec.recordId, rec.matchedProperties[propertyName]);
+    const records = (data?.data?.records ?? {}) as Record<string, Record<string, { value: string }>>;
+    for (const [recordId, properties] of Object.entries(records)) {
+      const val = properties[propertyName]?.value;
+      if (recordId && val) {
+        result.set(recordId, val);
       }
     }
   } catch (error) {
@@ -325,7 +327,7 @@ async function fetchPropertyValues(
 
 /**
  * Build a lookup table of recordId → {full_name, job_title, company_name}.
- * Makes 3 parallel API calls to filter-by-property (deterministic, no LLM cost).
+ * Makes 3 parallel API calls to /api/v1/search (deterministic, no LLM cost).
  *
  * Two-tier cache:
  * - L1: in-memory Map (zero latency, native Map type)
