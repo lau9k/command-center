@@ -90,12 +90,22 @@ export default async function FinancePage() {
   const snapshots =
     queryClient.getQueryData<BalanceSnapshot[]>(["finance", "snapshots"]) ?? [];
 
-  const { count: plaidItemCount } = await supabase
-    .from("plaid_items")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "active");
+  const plaidConfigured = !!(
+    process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET
+  );
 
-  const hasPlaidAccounts = (plaidItemCount ?? 0) > 0;
+  let plaidStatus: "not_configured" | "configured_not_linked" | "connected" =
+    "not_configured";
+
+  if (plaidConfigured) {
+    const { count: plaidItemCount } = await supabase
+      .from("plaid_items")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active");
+
+    plaidStatus =
+      (plaidItemCount ?? 0) > 0 ? "connected" : "configured_not_linked";
+  }
 
   const hasData =
     transactions.length > 0 || debts.length > 0 || snapshots.length > 0;
@@ -111,13 +121,15 @@ export default async function FinancePage() {
         </div>
         <div className="flex items-center gap-2">
           <ImportCsvButton />
-          <PlaidSyncButton />
+          {plaidStatus === "connected" && <PlaidSyncButton />}
         </div>
       </div>
 
-      {!hasPlaidAccounts && <PlaidConnectBanner />}
+      {plaidStatus !== "connected" && (
+        <PlaidConnectBanner status={plaidStatus} />
+      )}
 
-      <ConnectedAccounts />
+      {plaidStatus === "connected" && <ConnectedAccounts />}
 
       <HydrationBoundary state={dehydrate(queryClient)}>
         {hasData ? <FinanceDashboardLazy /> : <FinanceEmptyState />}
