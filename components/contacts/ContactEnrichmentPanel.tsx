@@ -50,6 +50,9 @@ interface ContactEnrichmentPanelProps {
   contactId: string;
   contactName: string;
   contactEmail: string | null;
+  contactCompany?: string | null;
+  contactRole?: string | null;
+  contactLinkedinUrl?: string | null;
   open: boolean;
 }
 
@@ -113,6 +116,9 @@ export function ContactEnrichmentPanel({
   contactId,
   contactName,
   contactEmail,
+  contactCompany,
+  contactRole,
+  contactLinkedinUrl,
   open,
 }: ContactEnrichmentPanelProps) {
   const [data, setData] = useState<EnrichmentData | null>(null);
@@ -280,7 +286,9 @@ export function ContactEnrichmentPanel({
     );
   }
 
-  if (error) {
+  if (error && error !== "not_configured") {
+    // Show local Supabase data as fallback instead of a red error
+    const hasLocalData = contactEmail || contactCompany || contactRole || contactLinkedinUrl;
     return (
       <Card>
         <CardHeader>
@@ -299,11 +307,38 @@ export function ContactEnrichmentPanel({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 text-sm text-destructive">
-            <AlertCircle className="size-4" />
-            {error}
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between rounded-md border border-border bg-muted/50 px-3 py-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <AlertCircle className="size-3.5" />
+              Personize enrichment unavailable
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-2 text-xs"
+              onClick={() => fetchEnrichment()}
+            >
+              <RefreshCw className="size-3" />
+              Retry
+            </Button>
           </div>
+          {hasLocalData && (
+            <div className="divide-y divide-border rounded-md border border-border px-3">
+              {contactEmail && (
+                <PropertyRow label="Email" value={contactEmail} />
+              )}
+              {contactCompany && (
+                <PropertyRow label="Company" value={contactCompany} />
+              )}
+              {contactRole && (
+                <PropertyRow label="Role" value={contactRole} />
+              )}
+              {contactLinkedinUrl && (
+                <PropertyRow label="LinkedIn" value={contactLinkedinUrl} />
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     );

@@ -326,6 +326,9 @@ export function ContactDetailPanel({
               contactId={contact.id}
               contactName={contact.name}
               contactEmail={contact.email ?? null}
+              contactCompany={contact.company ?? null}
+              contactRole={contact.role ?? null}
+              contactLinkedinUrl={contact.linkedin_url ?? null}
               open={open}
             />
 

@@ -24,8 +24,10 @@ import {
   Linkedin,
   Brain,
   ExternalLink,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { PersonizeMemories } from "@/components/dashboard/PersonizeMemories";
 
@@ -63,8 +65,9 @@ export function ContactDetailDrawer({
   onDelete,
 }: ContactDetailDrawerProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const { data: enrichment, isLoading: enrichmentLoading } =
+  const { data: enrichment, isLoading: enrichmentLoading, isError: enrichmentError } =
     useQuery<EnrichmentResponse>({
       queryKey: ["contact-enrich", contact?.id],
       queryFn: async () => {
@@ -76,15 +79,17 @@ export function ContactDetailDrawer({
       },
       enabled: !!contact && open,
       staleTime: 60000,
+      retry: false,
     });
 
   if (!contact) return null;
 
+  const enrichmentAvailable = !enrichmentError && !enrichmentLoading && !!enrichment;
   const properties = enrichment?.data?.properties;
   const records = enrichment?.data?.recall?.records;
   const memoryCount = records?.length ?? 0;
-  const jobTitle = properties?.job_title;
-  const linkedinUrl = properties?.linkedin_url;
+  const jobTitle = properties?.job_title ?? contact.job_title;
+  const linkedinUrl = properties?.linkedin_url ?? contact.linkedin_url;
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -174,6 +179,27 @@ export function ContactDetailDrawer({
                       <span>
                         {memoryCount} {memoryCount === 1 ? "memory" : "memories"}
                       </span>
+                    </div>
+                  )}
+                  {enrichmentError && (
+                    <div className="flex items-center justify-between rounded-md border border-border bg-muted/50 px-3 py-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <AlertCircle className="size-3.5" />
+                        Personize enrichment unavailable — showing local data
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 gap-1 px-2 text-xs"
+                        onClick={() =>
+                          queryClient.invalidateQueries({
+                            queryKey: ["contact-enrich", contact.id],
+                          })
+                        }
+                      >
+                        <RefreshCw className="size-3" />
+                        Retry
+                      </Button>
                     </div>
                   )}
                 </>

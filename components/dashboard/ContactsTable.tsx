@@ -227,20 +227,18 @@ function getMemoryBadgeStyle(count: number | null | undefined): {
   return {
     className:
       "bg-muted text-muted-foreground border-border",
-    label: "0",
+    label: "\u2014",
   };
 }
 
 function MemoryCountBadge({ count }: { count: number | null | undefined }) {
   const { className, label } = getMemoryBadgeStyle(count);
+  // Hide badge entirely when there's no memory data
+  if (!count) return null;
   return (
     <span
       className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-xs font-medium ${className}`}
-      aria-label={
-        count !== null && count !== undefined
-          ? `${count} Personize memor${count === 1 ? "y" : "ies"}`
-          : "Memory count unavailable"
-      }
+      aria-label={`${count} Personize memor${count === 1 ? "y" : "ies"}`}
     >
       <Brain className="size-3" />
       {label}
@@ -421,19 +419,25 @@ export function ContactsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {contact.relationship_score !== undefined ? (
+                  {contact.relationship_score !== undefined && contact.relationship_score > 0 ? (
                     <RelationshipBadge
                       score={contact.relationship_score}
                       breakdown={contact.score_breakdown}
                     />
-                  ) : (
+                  ) : (contact.priority_score ?? contact.score ?? 0) > 0 ? (
                     <span className="tabular-nums">
-                      {contact.priority_score ?? contact.score ?? 0}
+                      {contact.priority_score ?? contact.score}
                     </span>
+                  ) : (
+                    <span className="text-muted-foreground/50">{"\u2014"}</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <RelationshipDepthBadge contact={contact} />
+                  {(contact.relationship_depth_score ?? 0) > 0 ? (
+                    <RelationshipDepthBadge contact={contact} />
+                  ) : (
+                    <span className="text-muted-foreground/50">{"\u2014"}</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-center">
                   {contact.linkedin_url ? (
