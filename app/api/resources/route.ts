@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createResourceSchema } from "@/lib/types/resources";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async (request, user) => {
   const { searchParams } = request.nextUrl;
 
   const search = searchParams.get("q") ?? searchParams.get("search");
@@ -52,9 +53,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async (request, user) => {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -77,4 +78,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
