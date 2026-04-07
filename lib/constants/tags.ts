@@ -1,5 +1,5 @@
 /** System tags hidden from all UI surfaces. */
-export const SYSTEM_TAGS: string[] = ["personize-contact", "email-draft-ready"];
+export const SYSTEM_TAGS: string[] = ["personize-contact", "email-draft-ready", "outreach"];
 
 /** Friendly display labels for known tags. */
 export const TAG_LABELS: Record<string, string> = {
@@ -17,10 +17,10 @@ export const TAG_COLORS: Record<string, string> = {
   tier4: "bg-orange-100 text-orange-800",
 };
 
-/** Filter out system tags and "outreach" for display purposes. */
+/** Filter out system tags for display purposes. */
 export function getDisplayTags(tags: string[]): string[] {
-  const hidden = new Set([...SYSTEM_TAGS, "outreach"]);
-  return tags.filter((tag) => !hidden.has(tag));
+  const hidden = new Set(SYSTEM_TAGS.map((t) => t.toLowerCase()));
+  return tags.filter((tag) => !hidden.has(tag.toLowerCase()));
 }
 
 /** Return a friendly label for a tag, falling back to title-case. */

@@ -21,7 +21,7 @@ export async function register() {
       } else {
         const exists = Boolean(data);
         process.env.__DASHBOARD_RPC_STATUS = exists ? "exists" : "missing";
-        console.warn(
+        console.log(
           `[startup] RPC get_dashboard_summary status: ${exists ? "exists" : "missing"}`,
         );
       }

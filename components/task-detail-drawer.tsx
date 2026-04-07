@@ -38,6 +38,7 @@ import { ConfirmDeleteModal } from "@/components/dashboard/ConfirmDeleteModal";
 import type { TaskWithProject, TaskStatus } from "@/lib/types/database";
 import { statusBadgeClass } from "@/lib/design-tokens";
 import { PersonizeContextPanel } from "@/components/dashboard/PersonizeContextPanel";
+import { SYSTEM_TAGS } from "@/lib/constants/tags";
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "Todo",
@@ -59,8 +60,6 @@ const TASK_TYPE_LABELS: Record<string, string> = {
   "follow-up": "Follow-up",
   "meeting-prep": "Meeting Prep",
 };
-
-const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {

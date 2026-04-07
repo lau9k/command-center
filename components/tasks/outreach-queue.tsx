@@ -48,6 +48,7 @@ import {
   deleteTask,
   batchUpdateOutreachStatus,
 } from "@/lib/actions/tasks";
+import { SYSTEM_TAGS } from "@/lib/constants/tags";
 
 /* ─── helpers ─── */
 
@@ -104,8 +105,6 @@ const OUTREACH_STATUSES: TaskOutreachStatus[] = [
 ];
 
 const ALL_VALUE = "__all__";
-
-const SYSTEM_TAGS = ["outreach", "personize-contact", "email-draft-ready"];
 
 /* ─── types ─── */
 

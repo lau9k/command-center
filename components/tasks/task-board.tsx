@@ -17,6 +17,7 @@ import { sanitizeText } from "@/lib/sanitize";
 import { TaskActionButtons } from "./TaskActionButtons";
 import { useGovernanceCheck, type GovernanceMap } from "@/lib/hooks/useGovernanceCheck";
 import { updateTaskStatus } from "@/lib/actions/tasks";
+import { SYSTEM_TAGS } from "@/lib/constants/tags";
 
 const COLUMNS: { status: TaskStatus; label: string; dotClass: string; borderClass: string }[] = [
   { status: "todo", label: "To Do", dotClass: "bg-blue-500", borderClass: "border-l-blue-500" },
@@ -31,8 +32,6 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
   medium: 2,
   low: 3,
 };
-
-const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
 
 function DrawerContent({ task }: { task: TaskWithProject }) {
   const displayTags = (task.tags ?? []).filter(
