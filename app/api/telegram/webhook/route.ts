@@ -46,7 +46,7 @@ async function sendMessage(chatId: number, text: string) {
     throw new Error("TELEGRAM_BOT_TOKEN not configured");
   }
 
-  console.log(`[TG] sendMessage -> chat_id=${chatId}, text_length=${text.length}`);
+  console.debug(`[TG] sendMessage -> chat_id=${chatId}, text_length=${text.length}`);
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
@@ -62,7 +62,7 @@ async function sendMessage(chatId: number, text: string) {
   if (!resBody.ok) {
     console.error("[TG] sendMessage failed:", JSON.stringify(resBody));
   } else {
-    console.log("[TG] sendMessage succeeded, message_id:", resBody.result?.message_id);
+    console.debug("[TG] sendMessage succeeded, message_id:", resBody.result?.message_id);
   }
 }
 
@@ -229,7 +229,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const tokenPresent = !!process.env.TELEGRAM_BOT_TOKEN;
-  console.log(`[TG] POST /api/telegram/webhook hit — token_present=${tokenPresent}`);
+  console.debug(`[TG] POST /api/telegram/webhook hit — token_present=${tokenPresent}`);
 
   try {
     const raw = await request.json();
@@ -239,16 +239,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     const update = parsed.data as TelegramUpdate;
-    console.log("[TG] Incoming update:", JSON.stringify(update));
+    console.debug("[TG] Incoming update:", JSON.stringify(update));
 
     if (!update.message?.text) {
-      console.log("[TG] No message text, skipping");
+      console.debug("[TG] No message text, skipping");
       return NextResponse.json({ ok: true });
     }
 
     const chatId = update.message.chat.id;
     const command = extractCommand(update.message);
-    console.log(`[TG] chat_id=${chatId}, command=${command}, text="${update.message.text}"`);
+    console.debug(`[TG] chat_id=${chatId}, command=${command}, text="${update.message.text}"`);
 
     switch (command) {
       case "/content":
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
         );
         break;
       default:
-        console.log("[TG] Unknown command or plain message, ignoring");
+        console.debug("[TG] Unknown command or plain message, ignoring");
         break;
     }
 
