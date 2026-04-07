@@ -203,7 +203,7 @@ interface ContactMemoryInfo {
 }
 
 /**
- * Use Personize search to find contacts that have memory_count set.
+ * Use Personize /api/v1/search to find contacts that have memory_count set.
  * This is a lightweight, no-LLM-cost endpoint.
  */
 async function fetchContactsWithMemories(): Promise<ContactMemoryInfo[]> {
