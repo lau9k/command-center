@@ -97,10 +97,8 @@ interface SearchPageData {
   crmKeys?: Record<string, { type?: string; email?: string }>;
 }
 
-interface SearchRecord {
-  recordId?: string;
-  record_id?: string;
-  properties?: Record<string, string>;
+interface SearchRecordProps {
+  [propName: string]: { value: string };
 }
 
 /**
@@ -241,31 +239,30 @@ async function fetchContactsWithMemories(): Promise<ContactMemoryInfo[]> {
 
       if (!response.ok) {
         console.error(
-          `[syncContactMemoryStats] search failed: ${response.status}`
+          `[syncContactMemoryStats] /api/v1/search failed: ${response.status}`
         );
         break;
       }
 
       const data = (await response.json()) as {
-        data?: { records?: SearchRecord[] };
+        data?: { records?: Record<string, SearchRecordProps> };
       };
-      const records = data?.data?.records ?? [];
+      const records = data?.data?.records ?? {};
+      const entries = Object.entries(records);
 
-      for (const rec of records) {
-        const recordId = rec.recordId ?? rec.record_id;
-        if (!recordId) continue;
-        const countStr = rec.properties?.memory_count ?? "0";
+      for (const [recordId, props] of entries) {
+        const countStr = props.memory_count?.value ?? "0";
         const memoryCount = parseInt(countStr, 10) || 0;
         results.push({
           recordId,
-          name: rec.properties?.full_name ?? recordId,
+          name: props.full_name?.value ?? recordId,
           memoryCount,
         });
       }
 
       // If we got fewer than pageSize, we've exhausted results
-      if (records.length < pageSize) break;
-      page++;
+      if (entries.length < pageSize) break;
+      page += 1;
     } catch (error) {
       console.error("[syncContactMemoryStats] fetchContactsWithMemories failed:", error);
       break;
