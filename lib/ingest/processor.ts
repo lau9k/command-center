@@ -27,6 +27,7 @@ const processorConversationSchema = z
   .object({
     external_id: z.string().min(1).nullish(),
     contact_email: z.string().email().nullish(),
+    channel: z.enum(["gmail", "slack", "linkedin", "teams"]).nullish(),
   })
   .passthrough()
   .refine((d) => (d.external_id && d.external_id.length > 0) || (d.contact_email && d.contact_email.length > 0), {
@@ -78,9 +79,18 @@ async function validateItems<T>(
     } else {
       invalidCount++;
       const errorMsg = result.error.issues.map((e: { message: string }) => e.message).join("; ");
+      const fieldErrors = result.error.issues.map((e) =>
+        `${e.path.map(String).join(".")}: ${e.message}`
+      ).join("; ");
       const keys = Object.keys(item).join(", ");
       console.error(
         `[ingest:${entityType}] Validation failed: ${errorMsg} — payload keys: ${keys}`
+      );
+      void logSync(
+        `n8n:${entityType}`,
+        "error",
+        0,
+        `Validation failed: ${fieldErrors}`
       );
       // Record the failure in ingest_events for observability
       void supabase.from("ingest_events").insert({
@@ -98,6 +108,7 @@ async function validateItems<T>(
 interface ProcessResult {
   processed: number;
   failed: number;
+  validation_failures: number;
   remaining: number;
 }
 
@@ -124,10 +135,31 @@ const CONTACT_COLUMNS = [
   "user_id",
 ] as const;
 
+const CONVERSATION_COLUMNS = [
+  "external_id",
+  "contact_id",
+  "contact_email",
+  "summary",
+  "channel",
+  "platform",
+  "subject",
+  "first_message_at",
+  "last_message_at",
+  "metadata",
+  "project_id",
+  "user_id",
+  "status",
+  "snippet",
+  "thread_id",
+  "message_count",
+  "label_ids",
+  "gmail_history_id",
+] as const;
+
 async function processContactPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
-) {
+): Promise<{ invalidCount: number }> {
   const items = Array.isArray(payload) ? payload : [payload];
 
   // Validate items before processing
@@ -188,12 +220,13 @@ async function processContactPayload(
     });
   }
   void logSync("n8n:contacts", "success", results.length);
+  return { invalidCount };
 }
 
 async function processConversationPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
-) {
+): Promise<{ invalidCount: number }> {
   const items = Array.isArray(payload) ? payload : [payload];
 
   // Validate items before processing
@@ -226,33 +259,25 @@ async function processConversationPayload(
     if (c.email) emailToId.set(c.email, c.id);
   }
 
-  // Whitelist allowed conversation columns to prevent unknown fields from
-  // reaching PostgREST (same pattern as contact processor).
-  const CONVERSATION_COLUMNS = new Set([
-    "external_id",
-    "contact_id",
-    "summary",
-    "channel",
-    "last_message_at",
-    "metadata",
-    "user_id",
-    "status",
-    "subject",
-    "snippet",
-    "thread_id",
-    "message_count",
-    "label_ids",
-    "gmail_history_id",
-  ]);
+  const allowedConvSet = new Set<string>(CONVERSATION_COLUMNS);
 
   // Build upsert rows with contact_id resolved + required defaults injected
   const rows = valid.map((item) => {
     const contactEmail = item.contact_email as string | undefined;
     const cleaned: Record<string, unknown> = {};
+    const stripped: string[] = [];
     for (const [key, value] of Object.entries(item)) {
-      if (key !== "contact_email" && CONVERSATION_COLUMNS.has(key)) {
+      if (key === "contact_email") continue;
+      if (allowedConvSet.has(key)) {
         cleaned[key] = value;
+      } else {
+        stripped.push(key);
       }
+    }
+    if (stripped.length > 0) {
+      console.warn(
+        `[ingest:conversation] Stripped unknown columns: ${stripped.join(", ")}`
+      );
     }
     cleaned.contact_id = (contactEmail ? emailToId.get(contactEmail) : null) ?? null;
     cleaned.user_id = (cleaned.user_id as string) || DEFAULT_USER_ID;
@@ -281,12 +306,13 @@ async function processConversationPayload(
     });
   }
   void logSync("n8n:conversations", "success", results.length);
+  return { invalidCount };
 }
 
 async function processTaskPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
-) {
+): Promise<{ invalidCount: number }> {
   const items = Array.isArray(payload) ? payload : [payload];
 
   // Validate items before processing
@@ -399,12 +425,13 @@ async function processTaskPayload(
     });
   }
   void logSync("n8n:tasks", "success", results.length);
+  return { invalidCount };
 }
 
 async function processTransactionPayload(
   supabase: ReturnType<typeof createServiceClient>,
   payload: IngestEvent["payload"]
-) {
+): Promise<{ invalidCount: number }> {
   const items = Array.isArray(payload) ? payload : [payload];
 
   // Validate items before processing
@@ -472,6 +499,7 @@ async function processTransactionPayload(
     });
   }
   void logSync("n8n:transactions", "success", results.length);
+  return { invalidCount };
 }
 
 // ── Main entry points ───────────────────────────────────
@@ -481,7 +509,7 @@ const ENTITY_PROCESSORS: Record<
   (
     supabase: ReturnType<typeof createServiceClient>,
     payload: IngestEvent["payload"]
-  ) => Promise<void>
+  ) => Promise<{ invalidCount: number }>
 > = {
   contact: processContactPayload,
   conversation: processConversationPayload,
@@ -540,11 +568,12 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
 
   const claimed = (events ?? []) as IngestEvent[];
   if (claimed.length === 0) {
-    return { processed: 0, failed: 0, remaining: 0 };
+    return { processed: 0, failed: 0, validation_failures: 0, remaining: 0 };
   }
 
   let processed = 0;
   let failed = 0;
+  let validationFailures = 0;
 
   for (const event of claimed) {
     try {
@@ -553,8 +582,9 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
         throw new Error(`Unknown entity_type: ${event.entity_type}`);
       }
 
+      let result: { invalidCount: number };
       try {
-        await processor(supabase, event.payload);
+        result = await processor(supabase, event.payload);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("schema cache")) {
@@ -568,12 +598,13 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
             `Schema cache retry (attempt ${event.attempt_count + 1}): ${message}`
           );
           await new Promise((resolve) => setTimeout(resolve, 1000));
-          await processor(supabase, event.payload);
+          result = await processor(supabase, event.payload);
         } else {
           throw err;
         }
       }
 
+      validationFailures += result.invalidCount;
       await markClaimedEventProcessed(supabase, event.id);
       processed++;
     } catch (err) {
@@ -589,5 +620,5 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
     .select("id", { count: "exact", head: true })
     .in("status", ["received", "retryable"]);
 
-  return { processed, failed, remaining: count ?? 0 };
+  return { processed, failed, validation_failures: validationFailures, remaining: count ?? 0 };
 }
