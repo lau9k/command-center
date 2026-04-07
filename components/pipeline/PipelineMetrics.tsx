@@ -22,11 +22,11 @@ interface StageMetric {
 
 export function PipelineMetrics({ stages: stagesProp, items: itemsProp }: PipelineMetricsProps = {}) {
   const { data: queryStages = [] } = useQuery<PipelineStage[]>({
-    queryKey: ["pipeline", "stages"],
+    queryKey: ["pipeline", "stages", "global"],
     enabled: !stagesProp,
   });
   const { data: queryItems = [] } = useQuery<PipelineItemData[]>({
-    queryKey: ["pipeline", "items"],
+    queryKey: ["pipeline", "items", "global"],
     enabled: !itemsProp,
   });
 

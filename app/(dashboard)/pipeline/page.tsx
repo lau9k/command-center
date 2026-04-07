@@ -17,7 +17,7 @@ export default async function PipelinePage() {
 
   await Promise.all([
     queryClient.prefetchQuery({
-      queryKey: ["pipeline", "stages"],
+      queryKey: ["pipeline", "stages", "global"],
       queryFn: async () => {
         const { data, error } = await supabase
           .from("pipeline_stages")
@@ -33,7 +33,21 @@ export default async function PipelinePage() {
       },
     }),
     queryClient.prefetchQuery({
-      queryKey: ["pipeline", "items"],
+      queryKey: ["projects", "list"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("projects")
+          .select("id, name")
+          .order("name", { ascending: true });
+        if (error) {
+          console.error("[Pipeline] projects query error:", error.message);
+          return [];
+        }
+        return data ?? [];
+      },
+    }),
+    queryClient.prefetchQuery({
+      queryKey: ["pipeline", "items", "global"],
       queryFn: async () => {
         const { data, error } = await supabase
           .from("pipeline_items")

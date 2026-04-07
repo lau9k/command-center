@@ -46,7 +46,8 @@ interface AddDealDialogProps {
   onOpenChange: (open: boolean) => void;
   stages: PipelineStage[];
   pipelineId: string;
-  projectId: string;
+  projectId?: string;
+  projects?: { id: string; name: string }[];
   onDealCreated: (item: PipelineItemData) => void;
 }
 
@@ -66,14 +67,19 @@ export function AddDealDialog({
   stages,
   pipelineId,
   projectId,
+  projects = [],
   onDealCreated,
 }: AddDealDialogProps) {
   const [form, setForm] = useState<DealFormData>(emptyForm);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const resolvedProjectId = projectId ?? selectedProjectId;
+
   function resetForm() {
     setForm({ ...emptyForm, stage_id: stages[0]?.id ?? "" });
+    setSelectedProjectId("");
     setError(null);
   }
 
@@ -83,6 +89,11 @@ export function AddDealDialog({
 
     const stageId = form.stage_id || stages[0]?.id;
     if (!stageId) return;
+
+    if (!resolvedProjectId) {
+      setError("Please select a project");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -105,7 +116,7 @@ export function AddDealDialog({
           title: form.title.trim(),
           pipeline_id: pipelineId,
           stage_id: stageId,
-          project_id: projectId,
+          project_id: resolvedProjectId,
           entity_type: "deal",
           sort_order: 0,
           metadata,
@@ -202,6 +213,27 @@ export function AddDealDialog({
             </div>
           </div>
 
+          {!projectId && projects.length > 0 && (
+            <div className="grid gap-2">
+              <Label>Project</Label>
+              <Select
+                value={selectedProjectId}
+                onValueChange={setSelectedProjectId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label>Close Date</Label>
             <Popover>
@@ -260,7 +292,7 @@ export function AddDealDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !form.title.trim()}>
+            <Button type="submit" disabled={saving || !form.title.trim() || !resolvedProjectId}>
               {saving ? "Creating..." : "Create Deal"}
             </Button>
           </DialogFooter>
