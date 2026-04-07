@@ -7,7 +7,7 @@ import {
   Plus,
   Users,
   Tag,
-  Brain,
+  MessageSquare,
   UserX,
   Search,
   ChevronLeft,
@@ -52,7 +52,7 @@ interface ContactsListData {
 interface ContactsKpis {
   totalContacts: number;
   taggedThisWeek: number;
-  withMemories: number;
+  withConversations: number;
   untagged: number;
 }
 
@@ -100,18 +100,18 @@ export function ContactsClient() {
         const json = await res.json();
         const k = json.kpis as {
           totalContacts: number;
-          withMemories: number;
+          withConversations: number;
           withProperties: number;
           lastUpdated: string;
         };
         return {
           totalContacts: k.totalContacts,
-          withMemories: k.withMemories,
+          withConversations: k.withConversations,
           taggedThisWeek: k.withProperties,
           untagged: k.totalContacts - k.withProperties,
         };
       } catch {
-        return { totalContacts: 0, taggedThisWeek: 0, withMemories: 0, untagged: 0 };
+        return { totalContacts: 0, taggedThisWeek: 0, withConversations: 0, untagged: 0 };
       }
     },
     staleTime: 5 * 60 * 1000,
@@ -132,7 +132,7 @@ export function ContactsClient() {
   const kpiValues: ContactsKpis = kpis ?? {
     totalContacts: 0,
     taggedThisWeek: 0,
-    withMemories: 0,
+    withConversations: 0,
     untagged: 0,
   };
 
@@ -518,10 +518,10 @@ export function ContactsClient() {
           icon={<Tag className="size-5" />}
         />
         <KpiCard
-          label="With Memories"
-          value={kpiValues.withMemories}
+          label="With Conversations"
+          value={kpiValues.withConversations}
           subtitle="have conversation history"
-          icon={<Brain className="size-5" />}
+          icon={<MessageSquare className="size-5" />}
         />
         <KpiCard
           label="Untagged"

@@ -21,6 +21,7 @@ export interface EnrichmentStats {
 export interface EnrichmentKpis {
   totalContacts: number;
   withMemories: number;
+  withConversations: number;
   withProperties: number;
   taggedThisWeek: number;
   untagged: number;
@@ -59,6 +60,7 @@ export const GET = withErrorHandler(withAuth(async function GET(_request, _user)
   const [
     { count: totalContacts },
     { count: withMemories },
+    { count: withConversations },
     { count: hasEmail },
     { count: hasLinkedin },
     { count: taggedThisWeekCount },
@@ -71,6 +73,10 @@ export const GET = withErrorHandler(withAuth(async function GET(_request, _user)
       .from("memory_stats")
       .select("id", { count: "exact", head: true })
       .gt("count", 0),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("has_conversation", true),
     supabase
       .from("contacts")
       .select("id", { count: "exact", head: true })
@@ -110,6 +116,7 @@ export const GET = withErrorHandler(withAuth(async function GET(_request, _user)
   const kpis: EnrichmentKpis = {
     totalContacts: total,
     withMemories: withMemories ?? 0,
+    withConversations: withConversations ?? 0,
     withProperties: hasEmail ?? 0,
     taggedThisWeek: taggedThisWeekCount ?? 0,
     untagged: untaggedCount ?? 0,
