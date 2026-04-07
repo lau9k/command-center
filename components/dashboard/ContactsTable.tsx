@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import type { Contact } from "@/lib/types/database";
 import Link from "next/link";
-import { MessageCircle, FileSearch, ArrowUpDown, Linkedin } from "lucide-react";
+import { MessageCircle, FileSearch, ArrowUpDown, Brain, Linkedin } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ScoreBreakdown } from "@/lib/personize/relationship-score";
+import { MemoryPreviewTooltip } from "@/components/contacts/MemoryPreviewTooltip";
 
 interface ContactWithScore extends Contact {
   relationship_score?: number;
@@ -205,6 +206,48 @@ function RelationshipDepthBadge({ contact }: { contact: Contact }) {
   );
 }
 
+function getMemoryBadgeStyle(count: number | null | undefined): {
+  className: string;
+  label: string;
+} {
+  if (count !== null && count !== undefined && count > 0) {
+    if (count >= 10) {
+      return {
+        className:
+          "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20",
+        label: String(count),
+      };
+    }
+    return {
+      className:
+        "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
+      label: String(count),
+    };
+  }
+  return {
+    className:
+      "bg-muted text-muted-foreground border-border",
+    label: "0",
+  };
+}
+
+function MemoryCountBadge({ count }: { count: number | null | undefined }) {
+  const { className, label } = getMemoryBadgeStyle(count);
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-xs font-medium ${className}`}
+      aria-label={
+        count !== null && count !== undefined
+          ? `${count} Personize memor${count === 1 ? "y" : "ies"}`
+          : "Memory count unavailable"
+      }
+    >
+      <Brain className="size-3" />
+      {label}
+    </span>
+  );
+}
+
 function RelationshipBadge({
   score,
   breakdown,
@@ -346,7 +389,12 @@ export function ContactsTable({
                 onClick={() => onSelectContact(contact)}
               >
                 <TableCell className="font-medium">
-                  {contact.name}
+                  <span className="inline-flex items-center gap-2">
+                    {contact.name}
+                    <MemoryPreviewTooltip contactId={contact.id}>
+                      <MemoryCountBadge count={contact.memory_count} />
+                    </MemoryPreviewTooltip>
+                  </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                   {contact.email ?? <span className="text-muted-foreground/50">{"\u2014"}</span>}
