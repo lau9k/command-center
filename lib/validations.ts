@@ -357,7 +357,10 @@ export const ingestContactSchema = z.object({
 
 export const ingestConversationSchema = z.object({
   external_id: z.string().max(500),
-  contact_email: z.string().email().max(500).optional().nullable(),
+  contact_email: z.union([
+    z.string().email().max(500),
+    z.literal(""),
+  ]).optional().nullable(),
   summary: z.string().max(10000).optional().nullable(),
   channel: z.string().max(100).optional().nullable(),
   last_message_at: z.string().datetime().optional().nullable(),
