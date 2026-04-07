@@ -35,6 +35,7 @@ import { SyncHealthWidget } from "@/components/admin/SyncHealthWidget";
 import { SyncStatusWidget } from "@/components/admin/SyncStatusWidget";
 import { PersonizeSyncRunner } from "@/components/admin/PersonizeSyncRunner";
 import { SyncHealthDashboard } from "@/components/admin/SyncHealthDashboard";
+import { DataQualityDashboard } from "@/components/admin/DataQualityDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -267,6 +268,15 @@ export default function AdminPage() {
           Sync Health Dashboard
         </h2>
         <SyncHealthDashboard />
+      </section>
+
+      {/* Data Quality */}
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold">
+          <Activity className="h-5 w-5" />
+          Data Quality
+        </h2>
+        <DataQualityDashboard />
       </section>
 
       {/* Sync Status */}
