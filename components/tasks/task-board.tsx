@@ -112,24 +112,28 @@ function DrawerContent({ task }: { task: TaskWithProject }) {
       )}
 
       {/* Tags */}
-      {task.tags && task.tags.length > 0 && (
-        <div>
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Tags
-          </h4>
-          <div className="flex flex-wrap gap-1">
-            {task.tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
-              >
-                <Tag className="size-2.5" />
-                {tag}
-              </span>
-            ))}
+      {(() => {
+        const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
+        const displayTags = (task.tags ?? []).filter(tag => !SYSTEM_TAGS.includes(tag));
+        return displayTags.length > 0 ? (
+          <div>
+            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Tags
+            </h4>
+            <div className="flex flex-wrap gap-1">
+              {displayTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  <Tag className="size-2.5" />
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : null;
+      })()}
 
       {/* Timestamps */}
       <div className="border-t border-border pt-4">
