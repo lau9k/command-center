@@ -87,6 +87,11 @@ export function PersonizeContextPanel({ contactId }: PersonizeContextPanelProps)
         return;
       }
 
+      if (res.status === 404) {
+        setContext({ loading: false, memories: [], digest: null, lastInteraction: null, error: "unavailable" });
+        return;
+      }
+
       if (!res.ok) {
         throw new Error("Failed to fetch context");
       }
@@ -178,10 +183,43 @@ export function PersonizeContextPanel({ contactId }: PersonizeContextPanelProps)
                 <AlertCircle className="h-4 w-4" />
                 No email — cannot fetch memories
               </div>
+            ) : context.error === "unavailable" ? (
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Personize context unavailable — check API connection
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fetchContext();
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </Button>
+              </div>
             ) : context.error ? (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {context.error}
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Personize context unavailable — check API connection
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fetchContext();
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </Button>
               </div>
             ) : !hasFetched ? null : context.memories.length === 0 && !context.digest ? (
               <p className="text-sm text-muted-foreground">

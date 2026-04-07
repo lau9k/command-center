@@ -254,6 +254,7 @@ export function TaskDetailDrawer({
         <SheetContent
           side="bottom"
           className="max-h-[80vh] overflow-y-auto rounded-t-xl"
+          showCloseButton={false}
         >
           <SheetHeader>
             <div className="flex items-start gap-3">
