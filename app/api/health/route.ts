@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withErrorHandler } from "@/lib/api-error-handler";
 
-export async function GET() {
+export const GET = withErrorHandler(async () => {
   const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
   const hasAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   let hasServiceKey = false;
@@ -80,4 +81,4 @@ export async function GET() {
     version: process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown",
     deployed_at: process.env.VERCEL_GIT_COMMIT_DATE ?? "unknown",
   }, { status: isHealthy ? 200 : 503 });
-}
+});

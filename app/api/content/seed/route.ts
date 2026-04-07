@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export const runtime = "nodejs";
 
@@ -294,99 +296,101 @@ const BRAND_SLUG_MAP: Record<string, string> = {
   personize: "personize",
 };
 
-export async function POST() {
-  try {
-    const supabase = createServiceClient();
+export const POST = withErrorHandler(
+  withAuth(async (_request, _user) => {
+    try {
+      const supabase = createServiceClient();
 
-    // Resolve brand → project_id
-    const brandProjectMap = new Map<string, string>();
-    for (const [keyword, slug] of Object.entries(BRAND_SLUG_MAP)) {
-      const { data: project } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("slug", slug)
-        .limit(1)
-        .single();
+      // Resolve brand → project_id
+      const brandProjectMap = new Map<string, string>();
+      for (const [keyword, slug] of Object.entries(BRAND_SLUG_MAP)) {
+        const { data: project } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("slug", slug)
+          .limit(1)
+          .single();
 
-      if (project) {
-        brandProjectMap.set(keyword, project.id);
-      }
-    }
-
-    // Use a fallback project_id if brands aren't found
-    let fallbackProjectId: string | null = null;
-    if (brandProjectMap.size === 0) {
-      const { data: anyProject } = await supabase
-        .from("projects")
-        .select("id")
-        .limit(1)
-        .single();
-      fallbackProjectId = anyProject?.id ?? null;
-    }
-
-    // Get a service-level user_id (first user in the system)
-    const { data: userData } = await supabase
-      .from("profiles")
-      .select("id")
-      .limit(1)
-      .single();
-
-    const userId = userData?.id;
-    if (!userId) {
-      return NextResponse.json(
-        { error: "No user found in profiles table" },
-        { status: 400 }
-      );
-    }
-
-    const now = new Date();
-    let imported = 0;
-    const errors: string[] = [];
-
-    for (let i = 0; i < SEED_POSTS.length; i++) {
-      const post = SEED_POSTS[i];
-      try {
-        const projectId =
-          brandProjectMap.get(post.brand) ?? fallbackProjectId;
-
-        if (!projectId) {
-          errors.push(`Row ${i + 1}: No project found for brand "${post.brand}"`);
-          continue;
+        if (project) {
+          brandProjectMap.set(keyword, project.id);
         }
-
-        const scheduledAt = new Date(now);
-        scheduledAt.setDate(scheduledAt.getDate() + post.week_offset);
-        scheduledAt.setHours(10, 0, 0, 0);
-
-        const { error } = await supabase.from("content_posts").insert({
-          project_id: projectId,
-          user_id: userId,
-          title: post.title,
-          caption: post.caption,
-          platform: post.platform,
-          status: post.status,
-          scheduled_at: scheduledAt.toISOString(),
-          metadata: {
-            content_type: post.content_type,
-            tone: post.tone,
-          },
-        });
-
-        if (error) throw new Error(error.message);
-        imported++;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        errors.push(`Row ${i + 1} (${post.title}): ${msg}`);
       }
-    }
 
-    return NextResponse.json({
-      imported,
-      total: SEED_POSTS.length,
-      errors: errors.length > 0 ? errors : undefined,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+      // Use a fallback project_id if brands aren't found
+      let fallbackProjectId: string | null = null;
+      if (brandProjectMap.size === 0) {
+        const { data: anyProject } = await supabase
+          .from("projects")
+          .select("id")
+          .limit(1)
+          .single();
+        fallbackProjectId = anyProject?.id ?? null;
+      }
+
+      // Get a service-level user_id (first user in the system)
+      const { data: userData } = await supabase
+        .from("profiles")
+        .select("id")
+        .limit(1)
+        .single();
+
+      const userId = userData?.id;
+      if (!userId) {
+        return NextResponse.json(
+          { error: "No user found in profiles table" },
+          { status: 400 }
+        );
+      }
+
+      const now = new Date();
+      let imported = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < SEED_POSTS.length; i++) {
+        const post = SEED_POSTS[i];
+        try {
+          const projectId =
+            brandProjectMap.get(post.brand) ?? fallbackProjectId;
+
+          if (!projectId) {
+            errors.push(`Row ${i + 1}: No project found for brand "${post.brand}"`);
+            continue;
+          }
+
+          const scheduledAt = new Date(now);
+          scheduledAt.setDate(scheduledAt.getDate() + post.week_offset);
+          scheduledAt.setHours(10, 0, 0, 0);
+
+          const { error } = await supabase.from("content_posts").insert({
+            project_id: projectId,
+            user_id: userId,
+            title: post.title,
+            caption: post.caption,
+            platform: post.platform,
+            status: post.status,
+            scheduled_at: scheduledAt.toISOString(),
+            metadata: {
+              content_type: post.content_type,
+              tone: post.tone,
+            },
+          });
+
+          if (error) throw new Error(error.message);
+          imported++;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          errors.push(`Row ${i + 1} (${post.title}): ${msg}`);
+        }
+      }
+
+      return NextResponse.json({
+        imported,
+        total: SEED_POSTS.length,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  })
+);

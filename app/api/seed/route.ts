@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 /**
  * POST /api/seed — run demo data seeding (admin only).
@@ -83,158 +85,160 @@ function buildContentPosts(projectMap: Map<string, string>) {
 // Handler
 // ---------------------------------------------------------------------------
 
-export async function POST() {
-  const supabase = createServiceClient();
-  const results = { contacts: 0, tasks: 0, content: 0, pipeline: 0 };
+export const POST = withErrorHandler(
+  withAuth(async (_request, _user) => {
+    const supabase = createServiceClient();
+    const results = { contacts: 0, tasks: 0, content: 0, pipeline: 0 };
 
-  // 1. Get projects
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name")
-    .order("name");
+    // 1. Get projects
+    const { data: projects } = await supabase
+      .from("projects")
+      .select("id, name")
+      .order("name");
 
-  const projectMap = new Map(
-    (projects ?? []).map((p: { id: string; name: string }) => [p.name, p.id])
-  );
+    const projectMap = new Map(
+      (projects ?? []).map((p: { id: string; name: string }) => [p.name, p.id])
+    );
 
-  const defaultProjectId = projectMap.values().next().value ?? null;
+    const defaultProjectId = projectMap.values().next().value ?? null;
 
-  // 2. Seed contacts
-  const contactRows = CONTACTS.map((c) => ({
-    ...c,
-    project_id: defaultProjectId,
-  }));
+    // 2. Seed contacts
+    const contactRows = CONTACTS.map((c) => ({
+      ...c,
+      project_id: defaultProjectId,
+    }));
 
-  const { data: contactData, error: contactError } = await supabase
-    .from("contacts")
-    .upsert(contactRows, { onConflict: "email" })
-    .select("id");
-
-  if (contactError) {
-    return NextResponse.json({ error: contactError.message }, { status: 500 });
-  }
-  results.contacts = contactData?.length ?? 0;
-
-  // 3. Seed tasks
-  const taskRows = buildTasks(projectMap).map((t) => ({
-    ...t,
-    project_id: t.project_id ?? defaultProjectId,
-  }));
-
-  const { data: taskData, error: taskError } = await supabase
-    .from("tasks")
-    .upsert(taskRows, { onConflict: "title" })
-    .select("id");
-
-  if (taskError) {
-    return NextResponse.json({ error: taskError.message }, { status: 500 });
-  }
-  results.tasks = taskData?.length ?? 0;
-
-  // 4. Seed content posts
-  const contentRows = buildContentPosts(projectMap).map((c) => ({
-    title: c.title,
-    caption: c.caption,
-    platform: c.platform,
-    status: c.status,
-    scheduled_for: c.scheduled_for,
-    scheduled_at: c.scheduled_for,
-    project_id: c.project_id ?? defaultProjectId,
-    type: "post",
-  }));
-
-  const { data: contentData, error: contentError } = await supabase
-    .from("content_posts")
-    .upsert(contentRows, { onConflict: "title" })
-    .select("id");
-
-  if (contentError) {
-    return NextResponse.json({ error: contentError.message }, { status: 500 });
-  }
-  results.content = contentData?.length ?? 0;
-
-  // 5. Seed pipeline
-  let pipelineId: string | null = null;
-  const { data: existingPipeline } = await supabase
-    .from("pipelines")
-    .select("id")
-    .limit(1)
-    .single();
-
-  if (existingPipeline) {
-    pipelineId = existingPipeline.id;
-  } else {
-    const { data: newPipeline } = await supabase
-      .from("pipelines")
-      .insert({
-        name: "Sales Pipeline",
-        type: "sales",
-        project_id: defaultProjectId,
-      })
-      .select("id")
-      .single();
-    pipelineId = newPipeline?.id ?? null;
-  }
-
-  if (pipelineId) {
-    const stageNames = ["lead", "discovery", "qualified", "proposal", "closed"];
-    const stageColors = ["#6B7280", "#3B82F6", "#F59E0B", "#8B5CF6", "#22C55E"];
-
-    const { data: existingStages } = await supabase
-      .from("pipeline_stages")
-      .select("id, slug")
-      .eq("pipeline_id", pipelineId);
-
-    const stageMap = new Map<string, string>();
-
-    if (!existingStages || existingStages.length === 0) {
-      for (let i = 0; i < stageNames.length; i++) {
-        const { data: stage } = await supabase
-          .from("pipeline_stages")
-          .insert({
-            pipeline_id: pipelineId,
-            project_id: defaultProjectId,
-            name: stageNames[i].charAt(0).toUpperCase() + stageNames[i].slice(1),
-            slug: stageNames[i],
-            sort_order: i,
-            color: stageColors[i],
-          })
-          .select("id, slug")
-          .single();
-        if (stage) stageMap.set(stage.slug, stage.id);
-      }
-    } else {
-      for (const s of existingStages) {
-        stageMap.set(s.slug, s.id);
-      }
-    }
-
-    const pipelineRows = buildPipelineItems(projectMap, stageMap)
-      .filter((item) => item.stage_id)
-      .map((item) => ({
-        title: item.title,
-        pipeline_id: pipelineId,
-        stage_id: item.stage_id,
-        project_id: item.project_id ?? defaultProjectId,
-        metadata: item.metadata,
-        entity_type: "deal",
-        sort_order: 0,
-      }));
-
-    const { data: pipelineData, error: pipelineError } = await supabase
-      .from("pipeline_items")
-      .upsert(pipelineRows, { onConflict: "title" })
+    const { data: contactData, error: contactError } = await supabase
+      .from("contacts")
+      .upsert(contactRows, { onConflict: "email" })
       .select("id");
 
-    if (pipelineError) {
-      console.error("[seed] pipeline error:", pipelineError.message);
-    } else {
-      results.pipeline = pipelineData?.length ?? 0;
+    if (contactError) {
+      return NextResponse.json({ error: contactError.message }, { status: 500 });
     }
-  }
+    results.contacts = contactData?.length ?? 0;
 
-  return NextResponse.json(results);
-}
+    // 3. Seed tasks
+    const taskRows = buildTasks(projectMap).map((t) => ({
+      ...t,
+      project_id: t.project_id ?? defaultProjectId,
+    }));
+
+    const { data: taskData, error: taskError } = await supabase
+      .from("tasks")
+      .upsert(taskRows, { onConflict: "title" })
+      .select("id");
+
+    if (taskError) {
+      return NextResponse.json({ error: taskError.message }, { status: 500 });
+    }
+    results.tasks = taskData?.length ?? 0;
+
+    // 4. Seed content posts
+    const contentRows = buildContentPosts(projectMap).map((c) => ({
+      title: c.title,
+      caption: c.caption,
+      platform: c.platform,
+      status: c.status,
+      scheduled_for: c.scheduled_for,
+      scheduled_at: c.scheduled_for,
+      project_id: c.project_id ?? defaultProjectId,
+      type: "post",
+    }));
+
+    const { data: contentData, error: contentError } = await supabase
+      .from("content_posts")
+      .upsert(contentRows, { onConflict: "title" })
+      .select("id");
+
+    if (contentError) {
+      return NextResponse.json({ error: contentError.message }, { status: 500 });
+    }
+    results.content = contentData?.length ?? 0;
+
+    // 5. Seed pipeline
+    let pipelineId: string | null = null;
+    const { data: existingPipeline } = await supabase
+      .from("pipelines")
+      .select("id")
+      .limit(1)
+      .single();
+
+    if (existingPipeline) {
+      pipelineId = existingPipeline.id;
+    } else {
+      const { data: newPipeline } = await supabase
+        .from("pipelines")
+        .insert({
+          name: "Sales Pipeline",
+          type: "sales",
+          project_id: defaultProjectId,
+        })
+        .select("id")
+        .single();
+      pipelineId = newPipeline?.id ?? null;
+    }
+
+    if (pipelineId) {
+      const stageNames = ["lead", "discovery", "qualified", "proposal", "closed"];
+      const stageColors = ["#6B7280", "#3B82F6", "#F59E0B", "#8B5CF6", "#22C55E"];
+
+      const { data: existingStages } = await supabase
+        .from("pipeline_stages")
+        .select("id, slug")
+        .eq("pipeline_id", pipelineId);
+
+      const stageMap = new Map<string, string>();
+
+      if (!existingStages || existingStages.length === 0) {
+        for (let i = 0; i < stageNames.length; i++) {
+          const { data: stage } = await supabase
+            .from("pipeline_stages")
+            .insert({
+              pipeline_id: pipelineId,
+              project_id: defaultProjectId,
+              name: stageNames[i].charAt(0).toUpperCase() + stageNames[i].slice(1),
+              slug: stageNames[i],
+              sort_order: i,
+              color: stageColors[i],
+            })
+            .select("id, slug")
+            .single();
+          if (stage) stageMap.set(stage.slug, stage.id);
+        }
+      } else {
+        for (const s of existingStages) {
+          stageMap.set(s.slug, s.id);
+        }
+      }
+
+      const pipelineRows = buildPipelineItems(projectMap, stageMap)
+        .filter((item) => item.stage_id)
+        .map((item) => ({
+          title: item.title,
+          pipeline_id: pipelineId,
+          stage_id: item.stage_id,
+          project_id: item.project_id ?? defaultProjectId,
+          metadata: item.metadata,
+          entity_type: "deal",
+          sort_order: 0,
+        }));
+
+      const { data: pipelineData, error: pipelineError } = await supabase
+        .from("pipeline_items")
+        .upsert(pipelineRows, { onConflict: "title" })
+        .select("id");
+
+      if (pipelineError) {
+        console.error("[seed] pipeline error:", pipelineError.message);
+      } else {
+        results.pipeline = pipelineData?.length ?? 0;
+      }
+    }
+
+    return NextResponse.json(results);
+  })
+);
 
 // Duplicated here since we can't import from the script file in an API route easily
 function buildPipelineItems(projectMap: Map<string, string>, stageMap: Map<string, string>) {
