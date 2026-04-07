@@ -265,6 +265,8 @@ export function MasterTaskList({
       if (!t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
     } else if (filterType === "cross-project") {
       if (t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
+    } else if (filterType === "hackathon") {
+      if (!t.tags?.some((tag) => tag.toLowerCase() === "hackathon")) return false;
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -367,6 +369,11 @@ export function MasterTaskList({
           />
         </div>
         <ListFilter className="hidden size-4 text-muted-foreground sm:block" />
+        {hasFilters && (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? "result" : "results"}
+          </span>
+        )}
         <Select value={filterProject} onValueChange={setFilterProject}>
           <SelectTrigger size="sm">
             <SelectValue placeholder="All Projects" />
@@ -389,6 +396,7 @@ export function MasterTaskList({
             <SelectItem value={ALL_VALUE}>All Types</SelectItem>
             <SelectItem value="outreach">Outreach</SelectItem>
             <SelectItem value="cross-project">Cross-Project</SelectItem>
+            <SelectItem value="hackathon">Hackathon</SelectItem>
           </SelectContent>
         </Select>
 
