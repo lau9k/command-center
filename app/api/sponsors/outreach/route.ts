@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const outreachRequestSchema = z.object({
   sponsor_ids: z.array(z.string().uuid()).min(1, "At least one sponsor required"),
@@ -24,7 +25,7 @@ function interpolate(
   });
 }
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const { searchParams } = new URL(request.url);
   const statusFilter = searchParams.get("outreach_status");
 
@@ -46,9 +47,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data: data ?? [] });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
 
   const parsed = outreachRequestSchema.safeParse(body);
@@ -103,9 +104,9 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ data: drafts });
-});
+}));
 
-export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(withAuth(async function PATCH(request: NextRequest, _user) {
   const body = await request.json();
 
   const parsed = patchOutreachStatusSchema.safeParse(body);
@@ -133,4 +134,4 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   }
 
   return NextResponse.json({ data });
-});
+}));

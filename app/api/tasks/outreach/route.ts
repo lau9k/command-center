@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -63,4 +64,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data, _meta: { hasOutreachStatus } });
-});
+}));

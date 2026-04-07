@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createSponsorSchema, updateSponsorSchema, validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -37,9 +38,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -62,9 +63,9 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
 
-export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(withAuth(async function PATCH(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -90,9 +91,9 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandler(withAuth(async function DELETE(request: NextRequest, _user) {
   const { searchParams } = request.nextUrl;
   const id = searchParams.get("id");
 
@@ -109,4 +110,4 @@ export const DELETE = withErrorHandler(async function DELETE(request: NextReques
   }
 
   return NextResponse.json({ success: true });
-});
+}));

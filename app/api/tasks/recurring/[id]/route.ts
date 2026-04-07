@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { z } from "zod";
 
 const updateRecurringSchema = z.object({
@@ -16,8 +17,9 @@ const updateRecurringSchema = z.object({
 });
 
 /** PUT /api/tasks/recurring/:id — update a recurring template */
-export const PUT = withErrorHandler(async function PUT(
+export const PUT = withErrorHandler(withAuth(async function PUT(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const { id } = (await context?.params) ?? {};
@@ -52,11 +54,12 @@ export const PUT = withErrorHandler(async function PUT(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
 /** DELETE /api/tasks/recurring/:id — delete a recurring template */
-export const DELETE = withErrorHandler(async function DELETE(
+export const DELETE = withErrorHandler(withAuth(async function DELETE(
   _request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const { id } = (await context?.params) ?? {};
@@ -77,4 +80,4 @@ export const DELETE = withErrorHandler(async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-});
+}));

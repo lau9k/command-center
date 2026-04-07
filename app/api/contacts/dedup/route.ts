@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { logActivity } from "@/lib/activity-logger";
 
 interface ContactRow {
@@ -61,7 +62,7 @@ function bigramSimilarity(a: string, b: string): number {
  * Returns duplicate contact pairs with confidence scores.
  * Matches by exact email + fuzzy name similarity.
  */
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data: contacts, error } = await supabase
@@ -167,7 +168,7 @@ export const GET = withErrorHandler(async function GET() {
   pairs.sort((a, b) => b.confidence - a.confidence);
 
   return NextResponse.json({ pairs });
-});
+}));
 
 const dismissSchema = z.object({
   contactAId: z.string().uuid(),
@@ -178,7 +179,7 @@ const dismissSchema = z.object({
  * POST /api/contacts/dedup
  * Dismisses a duplicate pair so it no longer appears in results.
  */
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
   const parsed = dismissSchema.safeParse(body);
 
@@ -203,4 +204,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ dismissed: true });
-});
+}));

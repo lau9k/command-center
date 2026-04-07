@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateApiKey } from "@/lib/api-auth";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const MAX_TASKS = 200;
 
@@ -27,7 +28,7 @@ const bulkTasksRequestSchema = z.object({
     .max(MAX_TASKS, `Maximum ${MAX_TASKS} tasks per request`),
 });
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   if (!validateApiKey(request)) {
     return NextResponse.json(
       { error: "Unauthorized — missing or invalid API key" },
@@ -80,7 +81,7 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ created, errors }, { status: 201 });
-});
+}));
 
 const bulkUpdateSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, "At least one task ID is required"),
@@ -96,7 +97,7 @@ const bulkDeleteSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, "At least one task ID is required"),
 });
 
-export const PUT = withErrorHandler(async function PUT(request: NextRequest) {
+export const PUT = withErrorHandler(withAuth(async function PUT(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -121,9 +122,9 @@ export const PUT = withErrorHandler(async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json({ data, updated: data?.length ?? 0 });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(request: NextRequest) {
+export const DELETE = withErrorHandler(withAuth(async function DELETE(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -147,4 +148,4 @@ export const DELETE = withErrorHandler(async function DELETE(request: NextReques
   }
 
   return NextResponse.json({ deleted: ids.length });
-});
+}));
