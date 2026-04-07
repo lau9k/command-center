@@ -1,38 +1,12 @@
 import { NextResponse } from "next/server";
-import {
-  Configuration,
-  CountryCode,
-  PlaidApi,
-  PlaidEnvironments,
-  Products,
-} from "plaid";
+import { CountryCode, Products } from "plaid";
 import { withAuth } from "@/lib/auth/api-guard";
+import { getPlaidClient } from "@/lib/plaid";
 
 export const runtime = "nodejs";
 
 export const POST = withAuth(async function POST(_request, _user) {
-  const clientId = process.env.PLAID_CLIENT_ID;
-  const secret = process.env.PLAID_SECRET;
-  const env = process.env.PLAID_ENV ?? "sandbox";
-
-  if (!clientId || !secret) {
-    return NextResponse.json(
-      { error: "Missing PLAID_CLIENT_ID or PLAID_SECRET" },
-      { status: 500 }
-    );
-  }
-
-  const configuration = new Configuration({
-    basePath: PlaidEnvironments[env],
-    baseOptions: {
-      headers: {
-        "PLAID-CLIENT-ID": clientId,
-        "PLAID-SECRET": secret,
-      },
-    },
-  });
-
-  const plaid = new PlaidApi(configuration);
+  const plaid = getPlaidClient();
 
   const countryCodes = (process.env.PLAID_COUNTRY_CODES ?? "CA")
     .split(",")
