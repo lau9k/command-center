@@ -27,7 +27,7 @@ const processorConversationSchema = z
   .object({
     external_id: z.string().min(1).nullish(),
     contact_email: z.string().email().nullish(),
-    channel: z.enum(["gmail", "slack", "linkedin", "teams"]).nullish(),
+    channel: z.string().max(100).nullish(),
   })
   .passthrough()
   .refine((d) => (d.external_id && d.external_id.length > 0) || (d.contact_email && d.contact_email.length > 0), {

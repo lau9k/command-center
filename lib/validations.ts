@@ -359,7 +359,7 @@ export const ingestConversationSchema = z.object({
   external_id: z.string().max(500),
   contact_email: z.string().email().max(500).optional().nullable(),
   summary: z.string().max(10000).optional().nullable(),
-  channel: z.enum(["gmail", "slack", "linkedin", "teams"]).optional().nullable(),
+  channel: z.string().max(100).optional().nullable(),
   last_message_at: z.string().datetime().optional().nullable(),
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
