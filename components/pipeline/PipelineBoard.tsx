@@ -418,12 +418,18 @@ function MobileListView({
 
 export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId }: PipelineBoardProps) {
   const { data: queryStages = [] } = useQuery<PipelineStage[]>({
-    queryKey: ["pipeline", "stages"],
+    queryKey: ["pipeline", "stages", projectId ?? "global"],
     enabled: !stagesProp,
   });
   const { data: queryItems = [] } = useQuery<PipelineItemData[]>({
-    queryKey: ["pipeline", "items"],
+    queryKey: ["pipeline", "items", projectId ?? "global"],
     enabled: !itemsProp,
+  });
+
+  // In global view, fetch projects list for deal creation
+  const { data: projects = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["projects", "list"],
+    enabled: !projectId,
   });
 
   const stages = stagesProp ?? queryStages;
@@ -682,7 +688,8 @@ export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId 
           onOpenChange={setShowAddDeal}
           stages={sortedStages}
           pipelineId={sortedStages[0].pipeline_id}
-          projectId={projectId ?? sortedStages[0].project_id ?? ""}
+          projectId={projectId}
+          projects={projects}
           onDealCreated={(newItem) => setItems((prev) => [...prev, newItem])}
         />
       )}

@@ -34,10 +34,10 @@ function parseDealValue(raw: unknown): number {
 
 export function PipelineKPIStripConnected() {
   const { data: stages = [] } = useQuery<PipelineStage[]>({
-    queryKey: ["pipeline", "stages"],
+    queryKey: ["pipeline", "stages", "global"],
   });
   const { data: items = [] } = useQuery<PipelineItemData[]>({
-    queryKey: ["pipeline", "items"],
+    queryKey: ["pipeline", "items", "global"],
   });
 
   const kpis = useMemo(() => {
