@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isPersonizeId } from "@/lib/personize/id-guard";
 import { cached, invalidate } from "@/lib/cache/redis";
 import type { SmartRecallRecord } from "@/lib/personize/types";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const ENRICH_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -21,89 +23,88 @@ const querySchema = z.object({
   q: z.string().min(1).max(500).optional(),
 });
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  if (!process.env.PERSONIZE_SECRET_KEY) {
-    return NextResponse.json(
-      { error: "Personize not configured" },
-      { status: 503 }
-    );
-  }
+export const GET = withErrorHandler(
+  withAuth(async (request, _user, context) => {
+    if (!process.env.PERSONIZE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Personize not configured" },
+        { status: 503 }
+      );
+    }
 
-  const { id } = await params;
-  const { searchParams } = new URL(request.url);
-  const parsed = querySchema.safeParse({ q: searchParams.get("q") || undefined });
-  const query = parsed.success ? parsed.data.q : undefined;
-  const refresh = searchParams.get("refresh") === "true";
+    const { id } = await context!.params;
+    const { searchParams } = new URL(request.url);
+    const parsed = querySchema.safeParse({ q: searchParams.get("q") || undefined });
+    const query = parsed.success ? parsed.data.q : undefined;
+    const refresh = searchParams.get("refresh") === "true";
 
-  if (isPersonizeId(id)) {
-    return NextResponse.json({
-      data: {
-        recall: { query: null, records: [], answer: null },
-        properties: {},
-      },
-    });
-  }
-
-  const supabase = createServiceClient();
-  const { data: contact, error } = await supabase
-    .from("contacts")
-    .select("email, name, record_id")
-    .eq("id", id)
-    .single();
-
-  if (error || !contact) {
-    return NextResponse.json(
-      { error: "Contact not found" },
-      { status: 404 }
-    );
-  }
-
-  const contactName = contact.name;
-  const contactEmail = contact.email;
-
-  try {
-    const recallQuery = query ?? contactName;
-
-    // Custom queries bypass cache — only cache default enrichment
-    if (query) {
-      const result = await smartRecall(recallQuery, {
-        ...(contactEmail ? { email: contactEmail } : {}),
-        responseDetail: "full",
+    if (isPersonizeId(id)) {
+      return NextResponse.json({
+        data: {
+          recall: { query: null, records: [], answer: null },
+          properties: {},
+        },
       });
-      return NextResponse.json({ data: buildEnrichmentData(recallQuery, result) });
     }
 
-    const cacheKey = `enrich:${id}`;
+    const supabase = createServiceClient();
+    const { data: contact, error } = await supabase
+      .from("contacts")
+      .select("email, name, record_id")
+      .eq("id", id)
+      .single();
 
-    // Force refresh: invalidate before the cached() call
-    if (refresh) {
-      await invalidate(cacheKey);
+    if (error || !contact) {
+      return NextResponse.json(
+        { error: "Contact not found" },
+        { status: 404 }
+      );
     }
 
-    const data = await cached<EnrichmentResult>(
-      cacheKey,
-      async () => {
+    const contactName = contact.name;
+    const contactEmail = contact.email;
+
+    try {
+      const recallQuery = query ?? contactName;
+
+      // Custom queries bypass cache — only cache default enrichment
+      if (query) {
         const result = await smartRecall(recallQuery, {
           ...(contactEmail ? { email: contactEmail } : {}),
           responseDetail: "full",
         });
-        return buildEnrichmentData(recallQuery, result);
-      },
-      { ttlMs: ENRICH_TTL_MS },
-    );
+        return NextResponse.json({ data: buildEnrichmentData(recallQuery, result) });
+      }
 
-    return NextResponse.json({ data });
-  } catch (err) {
-    console.error("[API] /api/contacts/[id]/enrich failed:", err);
-    return NextResponse.json(
-      { error: "Enrichment failed" },
-      { status: 500 }
-    );
-  }
-}
+      const cacheKey = `enrich:${id}`;
+
+      // Force refresh: invalidate before the cached() call
+      if (refresh) {
+        await invalidate(cacheKey);
+      }
+
+      const data = await cached<EnrichmentResult>(
+        cacheKey,
+        async () => {
+          const result = await smartRecall(recallQuery, {
+            ...(contactEmail ? { email: contactEmail } : {}),
+            responseDetail: "full",
+          });
+          return buildEnrichmentData(recallQuery, result);
+        },
+        { ttlMs: ENRICH_TTL_MS },
+      );
+
+      return NextResponse.json({ data });
+    } catch (err) {
+      console.error("[API] /api/contacts/[id]/enrich failed:", err);
+      return NextResponse.json(
+        { error: "Enrichment failed" },
+        { status: 500 }
+      );
+    }
+  })
+);
 
 function buildEnrichmentData(
   recallQuery: string,

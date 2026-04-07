@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { smartDigest, smartRecall } from "@/lib/personize/actions";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isPersonizeId } from "@/lib/personize/id-guard";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 interface BriefingInteraction {
   text: string;
@@ -98,206 +100,205 @@ function calculateRelationshipHealth(
   return { score, label, factors };
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const supabase = createServiceClient();
-  const personizeId = isPersonizeId(id);
+export const GET = withErrorHandler(
+  withAuth(async (_request, _user, context) => {
+    const { id } = await context!.params;
+    const supabase = createServiceClient();
+    const personizeId = isPersonizeId(id);
 
-  // Fetch contact — from Supabase for UUID IDs, or construct from Personize for REC# IDs
-  let contact: {
-    name: string;
-    email: string | null;
-    company: string | null;
-    role: string | null;
-    score: number;
-    last_contact_date: string | null;
-    record_id: string | null;
-  };
-
-  if (personizeId) {
-    // For Personize-sourced contacts, we don't have a Supabase record.
-    // Build a minimal contact object from the ID and let Personize enrich it.
-    const decodedId = decodeURIComponent(id);
-    contact = {
-      name: "Contact",
-      email: null,
-      company: null,
-      role: null,
-      score: 0,
-      last_contact_date: null,
-      record_id: decodedId,
+    // Fetch contact — from Supabase for UUID IDs, or construct from Personize for REC# IDs
+    let contact: {
+      name: string;
+      email: string | null;
+      company: string | null;
+      role: string | null;
+      score: number;
+      last_contact_date: string | null;
+      record_id: string | null;
     };
-  } else {
-    const { data: dbContact, error } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("id", id)
-      .single();
 
-    if (error || !dbContact) {
-      return NextResponse.json(
-        { error: "Contact not found" },
-        { status: 404 }
-      );
-    }
-    contact = {
-      ...dbContact,
-      record_id: (dbContact as Record<string, unknown>).record_id as string | null,
-    };
-  }
+    if (personizeId) {
+      // For Personize-sourced contacts, we don't have a Supabase record.
+      // Build a minimal contact object from the ID and let Personize enrich it.
+      const decodedId = decodeURIComponent(id);
+      contact = {
+        name: "Contact",
+        email: null,
+        company: null,
+        role: null,
+        score: 0,
+        last_contact_date: null,
+        record_id: decodedId,
+      };
+    } else {
+      const { data: dbContact, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-  // Calculate days since last contact
-  const daysSinceContact = contact.last_contact_date
-    ? Math.floor(
-        (Date.now() - new Date(contact.last_contact_date).getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null;
-
-  // Try Personize enrichment, gracefully fall back to local data
-  let summary: string | null = null;
-  let properties: Record<string, string> = {};
-  let recentInteractions: BriefingInteraction[] = [];
-  let commitments: BriefingInteraction[] = [];
-  let interests: BriefingInteraction[] = [];
-  let hasDigest = false;
-
-  if (process.env.PERSONIZE_SECRET_KEY) {
-    try {
-      const recordId = contact.record_id;
-      const [digestResult, recallResult] = await Promise.all([
-        recordId
-          ? smartDigest(contact.name, { record_id: recordId, token_budget: 3000 })
-          : contact.email
-            ? smartDigest(contact.name, { email: contact.email, token_budget: 3000 })
-            : Promise.resolve(null),
-        recordId
-          ? smartRecall(`details for ${recordId}`, {
-              ...(contact.email ? { email: contact.email } : {}),
-            })
-          : smartRecall(contact.name, {
-              ...(contact.email ? { email: contact.email } : {}),
-            }),
-      ]);
-
-      const digest = digestResult as {
-        compiledContext?: string;
-        properties?: Record<string, string>;
-        memories?: Array<{ id: string; text: string; createdAt: string }>;
-      } | null;
-
-      const recall = recallResult as {
-        records?: Array<{
-          recordId: string;
-          displayName: string;
-          score: number;
-          properties: Record<string, string>;
-          memories: string[];
-        }>;
-        answer?: string;
-      } | null;
-
-      if (digest) {
-        hasDigest = true;
-        summary = digest.compiledContext ?? null;
-        properties = digest.properties ?? {};
+      if (error || !dbContact) {
+        return NextResponse.json(
+          { error: "Contact not found" },
+          { status: 404 }
+        );
       }
-
-      const rawRecords = recall?.records;
-      const records = Array.isArray(rawRecords) ? rawRecords : [];
-
-      // Flatten records into memory entries with score-based tiers
-      const flatMemories = records.flatMap((r) => {
-        const tier = r.score >= 0.8 ? "direct" : r.score >= 0.5 ? "partial" : "might";
-        const props = r.properties ?? {};
-        return r.memories.map((text) => ({
-          text,
-          score: r.score,
-          tier,
-          type: props.type ?? "unknown",
-          topic: props.topic ?? null,
-          timestamp: props.timestamp ?? null,
-        }));
-      });
-
-      // Categorize memories for briefing
-      recentInteractions = flatMemories
-        .filter((m) => m.tier === "direct")
-        .slice(0, 3)
-        .map((m) => ({
-          text: m.text,
-          date: m.timestamp,
-          type: m.type,
-          topic: m.topic,
-        }));
-
-      commitments = flatMemories
-        .filter(
-          (m) =>
-            m.topic?.toLowerCase().includes("commitment") ||
-            m.topic?.toLowerCase().includes("action") ||
-            m.topic?.toLowerCase().includes("task") ||
-            m.text.toLowerCase().includes("agreed to") ||
-            m.text.toLowerCase().includes("will do") ||
-            m.text.toLowerCase().includes("promised")
-        )
-        .slice(0, 5)
-        .map((m) => ({
-          text: m.text,
-          date: m.timestamp,
-          type: m.type,
-          topic: m.topic,
-        }));
-
-      interests = flatMemories
-        .filter(
-          (m) =>
-            m.topic?.toLowerCase().includes("interest") ||
-            m.topic?.toLowerCase().includes("preference") ||
-            m.topic?.toLowerCase().includes("concern") ||
-            m.topic?.toLowerCase().includes("objection")
-        )
-        .slice(0, 5)
-        .map((m) => ({
-          text: m.text,
-          date: m.timestamp,
-          type: m.type,
-          topic: m.topic,
-        }));
-    } catch (err) {
-      console.error("[API] /api/contacts/[id]/briefing Personize failed:", err);
-      // Continue with local-only data
+      contact = {
+        ...dbContact,
+        record_id: (dbContact as Record<string, unknown>).record_id as string | null,
+      };
     }
-  }
 
-  const relationshipHealth = calculateRelationshipHealth(
-    contact.score ?? 0,
-    daysSinceContact,
-    recentInteractions.length,
-    hasDigest
-  );
+    // Calculate days since last contact
+    const daysSinceContact = contact.last_contact_date
+      ? Math.floor(
+          (Date.now() - new Date(contact.last_contact_date).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      : null;
 
-  const briefing: BriefingData = {
-    contact: {
-      name: contact.name,
-      email: contact.email,
-      company: contact.company,
-      role: contact.role,
-      score: contact.score ?? 0,
-      last_contact_date: contact.last_contact_date,
-      days_since_contact: daysSinceContact,
-    },
-    summary,
-    properties,
-    recent_interactions: recentInteractions,
-    commitments,
-    interests,
-    relationship_health: relationshipHealth,
-    generated_at: new Date().toISOString(),
-  };
+    // Try Personize enrichment, gracefully fall back to local data
+    let summary: string | null = null;
+    let properties: Record<string, string> = {};
+    let recentInteractions: BriefingInteraction[] = [];
+    let commitments: BriefingInteraction[] = [];
+    let interests: BriefingInteraction[] = [];
+    let hasDigest = false;
 
-  return NextResponse.json({ data: briefing });
-}
+    if (process.env.PERSONIZE_SECRET_KEY) {
+      try {
+        const recordId = contact.record_id;
+        const [digestResult, recallResult] = await Promise.all([
+          recordId
+            ? smartDigest(contact.name, { record_id: recordId, token_budget: 3000 })
+            : contact.email
+              ? smartDigest(contact.name, { email: contact.email, token_budget: 3000 })
+              : Promise.resolve(null),
+          recordId
+            ? smartRecall(`details for ${recordId}`, {
+                ...(contact.email ? { email: contact.email } : {}),
+              })
+            : smartRecall(contact.name, {
+                ...(contact.email ? { email: contact.email } : {}),
+              }),
+        ]);
+
+        const digest = digestResult as {
+          compiledContext?: string;
+          properties?: Record<string, string>;
+          memories?: Array<{ id: string; text: string; createdAt: string }>;
+        } | null;
+
+        const recall = recallResult as {
+          records?: Array<{
+            recordId: string;
+            displayName: string;
+            score: number;
+            properties: Record<string, string>;
+            memories: string[];
+          }>;
+          answer?: string;
+        } | null;
+
+        if (digest) {
+          hasDigest = true;
+          summary = digest.compiledContext ?? null;
+          properties = digest.properties ?? {};
+        }
+
+        const rawRecords = recall?.records;
+        const records = Array.isArray(rawRecords) ? rawRecords : [];
+
+        // Flatten records into memory entries with score-based tiers
+        const flatMemories = records.flatMap((r) => {
+          const tier = r.score >= 0.8 ? "direct" : r.score >= 0.5 ? "partial" : "might";
+          const props = r.properties ?? {};
+          return r.memories.map((text) => ({
+            text,
+            score: r.score,
+            tier,
+            type: props.type ?? "unknown",
+            topic: props.topic ?? null,
+            timestamp: props.timestamp ?? null,
+          }));
+        });
+
+        // Categorize memories for briefing
+        recentInteractions = flatMemories
+          .filter((m) => m.tier === "direct")
+          .slice(0, 3)
+          .map((m) => ({
+            text: m.text,
+            date: m.timestamp,
+            type: m.type,
+            topic: m.topic,
+          }));
+
+        commitments = flatMemories
+          .filter(
+            (m) =>
+              m.topic?.toLowerCase().includes("commitment") ||
+              m.topic?.toLowerCase().includes("action") ||
+              m.topic?.toLowerCase().includes("task") ||
+              m.text.toLowerCase().includes("agreed to") ||
+              m.text.toLowerCase().includes("will do") ||
+              m.text.toLowerCase().includes("promised")
+          )
+          .slice(0, 5)
+          .map((m) => ({
+            text: m.text,
+            date: m.timestamp,
+            type: m.type,
+            topic: m.topic,
+          }));
+
+        interests = flatMemories
+          .filter(
+            (m) =>
+              m.topic?.toLowerCase().includes("interest") ||
+              m.topic?.toLowerCase().includes("preference") ||
+              m.topic?.toLowerCase().includes("concern") ||
+              m.topic?.toLowerCase().includes("objection")
+          )
+          .slice(0, 5)
+          .map((m) => ({
+            text: m.text,
+            date: m.timestamp,
+            type: m.type,
+            topic: m.topic,
+          }));
+      } catch (err) {
+        console.error("[API] /api/contacts/[id]/briefing Personize failed:", err);
+        // Continue with local-only data
+      }
+    }
+
+    const relationshipHealth = calculateRelationshipHealth(
+      contact.score ?? 0,
+      daysSinceContact,
+      recentInteractions.length,
+      hasDigest
+    );
+
+    const briefing: BriefingData = {
+      contact: {
+        name: contact.name,
+        email: contact.email,
+        company: contact.company,
+        role: contact.role,
+        score: contact.score ?? 0,
+        last_contact_date: contact.last_contact_date,
+        days_since_contact: daysSinceContact,
+      },
+      summary,
+      properties,
+      recent_interactions: recentInteractions,
+      commitments,
+      interests,
+      relationship_health: relationshipHealth,
+      generated_at: new Date().toISOString(),
+    };
+
+    return NextResponse.json({ data: briefing });
+  })
+);

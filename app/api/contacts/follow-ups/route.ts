@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getContactFollowUps } from "@/lib/api/contacts";
+import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 interface FollowUpContact {
   id: string;
@@ -54,59 +56,61 @@ function calculateUrgency(
   return { urgency_score: urgencyScore, urgency_label: urgencyLabel };
 }
 
-export async function GET() {
-  const supabase = createServiceClient();
+export const GET = withErrorHandler(
+  withAuth(async (_request, _user) => {
+    const supabase = createServiceClient();
 
-  let contacts: Awaited<ReturnType<typeof getContactFollowUps>>;
-  try {
-    contacts = await getContactFollowUps(supabase);
-  } catch {
-    console.error("[API] /api/contacts/follow-ups failed");
-    return NextResponse.json(
-      { error: "Failed to fetch contacts" },
-      { status: 500 }
-    );
-  }
-
-  const now = Date.now();
-
-  const followUps: FollowUpContact[] = contacts
-    .map((c) => {
-      const daysSinceContact = c.last_contact_date
-        ? Math.floor(
-            (now - new Date(c.last_contact_date).getTime()) /
-              (1000 * 60 * 60 * 24)
-          )
-        : null;
-
-      const { urgency_score, urgency_label } = calculateUrgency(
-        daysSinceContact,
-        c.score ?? 0
+    let contacts: Awaited<ReturnType<typeof getContactFollowUps>>;
+    try {
+      contacts = await getContactFollowUps(supabase);
+    } catch {
+      console.error("[API] /api/contacts/follow-ups failed");
+      return NextResponse.json(
+        { error: "Failed to fetch contacts" },
+        { status: 500 }
       );
+    }
 
-      return {
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        company: c.company,
-        score: c.score ?? 0,
-        status: c.status as string,
-        last_contact_date: c.last_contact_date,
-        days_since_contact: daysSinceContact,
-        urgency_score,
-        urgency_label,
-      };
-    })
-    .filter((c) => c.urgency_label !== "ok")
-    .sort((a, b) => b.urgency_score - a.urgency_score);
+    const now = Date.now();
 
-  return NextResponse.json({
-    data: followUps,
-    meta: {
-      total: followUps.length,
-      overdue: followUps.filter((c) => c.urgency_label === "overdue").length,
-      due_soon: followUps.filter((c) => c.urgency_label === "due-soon").length,
-      upcoming: followUps.filter((c) => c.urgency_label === "upcoming").length,
-    },
-  });
-}
+    const followUps: FollowUpContact[] = contacts
+      .map((c) => {
+        const daysSinceContact = c.last_contact_date
+          ? Math.floor(
+              (now - new Date(c.last_contact_date).getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          : null;
+
+        const { urgency_score, urgency_label } = calculateUrgency(
+          daysSinceContact,
+          c.score ?? 0
+        );
+
+        return {
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          company: c.company,
+          score: c.score ?? 0,
+          status: c.status as string,
+          last_contact_date: c.last_contact_date,
+          days_since_contact: daysSinceContact,
+          urgency_score,
+          urgency_label,
+        };
+      })
+      .filter((c) => c.urgency_label !== "ok")
+      .sort((a, b) => b.urgency_score - a.urgency_score);
+
+    return NextResponse.json({
+      data: followUps,
+      meta: {
+        total: followUps.length,
+        overdue: followUps.filter((c) => c.urgency_label === "overdue").length,
+        due_soon: followUps.filter((c) => c.urgency_label === "due-soon").length,
+        upcoming: followUps.filter((c) => c.urgency_label === "upcoming").length,
+      },
+    });
+  })
+);
