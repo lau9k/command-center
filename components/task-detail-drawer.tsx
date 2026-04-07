@@ -444,25 +444,29 @@ export function TaskDetailDrawer({
                 </Card>
 
                 {/* Tags */}
-                {task.tags && task.tags.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-1.5 text-sm">
-                        <Tag className="size-3.5" />
-                        Tags
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-1.5">
-                        {task.tags.map((tag) => (
-                          <Badge key={tag} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {(() => {
+                  const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
+                  const displayTags = (task.tags ?? []).filter(tag => !SYSTEM_TAGS.includes(tag));
+                  return displayTags.length > 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-1.5 text-sm">
+                          <Tag className="size-3.5" />
+                          Tags
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-1.5">
+                          {displayTags.map((tag) => (
+                            <Badge key={tag} variant="outline">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
               </div>
 
               {/* Right column: Action buttons */}
