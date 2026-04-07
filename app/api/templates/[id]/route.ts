@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateEmailTemplateSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 function detectVariables(subject: string, body: string): string[] {
   const combined = `${subject} ${body}`;
@@ -29,8 +30,9 @@ async function resolveVariables(
   return { variables: detectVariables(subject, templateBody) };
 }
 
-export const GET = withErrorHandler(async function GET(
+export const GET = withErrorHandler(withAuth(async function GET(
   _request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -51,10 +53,11 @@ export const GET = withErrorHandler(async function GET(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const PUT = withErrorHandler(async function PUT(
+export const PUT = withErrorHandler(withAuth(async function PUT(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -87,10 +90,11 @@ export const PUT = withErrorHandler(async function PUT(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const PATCH = withErrorHandler(async function PATCH(
+export const PATCH = withErrorHandler(withAuth(async function PATCH(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -123,10 +127,11 @@ export const PATCH = withErrorHandler(async function PATCH(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(
+export const DELETE = withErrorHandler(withAuth(async function DELETE(
   _request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -143,4 +148,4 @@ export const DELETE = withErrorHandler(async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-});
+}));

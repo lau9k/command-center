@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateApiKey } from "@/lib/api-auth";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const MAX_CONTACTS = 200;
 
@@ -25,7 +26,7 @@ const bulkContactsRequestSchema = z.object({
     .max(MAX_CONTACTS, `Maximum ${MAX_CONTACTS} contacts per request`),
 });
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   if (!validateApiKey(request)) {
     return NextResponse.json(
       { error: "Unauthorized — missing or invalid API key" },
@@ -119,4 +120,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ created, updated, errors }, { status: 201 });
-});
+}));

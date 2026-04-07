@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -127,7 +128,7 @@ function buildContacts(projectMap: Map<string, string>) {
 // POST handler — admin-only seed endpoint
 // ---------------------------------------------------------------------------
 
-export const POST = withErrorHandler(async function POST(request) {
+export const POST = withErrorHandler(withAuth(async function POST(request, _user) {
   // Admin check: require x-admin-key header or service role context
   const adminKey = request.headers.get("x-admin-key");
   const expectedKey = process.env.ADMIN_SEED_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -213,4 +214,4 @@ export const POST = withErrorHandler(async function POST(request) {
     message: "Projects seeded successfully",
     ...results,
   });
-});
+}));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { getTemplateById } from "@/lib/project-templates";
 
 const createFromTemplateSchema = z.object({
@@ -11,7 +12,7 @@ const createFromTemplateSchema = z.object({
   color: z.string().max(20).optional().nullable(),
 });
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
   const parsed = createFromTemplateSchema.safeParse(body);
 
@@ -142,4 +143,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     tasksCreated: template.tasks.length,
     pipelineStagesCreated: template.pipelineStages.length,
   });
-});
+}));

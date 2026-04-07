@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { uuidParam } from "@/lib/validations";
 import { z } from "zod";
 
@@ -11,8 +12,9 @@ const updateProjectSchema = z.object({
   color: z.string().max(50).optional().nullable(),
 });
 
-export const PATCH = withErrorHandler(async function PATCH(
+export const PATCH = withErrorHandler(withAuth(async function PATCH(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const { id } = (await context?.params) ?? {};
@@ -46,10 +48,11 @@ export const PATCH = withErrorHandler(async function PATCH(
   }
 
   return NextResponse.json(data);
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(
+export const DELETE = withErrorHandler(withAuth(async function DELETE(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const { id } = (await context?.params) ?? {};
@@ -96,4 +99,4 @@ export const DELETE = withErrorHandler(async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-});
+}));

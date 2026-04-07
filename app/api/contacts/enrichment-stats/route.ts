@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +44,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // Route handler — Supabase-primary (no Personize read queries)
 // ---------------------------------------------------------------------------
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   // Return cached data if fresh
   if (cached && Date.now() < cached.expiresAt) {
     return NextResponse.json({ data: cached.data, kpis: cached.kpis });
@@ -119,4 +120,4 @@ export const GET = withErrorHandler(async function GET() {
   cached = { data, kpis, expiresAt: Date.now() + CACHE_TTL_MS };
 
   return NextResponse.json({ data, kpis });
-});
+}));

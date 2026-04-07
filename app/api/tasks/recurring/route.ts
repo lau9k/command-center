@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { generateNextOccurrence } from "@/lib/recurring-tasks";
 
 const createRecurringSchema = z.object({
@@ -19,7 +20,7 @@ const generateSchema = z.object({
 });
 
 /** GET /api/tasks/recurring — list all recurring task templates */
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -33,10 +34,10 @@ export const GET = withErrorHandler(async function GET() {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
 /** POST /api/tasks/recurring — create a new recurring template or generate next occurrence */
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -109,4 +110,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateSponsorSchema, validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(
-  _request: NextRequest,
+export const GET = withErrorHandler(withAuth(async function GET(
+  _request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -35,10 +36,10 @@ export const GET = withErrorHandler(async function GET(
   }
 
   return NextResponse.json({ data: { ...sponsor, outreach: outreach ?? [] } });
-});
+}));
 
-export const PUT = withErrorHandler(async function PUT(
-  request: NextRequest,
+export const PUT = withErrorHandler(withAuth(async function PUT(
+  request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -71,10 +72,10 @@ export const PUT = withErrorHandler(async function PUT(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const DELETE = withErrorHandler(async function DELETE(
-  _request: NextRequest,
+export const DELETE = withErrorHandler(withAuth(async function DELETE(
+  _request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -91,4 +92,4 @@ export const DELETE = withErrorHandler(async function DELETE(
   }
 
   return NextResponse.json({ success: true });
-});
+}));

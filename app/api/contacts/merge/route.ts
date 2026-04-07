@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { logActivity } from "@/lib/activity-logger";
 import { mergeContacts } from "@/lib/api/contacts";
 
@@ -24,7 +25,7 @@ const mergeSchema = z.object({
  * - Marks the loser with merged_into_id
  * - Logs to activity_log
  */
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const body = await request.json();
   const parsed = mergeSchema.safeParse(body);
 
@@ -72,4 +73,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     data: updatedWinner,
     merged: { winnerId, loserId },
   });
-});
+}));

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export interface SponsorMetricsResponse {
   total_amount: number;
@@ -18,8 +19,8 @@ export interface SponsorMetricsResponse {
   monthly_values: { month: string; amount: number }[];
 }
 
-export const GET = withErrorHandler(async function GET(
-  _request: NextRequest,
+export const GET = withErrorHandler(withAuth(async function GET(
+  _request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -101,4 +102,4 @@ export const GET = withErrorHandler(async function GET(
   };
 
   return NextResponse.json({ data: response });
-});
+}));

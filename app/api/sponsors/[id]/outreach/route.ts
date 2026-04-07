@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { validateIdParam } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 const createOutreachSchema = z.object({
   type: z.enum(["email", "call", "meeting", "linkedin", "other"]),
@@ -12,8 +13,8 @@ const createOutreachSchema = z.object({
   contacted_at: z.string().datetime().optional().nullable(),
 });
 
-export const GET = withErrorHandler(async function GET(
-  _request: NextRequest,
+export const GET = withErrorHandler(withAuth(async function GET(
+  _request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -35,10 +36,10 @@ export const GET = withErrorHandler(async function GET(
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(
-  request: NextRequest,
+export const POST = withErrorHandler(withAuth(async function POST(
+  request: NextRequest, _user,
   context?: { params: Promise<Record<string, string>> },
 ) {
   const { id } = (await context?.params) ?? {};
@@ -69,4 +70,4 @@ export const POST = withErrorHandler(async function POST(
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
