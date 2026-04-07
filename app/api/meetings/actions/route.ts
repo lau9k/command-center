@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import {
   generateFollowUpEmail,
   generateIntroTemplates,
@@ -45,7 +46,7 @@ async function getMeeting(supabase: ReturnType<typeof createServiceClient>, meet
 /**
  * POST /api/meetings/actions — Execute a meeting action
  */
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -63,12 +64,12 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   const result = await handleAction(supabase, meeting, action_type);
 
   return NextResponse.json(result);
-});
+}));
 
 /**
  * PATCH /api/meetings/actions — Update meeting status (dismiss/review)
  */
-export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(withAuth(async function PATCH(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -83,7 +84,7 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   await updateMeetingStatus(supabase, parsed.data.meeting_id, parsed.data.status);
 
   return NextResponse.json({ success: true });
-});
+}));
 
 async function handleAction(
   supabase: ReturnType<typeof createServiceClient>,

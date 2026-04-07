@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export interface DataFreshnessResponse {
@@ -11,7 +12,7 @@ export interface DataFreshnessResponse {
   meetings: string | null;
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const tables = [
@@ -49,4 +50,4 @@ export const GET = withErrorHandler(async function GET() {
   }
 
   return NextResponse.json({ data });
-});
+}));

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { schedulePost, updatePost } from "@/lib/lateso-client";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import type { ContentPost, ContentPostStatus } from "@/lib/types/database";
 
 const publishSchema = z.object({
@@ -10,7 +11,7 @@ const publishSchema = z.object({
   scheduledFor: z.string().datetime({ offset: true }).optional(),
 });
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -105,4 +106,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data: updatedPost });
-});
+}));

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export interface DashboardKPIResponse {
   activeDeals: { count: number; totalValue: number };
@@ -20,7 +21,7 @@ export interface DashboardKPIResponse {
   };
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const [
@@ -95,4 +96,4 @@ export const GET = withErrorHandler(async function GET() {
   };
 
   return NextResponse.json({ data: response });
-});
+}));

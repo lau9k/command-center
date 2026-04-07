@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { logSync } from "@/lib/plaid-sync";
 import { syncToPersonize } from "@/lib/personize/sync";
 import type { MeetingAttendee, MeetingActionItem, MeetingContact } from "@/lib/types/database";
@@ -185,7 +186,7 @@ function toAttendees(people: GranolaPerson[] | undefined): MeetingAttendee[] {
 
 // --- Sync handler ---
 
-export const POST = withErrorHandler(async function POST() {
+export const POST = withErrorHandler(withAuth(async function POST(_request, _user) {
   const supabase = createServiceClient();
   const logId = await logSync("granola", "running", 0);
 
@@ -377,4 +378,4 @@ export const POST = withErrorHandler(async function POST() {
       { status: 500 }
     );
   }
-});
+}));

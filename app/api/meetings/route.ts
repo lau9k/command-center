@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { syncToPersonize } from "@/lib/personize/sync";
 import type { Meeting, MeetingAction, MeetingAttendee } from "@/lib/types/database";
 import { z } from "zod";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const { searchParams } = request.nextUrl;
 
   const status = searchParams.get("status") ?? undefined;
@@ -85,7 +86,7 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
       hasMore: page * pageSize < total,
     },
   });
-});
+}));
 
 const attendeeSchema = z.object({
   name: z.string(),
@@ -124,7 +125,7 @@ function getPrimaryAttendeeEmail(attendees: MeetingAttendee[]): string | undefin
   return undefined;
 }
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -158,9 +159,9 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));
 
-export const PATCH = withErrorHandler(async function PATCH(request: NextRequest) {
+export const PATCH = withErrorHandler(withAuth(async function PATCH(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -197,4 +198,4 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
   });
 
   return NextResponse.json({ data });
-});
+}));
