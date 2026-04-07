@@ -305,22 +305,18 @@ async function fetchPropertyValues(
       },
       body: JSON.stringify({
         collectionIds: [CONTACTS_COLLECTION_ID],
-        groups: [
-          {
-            conditions: [{ propertyName, operator: "exists" }],
-          },
-        ],
+        groups: [{ conditions: [{ propertyName, operator: "exists" }] }],
         returnRecords: true,
         pageSize,
       }),
     });
     if (!response.ok) return result;
     const data = await response.json();
-    const records = data?.data?.records ?? [];
-    for (const rec of records) {
-      const recordId = rec.recordId ?? rec.record_id;
-      if (recordId && rec.properties?.[propertyName]) {
-        result.set(recordId, rec.properties[propertyName]);
+    const records = (data?.data?.records ?? {}) as Record<string, Record<string, { value: string }>>;
+    for (const [recordId, properties] of Object.entries(records)) {
+      const val = properties[propertyName]?.value;
+      if (recordId && val) {
+        result.set(recordId, val);
       }
     }
   } catch (error) {
