@@ -32,7 +32,13 @@ const PRIORITY_ORDER: Record<TaskPriority, number> = {
   low: 3,
 };
 
+const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
+
 function DrawerContent({ task }: { task: TaskWithProject }) {
+  const displayTags = (task.tags ?? []).filter(
+    (tag) => !SYSTEM_TAGS.includes(tag.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col gap-5">
       {/* Action Buttons */}
@@ -112,28 +118,24 @@ function DrawerContent({ task }: { task: TaskWithProject }) {
       )}
 
       {/* Tags */}
-      {(() => {
-        const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
-        const displayTags = (task.tags ?? []).filter(tag => !SYSTEM_TAGS.includes(tag));
-        return displayTags.length > 0 ? (
-          <div>
-            <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Tags
-            </h4>
-            <div className="flex flex-wrap gap-1">
-              {displayTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
-                >
-                  <Tag className="size-2.5" />
-                  {tag}
-                </span>
-              ))}
-            </div>
+      {displayTags.length > 0 && (
+        <div>
+          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Tags
+          </h4>
+          <div className="flex flex-wrap gap-1">
+            {displayTags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                <Tag className="size-2.5" />
+                {tag}
+              </span>
+            ))}
           </div>
-        ) : null;
-      })()}
+        </div>
+      )}
 
       {/* Timestamps */}
       <div className="border-t border-border pt-4">
