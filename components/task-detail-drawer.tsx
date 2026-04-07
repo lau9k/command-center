@@ -60,6 +60,8 @@ const TASK_TYPE_LABELS: Record<string, string> = {
   "meeting-prep": "Meeting Prep",
 };
 
+const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "long",
@@ -243,6 +245,9 @@ export function TaskDetailDrawer({
 
   const isOutreach = task.task_type === "outreach";
   const isDone = task.status === "done";
+  const displayTags = (task.tags ?? []).filter(
+    (tag) => !SYSTEM_TAGS.includes(tag.toLowerCase())
+  );
 
   return (
     <>
@@ -444,29 +449,25 @@ export function TaskDetailDrawer({
                 </Card>
 
                 {/* Tags */}
-                {(() => {
-                  const SYSTEM_TAGS = ["personize-contact", "email-draft-ready", "outreach"];
-                  const displayTags = (task.tags ?? []).filter(tag => !SYSTEM_TAGS.includes(tag));
-                  return displayTags.length > 0 ? (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-1.5 text-sm">
-                          <Tag className="size-3.5" />
-                          Tags
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-1.5">
-                          {displayTags.map((tag) => (
-                            <Badge key={tag} variant="outline">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) : null;
-                })()}
+                {displayTags.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-1.5 text-sm">
+                        <Tag className="size-3.5" />
+                        Tags
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-1.5">
+                        {displayTags.map((tag) => (
+                          <Badge key={tag} variant="outline">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Right column: Action buttons */}
