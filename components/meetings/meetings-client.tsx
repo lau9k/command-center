@@ -16,6 +16,8 @@ import {
   Loader2,
   Search,
   X,
+  FileText,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,20 @@ import { ActionItemRow } from "@/components/meetings/ActionItemRow";
 import type { Meeting, MeetingAction, MeetingActionItem, MeetingAttendee } from "@/lib/types/database";
 
 type MeetingWithActions = Meeting & { actions: MeetingAction[] };
+
+/** Normalize action items that may be stored as plain strings or objects. */
+function normalizeActionItem(item: unknown): MeetingActionItem {
+  if (typeof item === "string") {
+    return { title: item };
+  }
+  if (item && typeof item === "object" && "title" in item && typeof (item as MeetingActionItem).title === "string") {
+    return item as MeetingActionItem;
+  }
+  // Fallback: try description field or stringify
+  const obj = item as Record<string, unknown>;
+  const text = (obj?.description ?? obj?.content ?? obj?.action_text ?? obj?.text ?? "") as string;
+  return { title: text || JSON.stringify(item) };
+}
 
 const STATUS_CONFIG = {
   pending_review: { label: "Pending Review", color: "text-[#F59E0B]", bg: "bg-[#F59E0B]/20", icon: Clock },
@@ -85,14 +101,62 @@ function MeetingRow({
   onToggleSelect: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState(false);
+  const [copyingTranscript, setCopyingTranscript] = useState(false);
   const config = STATUS_CONFIG[meeting.status];
   const StatusIcon = config.icon;
   const enrichment = ENRICHMENT_CONFIG[getEnrichmentStatus(meeting)];
   const EnrichmentIcon = enrichment.icon;
   const attendees = (meeting.attendees ?? []) as MeetingAttendee[];
-  const actionItems = (meeting.action_items ?? []) as MeetingActionItem[];
+  const actionItems = ((meeting.action_items ?? []) as unknown[]).map(normalizeActionItem);
   const decisions = (meeting.decisions ?? []) as string[];
   const completedCount = meeting.actions.filter((a) => a.status === "completed").length;
+
+  const handleToggleTranscript = async () => {
+    const willOpen = !transcriptOpen;
+    setTranscriptOpen(willOpen);
+
+    if (willOpen && transcript === null && !transcriptLoading) {
+      setTranscriptLoading(true);
+      setTranscriptError(false);
+      try {
+        const res = await fetch(`/api/meetings/${meeting.id}/transcript`);
+        if (!res.ok) throw new Error("Failed to load transcript");
+        const json = await res.json();
+        setTranscript(json.transcript ?? "");
+      } catch {
+        setTranscriptError(true);
+        setTranscript(null);
+      } finally {
+        setTranscriptLoading(false);
+      }
+    }
+  };
+
+  const handleCopyTranscript = async () => {
+    if (!transcript) return;
+    setCopyingTranscript(true);
+    try {
+      await navigator.clipboard.writeText(transcript);
+      toast.success("Transcript copied to clipboard");
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea");
+      textarea.value = transcript;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      toast.success("Transcript copied to clipboard");
+    } finally {
+      setCopyingTranscript(false);
+    }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card transition-all duration-150">
@@ -239,6 +303,60 @@ function MeetingRow({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Transcript */}
+          {meeting.granola_id && (
+            <div>
+              <button
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase hover:text-foreground transition-colors"
+                onClick={handleToggleTranscript}
+              >
+                {transcriptOpen ? (
+                  <ChevronDown className="size-3" />
+                ) : (
+                  <ChevronRight className="size-3" />
+                )}
+                <FileText className="size-3" />
+                Transcript
+              </button>
+              {transcriptOpen && (
+                <div className="mt-2">
+                  {transcriptLoading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Loading transcript...
+                    </div>
+                  )}
+                  {transcriptError && (
+                    <p className="text-sm text-muted-foreground">No transcript available</p>
+                  )}
+                  {!transcriptLoading && !transcriptError && transcript !== null && (
+                    transcript.length > 0 ? (
+                      <div>
+                        <div className="mb-2 flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1.5 text-xs"
+                            onClick={handleCopyTranscript}
+                            disabled={copyingTranscript}
+                          >
+                            <Copy className="size-3" />
+                            Copy Transcript
+                          </Button>
+                        </div>
+                        <div className="max-h-96 overflow-y-auto rounded-md border border-border bg-muted/30 p-3">
+                          <pre className="whitespace-pre-wrap text-sm font-mono text-foreground">{transcript}</pre>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No transcript available</p>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
