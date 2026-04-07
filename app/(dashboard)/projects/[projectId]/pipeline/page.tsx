@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { PipelineBoard } from "@/components/pipeline/PipelineBoard";
 import { PipelineKPIStrip } from "@/components/pipeline/PipelineKPIStrip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Kanban } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -66,17 +67,11 @@ export default async function ProjectPipelinePage({
             Manage deals and track progress through stages
           </p>
         </div>
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-border bg-card px-8 py-16 text-center">
-          <div className="text-text-muted [&_svg]:size-12">
-            <Kanban />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-lg font-semibold text-foreground">No pipeline stages yet</h3>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Set up pipeline stages for this project to start tracking deals.
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          icon={Kanban}
+          title="No pipeline stages yet"
+          description="Set up pipeline stages for this project to start tracking deals."
+        />
       </div>
     );
   }
