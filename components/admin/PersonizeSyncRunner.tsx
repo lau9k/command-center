@@ -114,7 +114,7 @@ export function PersonizeSyncRunner() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [apiSecret]);
+  }, []);
 
   const stopSync = useCallback(() => {
     abortRef.current?.abort();
@@ -146,7 +146,7 @@ export function PersonizeSyncRunner() {
               Stop
             </Button>
           ) : (
-            <Button onClick={startSync} disabled={!apiSecret}>
+            <Button onClick={startSync}>
               <Play className="mr-2 h-4 w-4" />
               Start Sync
             </Button>

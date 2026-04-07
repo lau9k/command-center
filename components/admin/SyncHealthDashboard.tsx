@@ -180,7 +180,7 @@ export function SyncHealthDashboard() {
       abortRef.current = null;
       refetch();
     }
-  }, [apiSecret, refetch]);
+  }, [refetch]);
 
   const stopSync = useCallback(() => {
     abortRef.current?.abort();
@@ -387,7 +387,7 @@ export function SyncHealthDashboard() {
                 Stop
               </Button>
             ) : (
-              <Button size="sm" onClick={handleResync} disabled={!apiSecret}>
+              <Button size="sm" onClick={handleResync}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Resync
               </Button>
