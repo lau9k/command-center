@@ -1,13 +1,11 @@
 import "server-only";
 import {
-  Configuration,
-  PlaidApi,
-  PlaidEnvironments,
   RemovedTransaction,
   TransactionsSyncResponse,
 } from "plaid";
 import { createServiceClient } from "@/lib/supabase/service";
 import { decrypt } from "@/lib/plaid-crypto";
+import { getPlaidClient } from "@/lib/plaid";
 
 interface SyncResult {
   item_id: string;
@@ -22,28 +20,6 @@ interface SyncSummary {
   synced: number;
   errors: number;
   results: SyncResult[];
-}
-
-function createPlaidClient(): PlaidApi {
-  const clientId = process.env.PLAID_CLIENT_ID;
-  const secret = process.env.PLAID_SECRET;
-  const env = process.env.PLAID_ENV ?? "sandbox";
-
-  if (!clientId || !secret) {
-    throw new Error("Missing PLAID_CLIENT_ID or PLAID_SECRET");
-  }
-
-  const configuration = new Configuration({
-    basePath: PlaidEnvironments[env],
-    baseOptions: {
-      headers: {
-        "PLAID-CLIENT-ID": clientId,
-        "PLAID-SECRET": secret,
-      },
-    },
-  });
-
-  return new PlaidApi(configuration);
 }
 
 export async function getLastSyncDate(): Promise<string | null> {
@@ -113,7 +89,7 @@ async function updateSyncLog(
 
 export async function syncTransactions(): Promise<SyncSummary> {
   const supabase = createServiceClient();
-  const plaid = createPlaidClient();
+  const plaid = getPlaidClient();
 
   // Log sync start
   const logId = await logSync("plaid", "running", 0);
