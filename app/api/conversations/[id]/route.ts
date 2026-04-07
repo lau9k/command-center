@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { validateIdParam } from "@/lib/validations";
 
-export const GET = withErrorHandler(async function GET(
+export const GET = withErrorHandler(withAuth(async function GET(
   _request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const params = await context?.params;
@@ -28,4 +30,4 @@ export const GET = withErrorHandler(async function GET(
   }
 
   return NextResponse.json({ data });
-});
+}));

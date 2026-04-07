@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createContentItemSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = request.nextUrl;
 
@@ -33,9 +34,9 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ data });
-});
+}));
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -58,4 +59,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data }, { status: 201 });
-});
+}));

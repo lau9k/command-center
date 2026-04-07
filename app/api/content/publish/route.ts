@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { zernioPublishSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import type { ContentPost } from "@/lib/types/database";
 
 const ZERNIO_API_BASE = "https://zernio.com/api/v1";
@@ -47,7 +48,7 @@ async function createZernioPost(payload: {
   return res.json() as Promise<ZernioPostResponse>;
 }
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const body = await request.json();
 
@@ -121,4 +122,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
     zernio_post_id: zernioPost.id,
     platforms_published: platforms,
   });
-});
+}));

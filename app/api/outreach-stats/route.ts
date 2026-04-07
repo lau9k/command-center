@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 export interface OutreachStats {
   queued: number;
@@ -11,7 +12,7 @@ export interface OutreachStats {
   total: number;
 }
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
@@ -41,4 +42,4 @@ export const GET = withErrorHandler(async function GET() {
   }
 
   return NextResponse.json(stats);
-});
+}));

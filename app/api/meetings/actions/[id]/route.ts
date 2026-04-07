@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { z } from "zod";
 
 const patchSchema = z.object({
@@ -10,8 +11,9 @@ const patchSchema = z.object({
 /**
  * PATCH /api/meetings/actions/[id] — Update a meeting action's status
  */
-export const PATCH = withErrorHandler(async function PATCH(
+export const PATCH = withErrorHandler(withAuth(async function PATCH(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const params = await context!.params;
@@ -48,4 +50,4 @@ export const PATCH = withErrorHandler(async function PATCH(
   }
 
   return NextResponse.json({ data });
-});
+}));

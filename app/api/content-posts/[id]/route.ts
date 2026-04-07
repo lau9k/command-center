@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { updateContentPostSchema } from "@/lib/validations";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { uuidParam } from "@/lib/validations";
 import { syncToPersonize } from "@/lib/personize/sync";
 
-export const PATCH = withErrorHandler(async function PATCH(
+export const PATCH = withErrorHandler(withAuth(async function PATCH(
   request: NextRequest,
+  _user,
   context?: { params: Promise<Record<string, string>> }
 ) {
   const { id } = (await context?.params) ?? {};
@@ -49,4 +51,4 @@ export const PATCH = withErrorHandler(async function PATCH(
   });
 
   return NextResponse.json(data);
-});
+}));

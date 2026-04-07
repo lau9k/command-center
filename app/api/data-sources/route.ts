@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 
 interface DataSourceHealth {
   id: string;
@@ -19,7 +20,7 @@ const DATA_SOURCES = [
   { id: "n8n", name: "n8n", table: "sync_log", dateCol: "synced_at", filter: { column: "source", value: "n8n" } },
 ] as const;
 
-export const GET = withErrorHandler(async function GET() {
+export const GET = withErrorHandler(withAuth(async function GET(_request, _user) {
   const supabase = createServiceClient();
 
   const results: DataSourceHealth[] = await Promise.all(
@@ -71,4 +72,4 @@ export const GET = withErrorHandler(async function GET() {
   );
 
   return NextResponse.json({ data: results });
-});
+}));

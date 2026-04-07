@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -48,7 +49,7 @@ function parseCSV(text: string): Record<string, string>[] {
   return rows;
 }
 
-export const POST = withErrorHandler(async function POST(request: NextRequest) {
+export const POST = withErrorHandler(withAuth(async function POST(request: NextRequest, _user) {
   const contentType = request.headers.get("content-type") ?? "";
   const supabase = createServiceClient();
 
@@ -180,4 +181,4 @@ export const POST = withErrorHandler(async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ imported, skipped, total: deals.length, results });
-});
+}));

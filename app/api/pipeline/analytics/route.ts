@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { withErrorHandler } from "@/lib/api-error-handler";
+import { withAuth } from "@/lib/auth/api-guard";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -53,7 +54,7 @@ function parseDealValue(metadata: Record<string, unknown> | null): number {
   return 0;
 }
 
-export const GET = withErrorHandler(async function GET(request: NextRequest) {
+export const GET = withErrorHandler(withAuth(async function GET(request: NextRequest, _user) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(request.url);
 
@@ -174,4 +175,4 @@ export const GET = withErrorHandler(async function GET(request: NextRequest) {
     total_deals: totalItems,
     total_value: items.reduce((sum, i) => sum + parseDealValue(i.metadata), 0),
   });
-});
+}));
