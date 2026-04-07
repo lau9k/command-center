@@ -114,17 +114,25 @@ export default function ProjectTasksPage() {
   const [page, setPage] = useState(1);
 
   const fetchTasks = useCallback(async () => {
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false })
-      .returns<Task[]>();
-    setTasks(data ?? []);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .returns<Task[]>();
+      if (error) throw error;
+      setTasks(data ?? []);
+    } catch {
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
   }, [projectId, supabase]);
 
   useEffect(() => {
+    fetchTasks();
+
     const channel = supabase
       .channel(`project-tasks-${projectId}`)
       .on(
@@ -139,11 +147,7 @@ export default function ProjectTasksPage() {
           fetchTasks();
         }
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          fetchTasks();
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
