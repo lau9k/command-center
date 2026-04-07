@@ -295,10 +295,14 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
 
                         {/* Platform + Status badges */}
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          {isValidPlatform && (
+                          {isValidPlatform ? (
                             <PlatformBadge
                               platform={platform as PlatformType}
                             />
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              No platform
+                            </span>
                           )}
                           <StatusBadge status={post.status as StatusType} />
                         </div>
@@ -409,8 +413,12 @@ export function ContentBoard({ initialPosts, onPostsChange }: ContentBoardProps)
             {/* Status + Platform */}
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={drawerPost.status as StatusType} />
-              {isDrawerPlatformValid && (
+              {isDrawerPlatformValid ? (
                 <PlatformBadge platform={drawerPlatform as PlatformType} />
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  No platform
+                </span>
               )}
               {drawerPost.type && (
                 <span className="text-xs text-muted-foreground">
