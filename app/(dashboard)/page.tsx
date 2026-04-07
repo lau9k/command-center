@@ -35,7 +35,10 @@ export default async function DashboardPage() {
 
   await queryClient.prefetchQuery({
     queryKey,
-    queryFn: getHomeStats,
+    queryFn: async () => {
+      const { data } = await getHomeStats();
+      return data;
+    },
     staleTime,
   });
 
