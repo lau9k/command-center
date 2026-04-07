@@ -44,59 +44,60 @@ const CORE_TABLES = Object.keys(TABLE_FIELD_CHECKS);
 export const GET = withErrorHandler(
   withAuth(async function GET() {
     const supabase = createServiceClient();
-    const results: TableMetrics[] = [];
 
-    for (const table of CORE_TABLES) {
-      // Row count
-      const { count, error: countError } = await supabase
-        .from(table)
-        .select("*", { count: "exact", head: true });
-
-      const rowCount = countError ? -1 : (count ?? 0);
-
-      // Field completeness checks
-      const fieldsToCheck = TABLE_FIELD_CHECKS[table];
-      const fieldChecks: FieldCheck[] = [];
-
-      for (const field of fieldsToCheck) {
-        const { count: missingCount, error: fieldError } = await supabase
+    const results = await Promise.all(
+      CORE_TABLES.map(async (table) => {
+        // Row count
+        const { count, error: countError } = await supabase
           .from(table)
-          .select("*", { count: "exact", head: true })
-          .is(field, null);
+          .select("*", { count: "exact", head: true });
 
-        fieldChecks.push({
-          field,
-          missing: fieldError ? -1 : (missingCount ?? 0),
-        });
-      }
+        const rowCount = countError ? -1 : (count ?? 0);
 
-      // Completeness percentage
-      let completenessPct = 100;
-      if (rowCount > 0 && fieldsToCheck.length > 0) {
-        const totalSlots = rowCount * fieldsToCheck.length;
-        const totalMissing = fieldChecks.reduce(
-          (sum, fc) => sum + (fc.missing > 0 ? fc.missing : 0),
-          0,
-        );
-        completenessPct = Math.round(((totalSlots - totalMissing) / totalSlots) * 100);
-      }
+        // Field completeness checks
+        const fieldsToCheck = TABLE_FIELD_CHECKS[table];
+        const fieldChecks: FieldCheck[] = [];
 
-      // Most recent created_at
-      const { data: latestRow } = await supabase
-        .from(table)
-        .select("created_at")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        for (const field of fieldsToCheck) {
+          const { count: missingCount, error: fieldError } = await supabase
+            .from(table)
+            .select("*", { count: "exact", head: true })
+            .is(field, null);
 
-      results.push({
-        table,
-        row_count: rowCount,
-        field_checks: fieldChecks,
-        completeness_pct: completenessPct,
-        last_created_at: latestRow?.created_at ?? null,
-      });
-    }
+          fieldChecks.push({
+            field,
+            missing: fieldError ? -1 : (missingCount ?? 0),
+          });
+        }
+
+        // Completeness percentage
+        let completenessPct = 100;
+        if (rowCount > 0 && fieldsToCheck.length > 0) {
+          const totalSlots = rowCount * fieldsToCheck.length;
+          const totalMissing = fieldChecks.reduce(
+            (sum, fc) => sum + (fc.missing > 0 ? fc.missing : 0),
+            0,
+          );
+          completenessPct = Math.round(((totalSlots - totalMissing) / totalSlots) * 100);
+        }
+
+        // Most recent created_at
+        const { data: latestRow } = await supabase
+          .from(table)
+          .select("created_at")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return {
+          table,
+          row_count: rowCount,
+          field_checks: fieldChecks,
+          completeness_pct: completenessPct,
+          last_created_at: latestRow?.created_at ?? null,
+        };
+      })
+    );
 
     return NextResponse.json({ data: results });
   }),
