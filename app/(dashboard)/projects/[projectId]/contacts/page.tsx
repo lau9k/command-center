@@ -99,17 +99,28 @@ export default function ProjectContactsPage() {
   const [page, setPage] = useState(1);
 
   const fetchContacts = useCallback(async () => {
-    const { data } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false })
-      .returns<Contact[]>();
-    setContacts(data ?? []);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .returns<Contact[]>();
+      if (error) {
+        toast.error("Failed to load contacts");
+        return;
+      }
+      setContacts(data ?? []);
+    } catch {
+      toast.error("Failed to load contacts");
+    } finally {
+      setLoading(false);
+    }
   }, [projectId, supabase]);
 
   useEffect(() => {
+    fetchContacts();
+
     const channel = supabase
       .channel(`project-contacts-${projectId}`)
       .on(
@@ -124,11 +135,7 @@ export default function ProjectContactsPage() {
           fetchContacts();
         }
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          fetchContacts();
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
