@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { statusBadgeClass } from "@/lib/design-tokens";
 import { CalendarDays, MapPin, Users, DollarSign } from "lucide-react";
@@ -121,11 +122,11 @@ export default async function EventsListPage({
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">No events yet.</p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CalendarDays}
+          title="No events yet"
+          description="Create your first event to start tracking hackathons and meetups for this project."
+        />
       )}
     </div>
   );
