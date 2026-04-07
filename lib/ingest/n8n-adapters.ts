@@ -16,27 +16,42 @@ import {
  * clearly malformed payloads earlier (e.g., empty-string emails, negative amounts).
  */
 
-// ── Stricter base schemas ────────────────────────────────
+// ── Per-entity ingest validation schemas ─────────────────
+// These are the canonical schemas for validating ingest payloads.
+// Each enforces required fields, format constraints, and enums
+// before data reaches the processor layer.
 
-const strictContactSchema = ingestContactSchema.refine(
+export const ContactIngestSchema = ingestContactSchema.refine(
   (d) => !d.email || d.email.trim().length > 0,
   { message: "Email must not be an empty string" },
 );
 
-const strictConversationSchema = ingestConversationSchema.refine(
+export const ConversationIngestSchema = ingestConversationSchema.refine(
   (d) => !d.contact_email || d.contact_email.trim().length > 0,
   { message: "Contact email must not be an empty string" },
 );
 
-const strictTaskSchema = ingestTaskSchema.refine(
+export const TaskIngestSchema = ingestTaskSchema.refine(
   (d) => d.title.trim().length > 0,
   { message: "Task title must not be whitespace-only" },
 );
 
-const strictTransactionSchema = ingestTransactionSchema.refine(
+export const TransactionIngestSchema = ingestTransactionSchema.refine(
   (d) => d.amount !== 0,
   { message: "Transaction amount must not be zero" },
 );
+
+// Inferred types from the ingest schemas
+export type ContactIngest = z.infer<typeof ContactIngestSchema>;
+export type ConversationIngest = z.infer<typeof ConversationIngestSchema>;
+export type TaskIngest = z.infer<typeof TaskIngestSchema>;
+export type TransactionIngest = z.infer<typeof TransactionIngestSchema>;
+
+// Aliases used internally by the n8n payload wrappers below
+const strictContactSchema = ContactIngestSchema;
+const strictConversationSchema = ConversationIngestSchema;
+const strictTaskSchema = TaskIngestSchema;
+const strictTransactionSchema = TransactionIngestSchema;
 
 // ── Contacts ─────────────────────────────────────────────
 
