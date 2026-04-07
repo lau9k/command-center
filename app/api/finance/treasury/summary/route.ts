@@ -49,8 +49,8 @@ export const GET = withAuth(async function GET(request: NextRequest, _user) {
         .limit(30),
       fetch(
         `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/finance/treasury/price`
-      ).then((r) => r.json()) as Promise<
-        Record<string, { usd: number; cad: number }>
+      ).then((r) => r.json()).catch(() => null) as Promise<
+        Record<string, { usd: number; cad: number }> | null
       >,
     ]);
 
@@ -69,7 +69,7 @@ export const GET = withAuth(async function GET(request: NextRequest, _user) {
 
     for (const h of holdings) {
       const assetClass = classifyAsset(h.symbol);
-      const price = pricesResult[h.symbol] ?? { usd: 0, cad: 0 };
+      const price = pricesResult?.[h.symbol] ?? { usd: 0, cad: 0 };
       const totalQty = Number(h.liquid_amount) + Number(h.locked_amount);
       const valueCad = totalQty * price.cad;
 

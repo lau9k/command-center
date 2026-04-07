@@ -128,7 +128,6 @@ export function SyncHealthDashboard() {
     batches: number;
   } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const apiSecret = process.env.NEXT_PUBLIC_API_SECRET ?? "";
 
   const handleResync = useCallback(async () => {
     setSyncing(true);
@@ -146,10 +145,8 @@ export function SyncHealthDashboard() {
       while (!controller.signal.aborted) {
         const res = await fetch("/api/personize/sync-contacts", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiSecret}`,
-          },
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           signal: controller.signal,
         });
 

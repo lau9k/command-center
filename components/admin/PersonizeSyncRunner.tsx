@@ -42,8 +42,6 @@ export function PersonizeSyncRunner() {
   const [initialRemaining, setInitialRemaining] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const apiSecret = process.env.NEXT_PUBLIC_API_SECRET ?? "";
-
   const startSync = useCallback(async () => {
     setRunning(true);
     setStats(null);
@@ -62,10 +60,8 @@ export function PersonizeSyncRunner() {
       while (!controller.signal.aborted) {
         const res = await fetch("/api/personize/sync-contacts", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiSecret}`,
-          },
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           signal: controller.signal,
         });
 

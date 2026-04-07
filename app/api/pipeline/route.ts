@@ -157,6 +157,8 @@ export const PATCH = withErrorHandler(async function PATCH(request: NextRequest)
             }
           });
       }
+    }).catch((err) => {
+      console.error("[pipeline] Failed to update items:", err);
     });
   }
 
