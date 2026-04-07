@@ -353,7 +353,28 @@ export function OutreachQueue() {
 
   /* ─── tag options ─── */
 
-  const tierTags = ["tier-1", "tier-2"];
+  const SYSTEM_TAGS = ["outreach", "personize-contact", "email-draft-ready"];
+
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of outreachTasks) {
+      for (const tag of t.tags ?? []) {
+        const lower = tag.toLowerCase();
+        if (SYSTEM_TAGS.includes(lower)) continue;
+        counts[lower] = (counts[lower] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [outreachTasks]);
+
+  const uniqueTags = useMemo(
+    () => Object.keys(tagCounts).sort((a, b) => a.localeCompare(b)),
+    [tagCounts]
+  );
+
+  const totalTagCount = outreachTasks.filter((t) =>
+    t.tags?.some((tag) => !SYSTEM_TAGS.includes(tag.toLowerCase()))
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -415,13 +436,13 @@ export function OutreachQueue() {
 
         <Select value={filterTag} onValueChange={setFilterTag}>
           <SelectTrigger size="sm">
-            <SelectValue placeholder="All Tiers" />
+            <SelectValue placeholder="All Tags" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL_VALUE}>All Tiers</SelectItem>
-            {tierTags.map((tag) => (
+            <SelectItem value={ALL_VALUE}>All Tags ({totalTagCount})</SelectItem>
+            {uniqueTags.map((tag) => (
               <SelectItem key={tag} value={tag}>
-                {tag.toUpperCase()}
+                {tag} ({tagCounts[tag]})
               </SelectItem>
             ))}
           </SelectContent>
@@ -593,7 +614,10 @@ function OutreachRow({
 }: OutreachRowProps) {
   const [copied, setCopied] = useState(false);
   const nonOutreachTags = (task.tags ?? []).filter(
-    (tag) => tag.toLowerCase() !== "outreach"
+    (tag) =>
+      !["outreach", "personize-contact", "email-draft-ready"].includes(
+        tag.toLowerCase()
+      )
   );
   const outreachStatus: TaskOutreachStatus = task.outreach_status ?? "queued";
 
