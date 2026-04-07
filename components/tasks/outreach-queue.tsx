@@ -105,6 +105,8 @@ const OUTREACH_STATUSES: TaskOutreachStatus[] = [
 
 const ALL_VALUE = "__all__";
 
+const SYSTEM_TAGS = ["outreach", "personize-contact", "email-draft-ready"];
+
 /* ─── types ─── */
 
 interface OutreachKpis {
@@ -353,8 +355,6 @@ export function OutreachQueue() {
 
   /* ─── tag options ─── */
 
-  const SYSTEM_TAGS = ["outreach", "personize-contact", "email-draft-ready"];
-
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of outreachTasks) {
@@ -442,7 +442,7 @@ export function OutreachQueue() {
             <SelectItem value={ALL_VALUE}>All Tags ({totalTagCount})</SelectItem>
             {uniqueTags.map((tag) => (
               <SelectItem key={tag} value={tag}>
-                {tag} ({tagCounts[tag]})
+                {tag.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")} ({tagCounts[tag]})
               </SelectItem>
             ))}
           </SelectContent>
@@ -614,10 +614,7 @@ function OutreachRow({
 }: OutreachRowProps) {
   const [copied, setCopied] = useState(false);
   const nonOutreachTags = (task.tags ?? []).filter(
-    (tag) =>
-      !["outreach", "personize-contact", "email-draft-ready"].includes(
-        tag.toLowerCase()
-      )
+    (tag) => !SYSTEM_TAGS.includes(tag.toLowerCase())
   );
   const outreachStatus: TaskOutreachStatus = task.outreach_status ?? "queued";
 
