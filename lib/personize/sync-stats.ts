@@ -97,9 +97,8 @@ interface SearchPageData {
   crmKeys?: Record<string, { type?: string; email?: string }>;
 }
 
-interface FilterByPropertyRecord {
-  recordId: string;
-  matchedProperties?: Record<string, string>;
+interface SearchRecordProps {
+  [propName: string]: { value: string };
 }
 
 /**
@@ -140,7 +139,7 @@ export async function syncContactMemoryStats(
     page++;
   }
 
-  // Step 2: Get contacts with memory_count property via filter-by-property
+  // Step 2: Get contacts with memory_count property via /api/v1/search
   const contactsWithMemories = await fetchContactsWithMemories();
 
   // Step 3: Build upsert data — one row per contact that has memories
@@ -204,18 +203,18 @@ interface ContactMemoryInfo {
 }
 
 /**
- * Use Personize filter-by-property to find contacts that have memory_count set.
+ * Use Personize search to find contacts that have memory_count set.
  * This is a lightweight, no-LLM-cost endpoint.
  */
 async function fetchContactsWithMemories(): Promise<ContactMemoryInfo[]> {
   const results: ContactMemoryInfo[] = [];
-  let offset = 0;
-  const limit = 200;
+  let page = 1;
+  const pageSize = 200;
 
   for (;;) {
     try {
       const response = await fetch(
-        `${PERSONIZE_API_BASE}/api/v1/memory/filter-by-property`,
+        `${PERSONIZE_API_BASE}/api/v1/search`,
         {
           method: "POST",
           headers: {
@@ -223,40 +222,47 @@ async function fetchContactsWithMemories(): Promise<ContactMemoryInfo[]> {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            collectionId: CONTACTS_COLLECTION_ID,
-            conditions: [{ propertyName: "memory_count", operator: "exists" }],
-            limit,
-            offset,
+            collectionIds: [CONTACTS_COLLECTION_ID],
+            groups: [
+              {
+                conditions: [
+                  { propertyName: "memory_count", operator: "exists" },
+                ],
+              },
+            ],
+            returnRecords: true,
+            pageSize,
+            page,
           }),
         }
       );
 
       if (!response.ok) {
         console.error(
-          `[syncContactMemoryStats] filter-by-property failed: ${response.status}`
+          `[syncContactMemoryStats] /api/v1/search failed: ${response.status}`
         );
         break;
       }
 
       const data = (await response.json()) as {
-        data?: { records?: FilterByPropertyRecord[] };
+        data?: { records?: Record<string, SearchRecordProps> };
       };
-      const records = data?.data?.records ?? [];
+      const records = data?.data?.records ?? {};
+      const entries = Object.entries(records);
 
-      for (const rec of records) {
-        if (!rec.recordId) continue;
-        const countStr = rec.matchedProperties?.memory_count ?? "0";
+      for (const [recordId, props] of entries) {
+        const countStr = props.memory_count?.value ?? "0";
         const memoryCount = parseInt(countStr, 10) || 0;
         results.push({
-          recordId: rec.recordId,
-          name: rec.matchedProperties?.full_name ?? rec.recordId,
+          recordId,
+          name: props.full_name?.value ?? recordId,
           memoryCount,
         });
       }
 
-      // If we got fewer than limit, we've exhausted results
-      if (records.length < limit) break;
-      offset += limit;
+      // If we got fewer than pageSize, we've exhausted results
+      if (entries.length < pageSize) break;
+      page += 1;
     } catch (error) {
       console.error("[syncContactMemoryStats] fetchContactsWithMemories failed:", error);
       break;
