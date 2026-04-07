@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import client from "./client";
+import client, { PERSONIZE_API_BASE, PERSONIZE_API_KEY, CONTACTS_COLLECTION_ID } from "./client";
 import type { SyncStatsResult, SyncContactMemoryStatsResult } from "./types";
 
 const COLLECTION_IDS: Record<string, string> = {
@@ -83,10 +83,6 @@ export async function syncMemoryStats(
 // ---------------------------------------------------------------------------
 // Per-contact memory stats sync
 // ---------------------------------------------------------------------------
-
-const PERSONIZE_API_BASE = "https://agent.personize.ai";
-const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
-const CONTACTS_COLLECTION_ID = process.env.PERSONIZE_CONTACTS_COLLECTION_ID!;
 
 interface SearchPageData {
   recordIds?: string[];

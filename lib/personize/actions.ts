@@ -1,7 +1,7 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
-import client from "./client";
+import client, { PERSONIZE_API_BASE, PERSONIZE_API_KEY, CONTACTS_COLLECTION_ID } from "./client";
 import type {
   SmartGuidelinesResponse,
   SmartRecallResult,
@@ -268,13 +268,6 @@ export async function memorize(
 // ---------------------------------------------------------------------------
 // Contact-specific helpers (Personize Contact collection)
 // ---------------------------------------------------------------------------
-
-const CONTACTS_COLLECTION_ID =
-  process.env.PERSONIZE_CONTACTS_COLLECTION_ID ??
-  "5686312a-7ab7-4cef-897c-576bfeb92aec";
-
-const PERSONIZE_API_BASE = "https://agent.personize.ai";
-const PERSONIZE_API_KEY = process.env.PERSONIZE_SECRET_KEY ?? "";
 
 // ---------------------------------------------------------------------------
 // Property enrichment — fetch full_name, job_title, company_name for contacts
