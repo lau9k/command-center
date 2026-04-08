@@ -5,6 +5,7 @@ import { withAuth } from "@/lib/auth/api-guard";
 import { fetchCommunityMemberCount } from "@/lib/telegram/community";
 import { scoreTask } from "@/lib/task-scoring";
 import { cached, getRedis } from "@/lib/cache/redis";
+import { PERSONIZE_API_BASE } from "@/lib/personize/config";
 import type { ContentPost, Meeting, TaskWithProject } from "@/lib/types/database";
 import type { ScoringFactor } from "@/lib/task-scoring";
 
@@ -371,7 +372,6 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
     cached<number>(
       "home:personize:enrichment",
       async () => {
-        const apiBase = "https://agent.personize.ai";
         const apiKey = process.env.PERSONIZE_SECRET_KEY ?? "";
         const collectionId = process.env.PERSONIZE_CONTACTS_COLLECTION_ID ?? "";
         if (!apiKey || !collectionId) {
@@ -379,7 +379,7 @@ export async function getHomeStats(): Promise<{ data: HomeStatsResponse; warning
           return 0;
         }
         try {
-          const response = await fetch(`${apiBase}/api/v1/search`, {
+          const response = await fetch(`${PERSONIZE_API_BASE}/api/v1/search`, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${apiKey}`,
