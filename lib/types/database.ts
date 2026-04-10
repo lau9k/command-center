@@ -766,3 +766,50 @@ export interface EmailTemplate {
   created_at: string;
   updated_at: string;
 }
+
+// --- Memory pipeline types ---
+
+export type MemoryIngestionSourceType = "decisions" | "session_note" | "call_transcript" | "intake_file" | "manual";
+export type MemoryIngestionStatus = "pending" | "sent" | "confirmed" | "failed";
+
+export interface MemoryIngestionLogRow {
+  id: string;
+  contact_id: string | null;
+  contact_email: string | null;
+  source_type: MemoryIngestionSourceType;
+  source_ref: string;
+  content_hash: string;
+  personize_event_id: string | null;
+  status: MemoryIngestionStatus;
+  created_at: string;
+  payload_preview: string | null;
+}
+
+export type MemoryIntakeQueueStatus = "pending" | "processing" | "done" | "failed";
+
+export interface MemoryIntakeQueueRow {
+  id: string;
+  target_email: string | null;
+  content: string;
+  source_ref: string;
+  content_hash: string;
+  status: MemoryIntakeQueueStatus;
+  personize_event_id: string | null;
+  error_message: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+export interface ContactIdentityMapRow {
+  id: string;
+  contact_id: string;
+  personize_record_id: string | null;
+  primary_email: string;
+  alternate_emails: string[];
+  canonical_name: string;
+  aliases: string[];
+  company_domain: string | null;
+  confidence_score: number;
+  last_verified_at: string;
+  created_at: string;
+}
