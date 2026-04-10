@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bell,
+  Brain,
   Calendar,
   CheckSquare,
   Coins,
@@ -31,6 +32,7 @@ const modules = [
   { label: "Conversations", href: "/conversations", icon: MessageSquare },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Memory Health", href: "/memory-health", icon: Brain },
   { label: "Pipeline", href: "/pipeline", icon: Kanban },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Settings", href: "/settings", icon: Settings },
