@@ -189,12 +189,15 @@ export async function syncLateso(): Promise<LatesoSyncResult> {
       totalErrors > 0 ? `${totalErrors} operation(s) failed` : undefined;
 
     if (logId) {
+      const totalFound = totalSynced + pushResult.skipped;
       await supabase
         .from("sync_log")
         .update({
           status,
           record_count: totalSynced,
           records_synced: totalSynced,
+          records_found: totalFound,
+          records_skipped: pushResult.skipped,
           completed_at: new Date().toISOString(),
           ...(errorMsg
             ? { error_message: errorMsg, message: errorMsg }
@@ -219,6 +222,8 @@ export async function syncLateso(): Promise<LatesoSyncResult> {
           status: "error",
           record_count: 0,
           records_synced: 0,
+          records_found: 0,
+          records_skipped: 0,
           completed_at: new Date().toISOString(),
           error_message: message,
           message,

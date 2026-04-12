@@ -5,7 +5,8 @@ export async function logSync(
   source: string,
   status: "success" | "error" | "partial" | "running",
   recordCount: number,
-  error?: string
+  error?: string,
+  options?: { records_found?: number; records_skipped?: number }
 ): Promise<string | null> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
@@ -15,6 +16,8 @@ export async function logSync(
     status,
     record_count: recordCount,
     records_synced: recordCount,
+    records_found: options?.records_found ?? recordCount,
+    records_skipped: options?.records_skipped ?? 0,
     started_at: now,
     ...(status !== "running" ? { completed_at: now } : {}),
     ...(error ? { error_message: error, message: error } : {}),
