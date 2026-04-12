@@ -40,7 +40,8 @@ export async function logSync(
   source: string,
   status: "success" | "error" | "partial" | "running" | "warning",
   recordCount: number,
-  error?: string
+  error?: string,
+  options?: { records_found?: number; records_skipped?: number }
 ): Promise<string | null> {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
@@ -50,6 +51,8 @@ export async function logSync(
     status,
     record_count: recordCount,
     records_synced: recordCount,
+    records_found: options?.records_found ?? recordCount,
+    records_skipped: options?.records_skipped ?? 0,
     started_at: now,
     ...(status !== "running" ? { completed_at: now } : {}),
     ...(error ? { error_message: error, message: error } : {}),
@@ -72,7 +75,8 @@ async function updateSyncLog(
   id: string,
   status: "success" | "error" | "partial",
   recordCount: number,
-  error?: string
+  error?: string,
+  options?: { records_found?: number; records_skipped?: number }
 ): Promise<void> {
   const supabase = createServiceClient();
   await supabase
@@ -81,6 +85,8 @@ async function updateSyncLog(
       status,
       record_count: recordCount,
       records_synced: recordCount,
+      records_found: options?.records_found ?? recordCount,
+      records_skipped: options?.records_skipped ?? 0,
       completed_at: new Date().toISOString(),
       ...(error ? { error_message: error, message: error } : {}),
     })
@@ -101,14 +107,14 @@ export async function syncTransactions(): Promise<SyncSummary> {
 
   if (itemsError) {
     if (logId) {
-      await updateSyncLog(logId, "error", 0, itemsError.message);
+      await updateSyncLog(logId, "error", 0, itemsError.message, { records_found: 0, records_skipped: 0 });
     }
     return { success: false, synced: 0, errors: 1, results: [] };
   }
 
   if (!items || items.length === 0) {
     if (logId) {
-      await updateSyncLog(logId, "success", 0);
+      await updateSyncLog(logId, "success", 0, undefined, { records_found: 0, records_skipped: 0 });
     }
     return { success: true, synced: 0, errors: 0, results: [] };
   }
@@ -224,7 +230,7 @@ export async function syncTransactions(): Promise<SyncSummary> {
     const errorMsg = totalErrors > 0
       ? `${totalErrors} item(s) failed to sync`
       : undefined;
-    await updateSyncLog(logId, status, totalSynced, errorMsg);
+    await updateSyncLog(logId, status, totalSynced, errorMsg, { records_found: totalSynced, records_skipped: 0 });
   }
 
   return {

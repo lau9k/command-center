@@ -254,6 +254,8 @@ export async function syncGranola(): Promise<GranolaSyncResult> {
           status,
           record_count: synced,
           records_synced: synced,
+          records_found: meetings.length,
+          records_skipped: skipped,
           completed_at: new Date().toISOString(),
           ...(errorMsg
             ? { error_message: errorMsg, message: errorMsg }
@@ -272,6 +274,8 @@ export async function syncGranola(): Promise<GranolaSyncResult> {
           status: "error",
           record_count: 0,
           records_synced: 0,
+          records_found: 0,
+          records_skipped: 0,
           completed_at: new Date().toISOString(),
           error_message: message,
           message,

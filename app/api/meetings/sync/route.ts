@@ -345,6 +345,8 @@ export const POST = withErrorHandler(withAuth(async function POST(_request, _use
           status,
           record_count: synced,
           records_synced: synced,
+          records_found: granolaMeetings.length,
+          records_skipped: skipped,
           completed_at: new Date().toISOString(),
           ...(errors > 0
             ? { error_message: `${errors} meeting(s) failed`, message: `${errors} meeting(s) failed` }
@@ -366,6 +368,8 @@ export const POST = withErrorHandler(withAuth(async function POST(_request, _use
           status: "error",
           record_count: 0,
           records_synced: 0,
+          records_found: 0,
+          records_skipped: 0,
           completed_at: new Date().toISOString(),
           error_message: message,
           message,

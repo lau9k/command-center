@@ -90,7 +90,8 @@ async function validateItems<T>(
         `n8n:${entityType}`,
         "error",
         0,
-        `Validation failed: ${fieldErrors}`
+        `Validation failed: ${fieldErrors}`,
+        { records_found: 1, records_skipped: 1 }
       );
       // Record the failure in ingest_events for observability
       void supabase.from("ingest_events").insert({
@@ -205,7 +206,7 @@ async function processContactPayload(
     .select();
 
   if (error) {
-    void logSync("n8n:contacts", "error", 0, error.message);
+    void logSync("n8n:contacts", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
     throw new Error(error.message);
   }
 
@@ -219,7 +220,7 @@ async function processContactPayload(
       source: "n8n",
     });
   }
-  void logSync("n8n:contacts", "success", results.length);
+  void logSync("n8n:contacts", "success", results.length, undefined, { records_found: items.length, records_skipped: invalidCount });
   return { invalidCount };
 }
 
@@ -291,7 +292,7 @@ async function processConversationPayload(
     .select();
 
   if (error) {
-    void logSync("n8n:conversations", "error", 0, error.message);
+    void logSync("n8n:conversations", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
     throw new Error(error.message);
   }
 
@@ -305,7 +306,7 @@ async function processConversationPayload(
       source: "n8n",
     });
   }
-  void logSync("n8n:conversations", "success", results.length);
+  void logSync("n8n:conversations", "success", results.length, undefined, { records_found: items.length, records_skipped: invalidCount });
   return { invalidCount };
 }
 
@@ -410,7 +411,7 @@ async function processTaskPayload(
     .select();
 
   if (error) {
-    void logSync("n8n:tasks", "error", 0, error.message);
+    void logSync("n8n:tasks", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
     throw new Error(error.message);
   }
 
@@ -424,7 +425,7 @@ async function processTaskPayload(
       source: "n8n",
     });
   }
-  void logSync("n8n:tasks", "success", results.length);
+  void logSync("n8n:tasks", "success", results.length, undefined, { records_found: items.length, records_skipped: invalidCount });
   return { invalidCount };
 }
 
@@ -484,7 +485,7 @@ async function processTransactionPayload(
     .select();
 
   if (error) {
-    void logSync("n8n:transactions", "error", 0, error.message);
+    void logSync("n8n:transactions", "error", 0, error.message, { records_found: enriched.length, records_skipped: enriched.length });
     throw new Error(error.message);
   }
 
@@ -498,7 +499,7 @@ async function processTransactionPayload(
       source: "n8n",
     });
   }
-  void logSync("n8n:transactions", "success", results.length);
+  void logSync("n8n:transactions", "success", results.length, undefined, { records_found: items.length, records_skipped: invalidCount });
   return { invalidCount };
 }
 
@@ -595,7 +596,8 @@ export async function processUnprocessedEvents(): Promise<ProcessResult> {
             `n8n:${event.entity_type}`,
             "error",
             0,
-            `Schema cache retry (attempt ${event.attempt_count + 1}): ${message}`
+            `Schema cache retry (attempt ${event.attempt_count + 1}): ${message}`,
+            { records_found: 0, records_skipped: 0 }
           );
           await new Promise((resolve) => setTimeout(resolve, 1000));
           result = await processor(supabase, event.payload);

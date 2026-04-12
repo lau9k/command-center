@@ -96,14 +96,14 @@ export async function syncGmail(): Promise<GmailSyncSummary> {
 
   if (accountsError) {
     if (logId) {
-      await updateSyncLog(logId, "error", 0, accountsError.message);
+      await updateSyncLog(logId, "error", 0, accountsError.message, { records_found: 0, records_skipped: 0 });
     }
     return { success: false, synced: 0, errors: 1, results: [] };
   }
 
   if (!accounts || accounts.length === 0) {
     if (logId) {
-      await updateSyncLog(logId, "success", 0);
+      await updateSyncLog(logId, "success", 0, undefined, { records_found: 0, records_skipped: 0 });
     }
     return { success: true, synced: 0, errors: 0, results: [] };
   }
@@ -153,7 +153,7 @@ export async function syncGmail(): Promise<GmailSyncSummary> {
       totalErrors > 0
         ? `${totalErrors} account(s) failed to sync`
         : undefined;
-    await updateSyncLog(logId, status, totalSynced, errorMsg);
+    await updateSyncLog(logId, status, totalSynced, errorMsg, { records_found: totalSynced, records_skipped: 0 });
   }
 
   return {
@@ -477,7 +477,8 @@ async function updateSyncLog(
   id: string,
   status: "success" | "error" | "partial",
   recordCount: number,
-  error?: string
+  error?: string,
+  options?: { records_found?: number; records_skipped?: number }
 ): Promise<void> {
   const supabase = createServiceClient();
   await supabase
@@ -486,6 +487,8 @@ async function updateSyncLog(
       status,
       record_count: recordCount,
       records_synced: recordCount,
+      records_found: options?.records_found ?? recordCount,
+      records_skipped: options?.records_skipped ?? 0,
       completed_at: new Date().toISOString(),
       ...(error ? { error_message: error, message: error } : {}),
     })
