@@ -16,6 +16,8 @@ async function handleSync(request: NextRequest) {
       pulled: result.pulled,
       skipped: result.skipped,
       errors: result.errors,
+      orphansRequeued: result.orphansRequeued,
+      orphansFailed: result.orphansFailed,
     },
     { status: result.success ? 200 : 207 }
   );

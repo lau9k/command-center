@@ -10,6 +10,8 @@ interface LatesoSyncResult {
   pulled: number;
   skipped: number;
   errors: number;
+  orphansRequeued: number;
+  orphansFailed: number;
 }
 
 /**
@@ -167,6 +169,100 @@ async function pullStatusUpdates(): Promise<{
   return { pulled, errors };
 }
 
+// ---------------------------------------------------------------------------
+// Reconcile orphan posts
+// ---------------------------------------------------------------------------
+
+export interface OrphanReconcileResult {
+  requeued: number;
+  failed: number;
+  errors: number;
+}
+
+/**
+ * Find content_posts stuck as "scheduled" with no late_post_id (orphans).
+ * For each orphan older than 1 hour:
+ *   - Try to re-submit to Late.so
+ *   - If that fails, mark the post as "failed" with error_message
+ */
+export async function reconcileOrphanPosts(): Promise<OrphanReconcileResult> {
+  const supabase = createServiceClient();
+
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const { data: orphans, error } = await supabase
+    .from("content_posts")
+    .select("*")
+    .eq("status", "scheduled")
+    .is("late_post_id", null)
+    .lt("updated_at", oneHourAgo);
+
+  if (error) {
+    throw new Error(`Failed to fetch orphan posts: ${error.message}`);
+  }
+
+  let requeued = 0;
+  let failed = 0;
+  let errors = 0;
+
+  for (const post of (orphans ?? []) as ContentPost[]) {
+    const text = post.body ?? post.title ?? "";
+    if (!text) {
+      // No content to submit — mark failed
+      await supabase
+        .from("content_posts")
+        .update({
+          status: "failed" as ContentPostStatus,
+          error_message: "orphan_no_late_post_id",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", post.id);
+      failed++;
+      continue;
+    }
+
+    const platform = post.platform ?? post.platforms?.[0] ?? "twitter";
+
+    try {
+      const latesoPost = await schedulePost({
+        text,
+        platform,
+        scheduledFor: post.scheduled_for ?? undefined,
+        mediaUrls: post.media_urls ?? undefined,
+      });
+
+      const { error: updateError } = await supabase
+        .from("content_posts")
+        .update({
+          late_post_id: latesoPost.id,
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", post.id);
+
+      if (updateError) {
+        errors++;
+        continue;
+      }
+
+      requeued++;
+    } catch {
+      // Re-submission failed — mark the post as failed
+      await supabase
+        .from("content_posts")
+        .update({
+          status: "failed" as ContentPostStatus,
+          error_message: "orphan_no_late_post_id",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", post.id);
+      failed++;
+    }
+  }
+
+  return { requeued, failed, errors };
+}
+
 /**
  * Orchestrate bidirectional sync: push new posts, then pull status updates.
  */
@@ -179,9 +275,12 @@ export async function syncLateso(): Promise<LatesoSyncResult> {
 
     const pushResult = await pushNewPosts(lastSync);
     const pullResult = await pullStatusUpdates();
+    const orphanResult = await reconcileOrphanPosts();
 
-    const totalErrors = pushResult.errors + pullResult.errors;
-    const totalSynced = pushResult.pushed + pullResult.pulled;
+    const totalErrors =
+      pushResult.errors + pullResult.errors + orphanResult.errors;
+    const totalSynced =
+      pushResult.pushed + pullResult.pulled + orphanResult.requeued;
     const status =
       totalErrors > 0 ? (totalSynced > 0 ? "partial" : "error") : "success";
 
@@ -209,6 +308,8 @@ export async function syncLateso(): Promise<LatesoSyncResult> {
       pulled: pullResult.pulled,
       skipped: pushResult.skipped,
       errors: totalErrors,
+      orphansRequeued: orphanResult.requeued,
+      orphansFailed: orphanResult.failed,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -225,6 +326,14 @@ export async function syncLateso(): Promise<LatesoSyncResult> {
         })
         .eq("id", logId);
     }
-    return { success: false, pushed: 0, pulled: 0, skipped: 0, errors: 1 };
+    return {
+      success: false,
+      pushed: 0,
+      pulled: 0,
+      skipped: 0,
+      errors: 1,
+      orphansRequeued: 0,
+      orphansFailed: 0,
+    };
   }
 }
