@@ -182,12 +182,36 @@ export async function syncGranola(): Promise<GranolaSyncResult> {
         );
 
         if (!contactId) {
-          skipped++;
-          continue;
+          await logSync(
+            "granola",
+            "warning",
+            0,
+            `No contact match for meeting ${meeting.id} (${meeting.title})`
+          );
+          console.warn(
+            `[granola-sync] No contact match for meeting ${meeting.id} (${meeting.title})`
+          );
         }
 
         // Transform and insert directly (using service client, not the ingest endpoint)
-        const payload = transformToConversation(meeting, contactId);
+        const payload = contactId
+          ? transformToConversation(meeting, contactId)
+          : {
+              contact_id: null as string | null,
+              summary: meeting.summary ?? meeting.title,
+              channel: "meeting" as const,
+              last_message_at: meeting.meeting_date ?? meeting.created_at,
+              metadata: {
+                granola_id: meeting.granola_id,
+                meeting_id: meeting.id,
+                title: meeting.title,
+                attendees: (meeting.attendees as MeetingAttendee[])
+                  .map((a) => a.name)
+                  .filter(Boolean)
+                  .join(", "),
+                source: "meeting",
+              },
+            };
 
         const { error: insertError } = await supabase
           .from("conversations")
@@ -205,7 +229,15 @@ export async function syncGranola(): Promise<GranolaSyncResult> {
         }
 
         synced++;
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await logSync(
+          "granola",
+          "error",
+          0,
+          `[syncMeeting] ${msg}`
+        );
+        console.error("[granola-sync] syncMeeting:", err);
         errors++;
       }
     }

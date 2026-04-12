@@ -38,7 +38,7 @@ export async function getLastSyncDate(): Promise<string | null> {
 
 export async function logSync(
   source: string,
-  status: "success" | "error" | "partial" | "running",
+  status: "success" | "error" | "partial" | "running" | "warning",
   recordCount: number,
   error?: string
 ): Promise<string | null> {

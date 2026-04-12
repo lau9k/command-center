@@ -91,7 +91,10 @@ async function pushNewPosts(
       }
 
       pushed++;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await logSync("lateso", "error", 0, `[pushNewPosts] ${msg}`);
+      console.error("[lateso-sync] pushNewPosts:", err);
       errors++;
     }
   }
@@ -159,7 +162,10 @@ async function pullStatusUpdates(): Promise<{
       }
 
       pulled++;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await logSync("lateso", "error", 0, `[pullStatusUpdates] ${msg}`);
+      console.error("[lateso-sync] pullStatusUpdates:", err);
       errors++;
     }
   }
