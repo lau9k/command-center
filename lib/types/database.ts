@@ -255,6 +255,7 @@ export interface ContentPost {
   published_at: string | null;
   engagement: Record<string, unknown>;
   buffer_id: string | null;
+  error_message: string | null;
   personize_sync_status?: PersonizeSyncStatus;
   personize_synced_at?: string | null;
   created_at: string;
