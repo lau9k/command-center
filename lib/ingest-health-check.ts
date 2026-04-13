@@ -46,6 +46,7 @@ const SOURCES: SourceConfig[] = [
   { source: "granola", freshness_hours: 12, warn_on_zero_records: true },
   { source: "lateso", freshness_hours: 4, warn_on_zero_records: false },
   { source: "plaid", freshness_hours: 26, warn_on_zero_records: false },
+  { source: "n8n:conversations", freshness_hours: 4, warn_on_zero_records: false },
 ];
 
 // ---------------------------------------------------------------------------

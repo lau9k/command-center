@@ -30,6 +30,7 @@ export async function logSync(
     .single();
 
   if (insertError) {
+    console.error(`[logSync] Failed to insert sync_log row for ${source}:`, insertError.message);
     return null;
   }
 

@@ -281,13 +281,14 @@ export async function logBatchToSyncLog(
         : "error"
       : "success";
 
-  await supabase.from("sync_log").insert({
+  const { error: insertError } = await supabase.from("sync_log").insert({
     source: "gmail",
     status,
     started_at: now,
     completed_at: now,
     records_found: recordsFound,
     records_synced: result.processed,
+    records_skipped: result.skipped,
     error_message:
       result.errors.length > 0
         ? result.errors.slice(0, 5).join("; ")
@@ -298,4 +299,8 @@ export async function logBatchToSyncLog(
       error_count: result.errors.length,
     },
   });
+
+  if (insertError) {
+    console.error("[logBatchToSyncLog] Failed to insert sync_log row:", insertError.message);
+  }
 }
