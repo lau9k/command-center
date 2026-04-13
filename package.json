@@ -9,6 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx scripts/seed-demo-data.ts",
+    "reconcile:dry": "npx tsx scripts/personize-supabase-reconcile.ts",
+    "reconcile:execute": "npx tsx scripts/personize-supabase-reconcile.ts --execute",
     "test": "vitest",
     "test:ci": "vitest run --reporter=default",
     "test:watch": "vitest"

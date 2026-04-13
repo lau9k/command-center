@@ -814,3 +814,19 @@ export interface ContactIdentityMapRow {
   last_verified_at: string;
   created_at: string;
 }
+
+export type ReconcileDirection = "personize_archive" | "supabase_to_personize";
+export type ReconcileDecision = "keep" | "archive" | "create" | "skip";
+
+export interface ReconcileLogRow {
+  id: string;
+  run_id: string;
+  direction: ReconcileDirection;
+  decision: ReconcileDecision;
+  personize_id: string | null;
+  supabase_id: string | null;
+  identifier_used: string | null;
+  identifier_type: "email" | "linkedin_url" | "name_company" | null;
+  reason: string | null;
+  created_at: string;
+}
