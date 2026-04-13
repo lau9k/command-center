@@ -21,10 +21,7 @@ import {
 // Each enforces required fields, format constraints, and enums
 // before data reaches the processor layer.
 
-export const ContactIngestSchema = ingestContactSchema.refine(
-  (d) => !d.email || d.email.trim().length > 0,
-  { message: "Email must not be an empty string" },
-);
+export const ContactIngestSchema = ingestContactSchema;
 
 export const ConversationIngestSchema = ingestConversationSchema.refine(
   (d) => !d.contact_email || d.contact_email.trim().length > 0,

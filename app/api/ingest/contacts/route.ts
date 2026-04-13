@@ -36,7 +36,7 @@ export const POST = withRateLimit(withErrorHandler(async function POST(request: 
   const errors: string[] = [];
 
   for (const item of items) {
-    const key = buildIdempotencyKey("n8n", "contact", item.email);
+    const key = buildIdempotencyKey("n8n", "contact", item.email ?? item.linkedin_url!);
     const result = await logIngestEvent({
       source: "n8n",
       entityType: "contact",
