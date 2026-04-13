@@ -341,7 +341,8 @@ export const updateSponsorSchema = createSponsorSchema.partial().extend({
 
 export const ingestContactSchema = z.object({
   name: z.string().min(1).max(500),
-  email: z.string().email().max(500),
+  email: z.string().email().max(500).optional().nullable(),
+  linkedin_url: z.string().url().max(500).optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   company: z.string().max(500).optional().nullable(),
   role: z.string().max(500).optional().nullable(),
@@ -351,6 +352,14 @@ export const ingestContactSchema = z.object({
   source: z.string().max(200).optional().nullable(),
   qualified_status: z.string().max(100).optional().nullable(),
   project_id: z.string().uuid().optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (!data.email && !data.linkedin_url) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "email or linkedin_url required",
+    });
+  }
 });
 
 // ── Webhook Ingest: Conversations ────────────────────────

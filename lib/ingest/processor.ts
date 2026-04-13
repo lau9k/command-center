@@ -200,23 +200,42 @@ async function processContactPayload(
     return picked;
   });
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .upsert(rows, { onConflict: "email" })
-    .select();
+  // Split rows by available identifier for correct upsert conflict target
+  const emailRows = rows.filter((r) => r.email);
+  const linkedinOnlyRows = rows.filter((r) => !r.email && r.linkedin_url);
 
-  if (error) {
-    void logSync("n8n:contacts", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
-    throw new Error(error.message);
+  const results: Record<string, unknown>[] = [];
+
+  if (emailRows.length > 0) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .upsert(emailRows, { onConflict: "email" })
+      .select();
+    if (error) {
+      void logSync("n8n:contacts", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
+      throw new Error(error.message);
+    }
+    results.push(...(data ?? []));
   }
 
-  const results = data ?? [];
+  if (linkedinOnlyRows.length > 0) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .upsert(linkedinOnlyRows, { onConflict: "linkedin_url" })
+      .select();
+    if (error) {
+      void logSync("n8n:contacts", "error", 0, error.message, { records_found: rows.length, records_skipped: rows.length });
+      throw new Error(error.message);
+    }
+    results.push(...(data ?? []));
+  }
+
   for (const row of results) {
     void logActivity({
       action: "ingested",
       entity_type: "contact",
-      entity_id: row.id,
-      entity_name: row.name,
+      entity_id: row.id as string,
+      entity_name: row.name as string,
       source: "n8n",
     });
   }
