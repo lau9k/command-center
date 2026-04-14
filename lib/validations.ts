@@ -538,6 +538,24 @@ export const batchMemorizeSchema = z.object({
     .max(500, "Maximum 500 rows per request"),
 });
 
+// ── Context Docs ─────────────────────────────────────────
+
+export const contextDocTypeEnum = z.enum([
+  "guideline",
+  "playbook",
+  "reference",
+  "template",
+  "brief",
+]);
+
+export const saveContextDocSchema = z.object({
+  id: z.string().max(200).optional(),
+  type: contextDocTypeEnum,
+  title: z.string().min(1).max(500),
+  content: z.string().min(1).max(100000),
+  tags: z.array(z.string().max(100)).max(50).optional(),
+});
+
 // ── UUID param helper ─────────────────────────────────────
 
 export const uuidParam = z.string().uuid();
