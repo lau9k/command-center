@@ -127,7 +127,7 @@ export async function batchMemorize(
     const rows = chunk.map((c) => contactToRow(c));
 
     try {
-      await client.memory.memorizeBatch({
+      await client.memory.saveBatch({
         source: "csv-import",
         mapping,
         rows,

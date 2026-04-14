@@ -24,12 +24,10 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request body", details: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
-    const { content, tags, collectionId, email } = parsed.data;
+    const { content, collectionId, email } = parsed.data;
 
-    const response = await client.memory.memorize({
+    const response = await client.memory.save({
       content,
-      tags,
-      enhanced: true,
       ...(collectionId ? { collectionIds: [collectionId] } : {}),
       ...(email ? { email } : {}),
     });

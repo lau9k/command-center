@@ -68,12 +68,10 @@ export const GET = withErrorHandler(
     }
 
     try {
-      const response = await client.memory.smartRecall({
-        query: "gmail communication history email threads",
+      const response = await client.memory.retrieve({
+        message: "gmail communication history email threads",
         email: contactEmail,
-        include_property_values: true,
-        fast_mode: true,
-        min_score: 0.2,
+        mode: "fast",
       });
 
       const data = response.data as {

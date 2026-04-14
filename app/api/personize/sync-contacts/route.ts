@@ -132,7 +132,7 @@ async function handleSync(request: NextRequest) {
 
     // Memorize as a single batch (max 50)
     try {
-      const result = await client.memory.memorizeBatch({
+      const result = await client.memory.saveBatch({
         source: "n8n-ingest",
         mapping,
         rows,
@@ -171,7 +171,7 @@ async function handleSync(request: NextRequest) {
       for (const contact of contacts) {
         try {
           const singleRow = contactToRow(contact);
-          await client.memory.memorizeBatch({
+          await client.memory.saveBatch({
             source: "n8n-ingest",
             mapping,
             rows: [singleRow],

@@ -24,18 +24,14 @@ export const GET = withAuth(async function GET(request: NextRequest, _user) {
 
   try {
     const message = "full context digest";
-    const response = await client.memory.smartRecall({
-      query: message,
+    const response = await client.memory.retrieve({
       message,
       ...(email ? { email } : {}),
-      ...(recordId ? { record_id: recordId } : {}),
-      include_property_values: true,
+      ...(recordId ? { recordId } : {}),
       mode: "deep",
-      generate_answer: true,
-      ...(tokenBudget
-        ? { token_budget: parseInt(tokenBudget, 10) }
-        : { token_budget: 1000 }),
-    } as Parameters<typeof client.memory.smartRecall>[0]);
+      generateAnswer: true,
+      tokenBudget: tokenBudget ? parseInt(tokenBudget, 10) : 1000,
+    });
 
     return NextResponse.json({ data: response.data });
   } catch (error) {

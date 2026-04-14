@@ -115,10 +115,10 @@ export async function getSmartGuidelines(
   query: string
 ): Promise<SmartGuidelinesResponse | null> {
   try {
-    const response = await client.ai.smartGuidelines({ message: query });
+    const response = await client.context.retrieve({ message: query, types: ["guideline"] });
     return response.data ?? null;
   } catch (error) {
-    console.error("[Personize] smartGuidelines failed:", error);
+    console.error("[Personize] context.retrieve failed:", error);
     return null;
   }
 }
@@ -248,19 +248,17 @@ export async function generateWithPersonizeContext(
 
 export async function memorize(
   content: string,
-  tags: string[],
+  _tags: string[],
   email?: string
 ): Promise<boolean> {
   try {
-    await client.memory.memorize({
+    await client.memory.save({
       content,
-      tags,
-      enhanced: true,
       ...(email ? { email } : {}),
     });
     return true;
   } catch (error) {
-    console.error("[Personize] memorize failed:", error);
+    console.error("[Personize] save failed:", error);
     return false;
   }
 }

@@ -274,7 +274,7 @@ async function main() {
     const rows = chunk.map(contactToRow);
 
     try {
-      await client.memory.memorizeBatch({
+      await client.memory.saveBatch({
         source: "csv-import",
         mapping,
         rows,

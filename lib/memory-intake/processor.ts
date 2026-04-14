@@ -79,11 +79,9 @@ export async function processMemoryIntakeQueue(): Promise<ProcessResult> {
     }
 
     try {
-      // Call Personize memorize
-      const response = await client.memory.memorize({
+      // Call Personize save
+      const response = await client.memory.save({
         content: entry.content,
-        tags: ["memory-intake", entry.source_ref],
-        enhanced: true,
         ...(entry.target_email ? { email: entry.target_email } : {}),
       });
 
