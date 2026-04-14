@@ -96,10 +96,9 @@ async function handleCacheMemories(request: NextRequest) {
       const contact = staleContacts[i];
 
       try {
-        const result = await client.memory.smartRecall({
-          query: "summary key facts recent context",
+        const result = await client.memory.retrieve({
+          message: "summary key facts recent context",
           email: contact.email,
-          include_property_values: true,
         });
 
         const results: SmartRecallResult[] =

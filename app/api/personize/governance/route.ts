@@ -55,12 +55,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const message = "governance variables brand voice ICP playbook competitor policy";
-    const response = await client.memory.smartRecall({
-      query: message,
+    const response = await client.memory.retrieve({
       message,
-      collectionIds: [GOVERNANCE_COLLECTION_ID],
-      min_score: 0.0,
-      fast_mode: true,
+      mode: "fast",
     });
 
     const data = response.data as {
@@ -180,15 +177,8 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join("\n");
 
-    const response = await client.memory.memorize({
+    const response = await client.memory.save({
       content: formattedContent,
-      tags: [
-        GOVERNANCE_TAG,
-        `governance:${category}`,
-        `governance-name:${name}`,
-        ...triggerKeywords,
-      ],
-      enhanced: true,
       collectionIds: [GOVERNANCE_COLLECTION_ID],
     });
 

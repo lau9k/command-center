@@ -452,10 +452,8 @@ async function archivePersonizeContacts(
           // Fallback: memorize an archive marker
           const { Personize } = await import("@personize/sdk");
           const client = new Personize({ secretKey: personizeSecret! });
-          await client.memory.memorize({
+          await client.memory.save({
             content: `ARCHIVED: ${entry.reason}. Record ${entry.personize_id} archived during Personize↔Supabase reconciliation.`,
-            tags: ["archived", "reconciliation"],
-            enhanced: false,
           });
         }
 
@@ -513,10 +511,8 @@ async function reverseSync(supabaseContacts: SupabaseContact[]): Promise<{
         if (contact.email) parts.push(`Email: ${contact.email}`);
         if (contact.company) parts.push(`Company: ${contact.company}`);
 
-        await client.memory.memorize({
+        await client.memory.save({
           content: parts.join("\n"),
-          tags: ["contacts", "supabase-sync"],
-          enhanced: true,
           ...(contact.email ? { email: contact.email } : {}),
         });
 
