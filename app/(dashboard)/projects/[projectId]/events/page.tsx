@@ -123,7 +123,7 @@ export default async function EventsListPage({
         </div>
       ) : (
         <EmptyState
-          icon={CalendarDays}
+          icon={<CalendarDays />}
           title="No events yet"
           description="Create your first event to start tracking hackathons and meetups for this project."
         />

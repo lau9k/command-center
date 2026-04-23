@@ -68,7 +68,7 @@ export default async function ProjectPipelinePage({
           </p>
         </div>
         <EmptyState
-          icon={Kanban}
+          icon={<Kanban />}
           title="No pipeline stages yet"
           description="Set up pipeline stages for this project to start tracking deals."
         />
