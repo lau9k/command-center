@@ -33,7 +33,7 @@ export default async function ProjectContentPage({
 
       {typedPosts.length === 0 ? (
         <EmptyState
-          icon={CalendarDays}
+          icon={<CalendarDays />}
           title="No content posts yet"
           description="Schedule your first post to start managing content for this project."
         />
