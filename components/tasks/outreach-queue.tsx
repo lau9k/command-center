@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Send,
@@ -119,6 +120,21 @@ interface OutreachKpis {
 
 export function OutreachQueue() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const showDone = searchParams.get("showDone") === "1";
+
+  const toggleShowDone = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (showDone) {
+      params.delete("showDone");
+    } else {
+      params.set("showDone", "1");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams, showDone]);
 
   const { data: allTasks = [] } = useQuery<TaskWithProject[]>({
     queryKey: ["tasks", "list"],
@@ -315,6 +331,7 @@ export function OutreachQueue() {
   /* ─── filtering & sorting ─── */
 
   const filtered = outreachTasks.filter((t) => {
+    if (!showDone && t.status === "done") return false;
     if (filterOutreachStatus !== ALL_VALUE) {
       const taskOs = t.outreach_status ?? "queued";
       if (taskOs !== filterOutreachStatus) return false;
@@ -446,6 +463,15 @@ export function OutreachQueue() {
             ))}
           </SelectContent>
         </Select>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleShowDone}
+          aria-pressed={showDone}
+        >
+          {showDone ? "Hide completed" : "Show completed"}
+        </Button>
       </div>
 
       {/* Batch Action Bar */}

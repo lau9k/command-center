@@ -4,7 +4,9 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
 import { toast } from "sonner";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Drawer } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 import { TaskBoardColumn } from "./task-board-column";
 import type {
   TaskWithProject,
@@ -19,12 +21,25 @@ import { useGovernanceCheck, type GovernanceMap } from "@/lib/hooks/useGovernanc
 import { updateTaskStatus } from "@/lib/actions/tasks";
 import { SYSTEM_TAGS } from "@/lib/constants/tags";
 
-const COLUMNS: { status: TaskStatus; label: string; dotClass: string; borderClass: string }[] = [
+type ColumnConfig = {
+  status: TaskStatus;
+  label: string;
+  dotClass: string;
+  borderClass: string;
+};
+
+const OPEN_COLUMNS: ColumnConfig[] = [
   { status: "todo", label: "To Do", dotClass: "bg-blue-500", borderClass: "border-l-blue-500" },
   { status: "in_progress", label: "In Progress", dotClass: "bg-yellow-500", borderClass: "border-l-yellow-500" },
-  { status: "done", label: "Done", dotClass: "bg-green-500", borderClass: "border-l-green-500" },
   { status: "blocked", label: "Blocked", dotClass: "bg-red-500", borderClass: "border-l-red-500" },
 ];
+
+const DONE_COLUMN: ColumnConfig = {
+  status: "done",
+  label: "Done",
+  dotClass: "bg-green-500",
+  borderClass: "border-l-green-500",
+};
 
 const PRIORITY_ORDER: Record<TaskPriority, number> = {
   critical: 0,
@@ -153,7 +168,27 @@ function DrawerContent({ task }: { task: TaskWithProject }) {
 
 export function TaskBoard() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const showDone = searchParams.get("showDone") === "1";
   const [selectedTask, setSelectedTask] = useState<TaskWithProject | null>(null);
+
+  const toggleShowDone = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (showDone) {
+      params.delete("showDone");
+    } else {
+      params.set("showDone", "1");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams, showDone]);
+
+  const columns = useMemo<ColumnConfig[]>(
+    () => (showDone ? [...OPEN_COLUMNS, DONE_COLUMN] : OPEN_COLUMNS),
+    [showDone]
+  );
 
   const { data: tasks = [] } = useQuery<TaskWithProject[]>({
     queryKey: ["tasks", "list"],
@@ -235,10 +270,20 @@ export function TaskBoard() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleShowDone}
+          aria-pressed={showDone}
+        >
+          {showDone ? "Hide done column" : "Show done column"}
+        </Button>
+      </div>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <TaskBoardColumn
               key={col.status}
               status={col.status}

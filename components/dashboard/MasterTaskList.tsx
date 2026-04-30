@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus,
@@ -95,18 +96,55 @@ function sortTasks(tasks: TaskWithProject[]): TaskWithProject[] {
 
 const ALL_VALUE = "__all__";
 
-const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = [
-  { label: "All", value: ALL_VALUE },
-  { label: "Todo", value: "todo" },
-  { label: "In Progress", value: "in_progress" },
-  { label: "Blocked", value: "blocked" },
-  { label: "Done", value: "done" },
+const OPEN_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
+
+type StatusFilter = "open" | "all" | TaskStatus;
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "open", label: "Open work" },
+  { value: "all", label: "All" },
+  { value: "todo", label: "To-do" },
+  { value: "in_progress", label: "In-progress" },
+  { value: "blocked", label: "Blocked" },
+  { value: "done", label: "Done" },
 ];
+
+function parseStatusFilter(value: string | null | undefined): StatusFilter {
+  if (
+    value === "open" ||
+    value === "all" ||
+    value === "todo" ||
+    value === "in_progress" ||
+    value === "blocked" ||
+    value === "done"
+  ) {
+    return value;
+  }
+  return "open";
+}
 
 export function MasterTaskList({
   kpis,
 }: MasterTaskListProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filterStatus = parseStatusFilter(searchParams.get("filter"));
+
+  const setFilterStatus = useCallback(
+    (next: StatusFilter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "open") {
+        params.delete("filter");
+      } else {
+        params.set("filter", next);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const { data: tasks = [], isFetching: isFetchingTasks } = useQuery<TaskWithProject[]>({
     queryKey: ["tasks", "list"],
@@ -142,7 +180,6 @@ export function MasterTaskList({
 
   const [filterProject, setFilterProject] = useState<string>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
   const [filterType, setFilterType] = useState<string>(ALL_VALUE);
 
   const refreshTasks = useCallback(async () => {
@@ -260,7 +297,11 @@ export function MasterTaskList({
   const applyFilters = (t: TaskWithProject) => {
     if (filterProject !== ALL_VALUE && t.project_id !== filterProject) return false;
     if (filterPriority !== ALL_VALUE && t.priority !== filterPriority) return false;
-    if (filterStatus !== ALL_VALUE && t.status !== filterStatus) return false;
+    if (filterStatus === "open") {
+      if (!OPEN_STATUSES.includes(t.status)) return false;
+    } else if (filterStatus !== "all" && t.status !== filterStatus) {
+      return false;
+    }
     if (filterType === "outreach") {
       if (!t.tags?.some((tag) => tag.toLowerCase() === "outreach")) return false;
     } else if (filterType === "cross-project") {
@@ -283,10 +324,26 @@ export function MasterTaskList({
 
   const sorted = sortTasks(filtered);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<TaskStatus, number> = {
+      todo: 0,
+      in_progress: 0,
+      blocked: 0,
+      done: 0,
+    };
+    for (const t of tasks) {
+      counts[t.status] += 1;
+    }
+    return counts;
+  }, [tasks]);
+
+  // "All" and individual statuses are considered non-default — "open" is the baseline.
+  const isNonDefaultStatus = filterStatus !== "open";
+
   const hasFilters =
     filterProject !== ALL_VALUE ||
     filterPriority !== ALL_VALUE ||
-    filterStatus !== ALL_VALUE ||
+    isNonDefaultStatus ||
     filterType !== ALL_VALUE ||
     search.trim().length > 0;
 
@@ -320,29 +377,29 @@ export function MasterTaskList({
         />
       </section>
 
-      {/* Status tabs + action buttons */}
+      {/* Status filter + action buttons */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {STATUS_CHIPS.map((chip) => (
-            <button
-              key={chip.value}
-              type="button"
-              onClick={() => setFilterStatus(chip.value)}
-              className={cn(
-                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-                filterStatus === chip.value
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
-              )}
-            >
-              {chip.label}
-              {chip.value !== ALL_VALUE && (
-                <span className="ml-1.5 tabular-nums">
-                  {tasks.filter((t) => t.status === chip.value).length}
-                </span>
-              )}
-            </button>
-          ))}
+          <Select
+            value={filterStatus}
+            onValueChange={(v) => setFilterStatus(v as StatusFilter)}
+          >
+            <SelectTrigger size="sm" className="min-w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                  {opt.value !== "open" && opt.value !== "all" && (
+                    <span className="ml-1.5 text-muted-foreground tabular-nums">
+                      ({statusCounts[opt.value]})
+                    </span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {isFetchingTasks && (
             <RefreshCw className="size-4 animate-spin text-muted-foreground" />
           )}
@@ -420,7 +477,7 @@ export function MasterTaskList({
             onClick={() => {
               setFilterProject(ALL_VALUE);
               setFilterPriority(ALL_VALUE);
-              setFilterStatus(ALL_VALUE);
+              setFilterStatus("open");
               setFilterType(ALL_VALUE);
             }}
           >
@@ -442,7 +499,7 @@ export function MasterTaskList({
           icon={hasFilters ? <ListFilter /> : <CheckSquare />}
           title={hasFilters ? "No results match your filters" : "No tasks yet"}
           description={hasFilters ? "Try adjusting or clearing your filters to see tasks." : "Create your first task to start tracking work across projects."}
-          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus(ALL_VALUE); setFilterType(ALL_VALUE); setSearch(""); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
+          action={hasFilters ? { label: "Clear filters", onClick: () => { setFilterProject(ALL_VALUE); setFilterPriority(ALL_VALUE); setFilterStatus("open"); setFilterType(ALL_VALUE); setSearch(""); } } : { label: "+ Add Task", onClick: handleOpenCreate }}
         />
       ) : (
         <div className="space-y-2">
