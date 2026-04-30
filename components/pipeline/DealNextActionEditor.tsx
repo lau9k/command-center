@@ -84,7 +84,7 @@ export function DealNextActionEditor({ nextAction, nextActionDue, onUpdate }: Pr
               <div className="space-y-3">
                 <div>
                   <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    What's next?
+                    Next steps
                   </label>
                   <textarea
                     value={draft}

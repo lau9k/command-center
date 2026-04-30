@@ -47,6 +47,130 @@ function DrawerContent(props: {
   return <DealDrawerView {...props} />;
 }
 
+function MobileListView({
+  stages,
+  itemsByStage,
+  onCardClick,
+  onQuickAdd,
+}: {
+  stages: PipelineStage[];
+  itemsByStage: Map<string, PipelineItemData[]>;
+  onCardClick: (item: PipelineItemData) => void;
+  onQuickAdd: (stageId: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggleStage = (stageId: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(stageId)) next.delete(stageId);
+      else next.add(stageId);
+      return next;
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-3 md:hidden">
+      {stages.map((stage) => {
+        const stageItems = itemsByStage.get(stage.id) ?? [];
+        const isCollapsed = collapsed.has(stage.id);
+
+        return (
+          <div key={stage.id} className="rounded-lg border border-border">
+            {/* Stage header */}
+            <button
+              type="button"
+              onClick={() => toggleStage(stage.id)}
+              className="flex w-full items-center gap-2 px-3 py-2.5"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="size-4 text-muted-foreground" />
+              )}
+              <span
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: stage.color ?? "#6B7280" }}
+              />
+              <span className="text-sm font-semibold text-foreground">
+                {stage.name}
+              </span>
+              <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
+                {stageItems.length}
+              </span>
+            </button>
+
+            {/* Stage items */}
+            {!isCollapsed && (
+              <div className="border-t border-border">
+                {stageItems.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-6">
+                    <p className="text-xs text-muted-foreground">
+                      No deals in {stage.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onQuickAdd(stage.id)}
+                      className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      + Add deal
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {stageItems.map((item) => {
+                      const meta = item.metadata ?? {};
+                      const dealValue = parseDealValue(meta.value);
+                      const contactName = String(meta.contact_name ?? meta.contact ?? "");
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => onCardClick(item)}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {item.title}
+                            </p>
+                            {contactName && (
+                              <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <User className="size-3 shrink-0" />
+                                {contactName}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {dealValue > 0 && (
+                              <span className="text-xs font-semibold text-foreground">
+                                {formatCurrency(dealValue)}
+                              </span>
+                            )}
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                              style={{
+                                backgroundColor: `${stage.color ?? "#6B7280"}20`,
+                                color: stage.color ?? "#6B7280",
+                              }}
+                            >
+                              {stage.name}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function PipelineBoard({ stages: stagesProp, items: itemsProp, projectId }: PipelineBoardProps) {
   const { data: queryStages = [] } = useQuery<PipelineStage[]>({
     queryKey: ["pipeline", "stages", projectId ?? "global"],
