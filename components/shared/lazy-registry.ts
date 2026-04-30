@@ -33,15 +33,6 @@ export const LazySponsorROI = lazy(() =>
 );
 
 // ---------------------------------------------------------------------------
-// Pipeline
-// ---------------------------------------------------------------------------
-export const LazyConversionFunnel = lazy(() =>
-  import("@/components/pipeline/ConversionFunnel").then((m) => ({
-    default: m.ConversionFunnel,
-  }))
-);
-
-// ---------------------------------------------------------------------------
 // Finance
 // ---------------------------------------------------------------------------
 export const LazyFinanceCharts = lazy(() =>
