@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/pipeline", destination: "/projects", permanent: false },
+      { source: "/pipeline/:path*", destination: "/projects", permanent: false },
+      { source: "/context-docs", destination: "/", permanent: false },
+      { source: "/context-docs/:path*", destination: "/", permanent: false },
+    ];
+  },
 };
 
 export default withSentryConfig(nextConfig, {
