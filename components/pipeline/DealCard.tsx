@@ -19,6 +19,29 @@ interface PipelineItemData {
   updated_at: string;
 }
 
+
+/**
+ * Metadata fields used by the deal drawer (BAS-449). All optional.
+ * - `next_action` / `next_action_due`: drawer top card
+ * - `primary_contacts`: array of contact UUIDs (legacy: `contact_ids`)
+ *
+ * The base type stays as `Record<string, unknown>` so existing callers don't break.
+ */
+export interface DealMetadata {
+  next_action?: string;
+  next_action_due?: string;
+  primary_contacts?: string[];
+  contact_ids?: string[];
+  company?: string;
+  value?: number | string;
+  close_date?: string;
+  contact_name?: string;
+  probability?: string;
+  notes?: string;
+  qualified_status?: string;
+  [key: string]: unknown;
+}
+
 interface DealCardProps {
   item: PipelineItemData;
   onClick: (item: PipelineItemData) => void;
