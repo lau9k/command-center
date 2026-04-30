@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { Task, TaskStatus, TaskPriority } from "@/lib/types/database";
@@ -46,7 +46,6 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -71,13 +70,32 @@ type SortField = "created_at" | "priority" | "due_date" | "status";
 const ALL_VALUE = "__all__";
 const PAGE_SIZE = 20;
 
-const STATUS_CHIPS: { label: string; value: TaskStatus | typeof ALL_VALUE }[] = [
-  { label: "All", value: ALL_VALUE },
-  { label: "To Do", value: "todo" },
-  { label: "In Progress", value: "in_progress" },
-  { label: "Blocked", value: "blocked" },
-  { label: "Done", value: "done" },
+const OPEN_STATUSES: TaskStatus[] = ["todo", "in_progress", "blocked"];
+
+type StatusFilter = "open" | "all" | TaskStatus;
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: "open", label: "Open work" },
+  { value: "all", label: "All" },
+  { value: "todo", label: "To-do" },
+  { value: "in_progress", label: "In-progress" },
+  { value: "blocked", label: "Blocked" },
+  { value: "done", label: "Done" },
 ];
+
+function parseStatusFilter(value: string | null | undefined): StatusFilter {
+  if (
+    value === "open" ||
+    value === "all" ||
+    value === "todo" ||
+    value === "in_progress" ||
+    value === "blocked" ||
+    value === "done"
+  ) {
+    return value;
+  }
+  return "open";
+}
 
 type TaskFormData = {
   title: string;
@@ -98,6 +116,24 @@ const emptyForm: TaskFormData = {
 export default function ProjectTasksPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const supabase = createClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filterStatus = parseStatusFilter(searchParams.get("filter"));
+
+  const setFilterStatus = useCallback(
+    (next: StatusFilter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "open") {
+        params.delete("filter");
+      } else {
+        params.set("filter", next);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +144,6 @@ export default function ProjectTasksPage() {
 
   // Filters
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | typeof ALL_VALUE>(ALL_VALUE);
   const [filterPriority, setFilterPriority] = useState<string>(ALL_VALUE);
   const [sortBy, setSortBy] = useState<SortField>("created_at");
   const [page, setPage] = useState(1);
@@ -169,7 +204,9 @@ export default function ProjectTasksPage() {
   const filtered = useMemo(() => {
     let result = tasks;
 
-    if (filterStatus !== ALL_VALUE) {
+    if (filterStatus === "open") {
+      result = result.filter((t) => OPEN_STATUSES.includes(t.status));
+    } else if (filterStatus !== "all") {
       result = result.filter((t) => t.status === filterStatus);
     }
     if (filterPriority !== ALL_VALUE) {
@@ -208,7 +245,20 @@ export default function ProjectTasksPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const hasFilters = filterStatus !== ALL_VALUE || filterPriority !== ALL_VALUE || search.trim() !== "";
+  const hasFilters = filterStatus !== "open" || filterPriority !== ALL_VALUE || search.trim() !== "";
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<TaskStatus, number> = {
+      todo: 0,
+      in_progress: 0,
+      blocked: 0,
+      done: 0,
+    };
+    for (const t of tasks) {
+      counts[t.status] += 1;
+    }
+    return counts;
+  }, [tasks]);
 
   function openCreate() {
     setEditingTask(null);
@@ -291,28 +341,28 @@ export default function ProjectTasksPage() {
         </Button>
       </div>
 
-      {/* Status filter chips */}
+      {/* Status filter */}
       <div className="flex flex-wrap items-center gap-2">
-        {STATUS_CHIPS.map((chip) => (
-          <button
-            key={chip.value}
-            type="button"
-            onClick={() => setFilterStatus(chip.value)}
-            className={cn(
-              "inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-              filterStatus === chip.value
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
-            )}
-          >
-            {chip.label}
-            {chip.value !== ALL_VALUE && (
-              <span className="ml-1.5 tabular-nums">
-                {tasks.filter((t) => t.status === chip.value).length}
-              </span>
-            )}
-          </button>
-        ))}
+        <Select
+          value={filterStatus}
+          onValueChange={(v) => setFilterStatus(v as StatusFilter)}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+                {opt.value !== "open" && opt.value !== "all" && (
+                  <span className="ml-1.5 text-muted-foreground tabular-nums">
+                    ({statusCounts[opt.value]})
+                  </span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Search & Filters */}
@@ -354,7 +404,7 @@ export default function ProjectTasksPage() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              setFilterStatus(ALL_VALUE);
+              setFilterStatus("open");
               setFilterPriority(ALL_VALUE);
               setSearch("");
             }}

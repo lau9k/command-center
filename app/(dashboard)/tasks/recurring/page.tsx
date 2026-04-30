@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { RecurringTaskList } from "@/components/tasks/RecurringTaskList";
+import { TasksViewToggle } from "@/components/tasks/tasks-view-toggle";
 
 export const revalidate = 300;
 
@@ -23,6 +24,7 @@ export default async function RecurringTasksPage() {
       <PageHeader
         title="Recurring Tasks"
         description="Manage task schedules that automatically generate new tasks"
+        actions={<TasksViewToggle />}
       />
       <RecurringTaskList
         initial={templates ?? []}
