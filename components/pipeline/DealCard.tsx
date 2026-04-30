@@ -6,7 +6,7 @@ import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import { pipelineQualifiedBadgeClass } from "@/lib/design-tokens";
 
-export interface PipelineItemData {
+interface PipelineItemData {
   id: string;
   pipeline_id: string;
   stage_id: string;
