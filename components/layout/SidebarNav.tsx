@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bell,
-  BookOpen,
   Brain,
   Calendar,
   CheckSquare,
@@ -13,7 +13,6 @@ import {
   DollarSign,
   FileText,
   FolderOpen,
-  Kanban,
   LayoutDashboard,
   MessageSquare,
   Settings,
@@ -33,9 +32,7 @@ const modules = [
   { label: "Conversations", href: "/conversations", icon: MessageSquare },
   { label: "Content", href: "/content", icon: FileText },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "Context Docs", href: "/context-docs", icon: BookOpen },
   { label: "Memory Health", href: "/memory-health", icon: Brain },
-  { label: "Pipeline", href: "/pipeline", icon: Kanban },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
@@ -53,19 +50,30 @@ export function SidebarNav({ projects, hasMeekWallet, collapsed }: SidebarNavPro
 
   return (
     <div className="flex h-full flex-col">
-      <div className={cn("h-14 flex items-center", collapsed ? "px-2" : "px-4")}>
+      <div className={cn("h-14 flex items-center", collapsed ? "px-2 justify-center" : "px-4")}>
         <Link
           href="/"
-          className={cn(
-            "flex items-center text-lg font-semibold tracking-tight text-foreground",
-            collapsed ? "justify-center" : "gap-2"
-          )}
-          title="Command Center"
+          aria-label="Personize"
+          className="flex items-center"
         >
           {collapsed ? (
-            <LayoutDashboard className="h-5 w-5" />
+            <Image
+              src="/logos/personize-mark.svg"
+              alt="Personize"
+              width={28}
+              height={28}
+              className="h-6 w-6 dark:invert"
+              priority
+            />
           ) : (
-            "Command Center"
+            <Image
+              src="/logos/personize-command-center.svg"
+              alt="Personize"
+              width={140}
+              height={28}
+              className="h-7 w-auto dark:invert"
+              priority
+            />
           )}
         </Link>
       </div>
