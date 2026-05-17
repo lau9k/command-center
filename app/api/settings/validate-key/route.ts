@@ -9,7 +9,10 @@ const validateKeySchema = z.object({
 
 async function validatePersonize(key: string): Promise<{ valid: boolean; message: string }> {
   try {
-    const res = await fetch("https://api.personize.ai/v1/health", {
+    // S097 fix (2026-05-17): endpoint moved from api.personize.ai → agent.personize.ai/api.
+    // api.personize.ai returns NXDOMAIN; agent.personize.ai is the canonical production host
+    // per Hamed's Slack confirmation. Path prefix changed from /v1/ to /api/v1/.
+    const res = await fetch("https://agent.personize.ai/api/v1/health", {
       method: "GET",
       headers: { Authorization: `Bearer ${key}` },
       signal: AbortSignal.timeout(10000),
